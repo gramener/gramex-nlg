@@ -1,0 +1,12 @@
+{
+    "subject": {"column": "Party", "value": "BJP"},
+    "filters": [
+        {"column": "Vote share", "filter": ">=20%"}
+    ],
+    "verb": ["won", "scored", "achieved"],
+    "results": {
+        "colname": "AC",
+        "method": "tolist",
+        "sep": ", "
+    }
+}

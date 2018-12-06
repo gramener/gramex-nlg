@@ -5,7 +5,11 @@
 """
 Templates used in Gramex NLG.
 """
+import json
 import string
+
+import pandas as pd
+
 from nlg import grammar
 
 
@@ -94,6 +98,35 @@ def descriptive(struct, append_results=True, **kwargs):
     return sentence + ': ' + results
 
 
+def _process_urlparams(handler):
+    df = pd.read_csv(handler.args['data'][0])
+    with open(handler.args['metadata'][0], 'r') as f_in:
+        metadata = json.load(f_in)
+    return df, metadata
+
+
+def g_descriptive(handler):
+    """Wrapper to be used with gramex FunctionHandler to expose the `descriptive`
+    template.
+
+    Parameters
+    ----------
+
+    handler : vartype
+        handler is
+    *args : vartype
+        *args is
+    **kwargs : vartype
+        **kwargs is
+
+    Returns
+    -------
+
+    """
+    data, metadata = _process_urlparams(handler)
+    return descriptive({'data': data, 'metadata': metadata})
+
+
 def superlative(struct, *args, **kwargs):
     """Template for describing a superlative result in the data.
 
@@ -121,3 +154,26 @@ def superlative(struct, *args, **kwargs):
             fmt_kwargs[fieldname] = func(struct)
     fmt_kwargs.update(kwargs)
     return template.format(**fmt_kwargs)
+
+
+def g_superlative(handler):
+    """Wrapper to be used with gramex FunctionHandler to expose the
+    `superlative`
+    template.
+
+    Parameters
+    ----------
+
+    handler : vartype
+        handler is
+    *args : vartype
+        *args is
+    **kwargs : vartype
+        **kwargs is
+
+    Returns
+    -------
+
+    """
+    data, metadata = _process_urlparams(handler)
+    return superlative({'data': data, 'metadata': metadata})

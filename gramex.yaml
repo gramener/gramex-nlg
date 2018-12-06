@@ -1,0 +1,15 @@
+url:
+  nlg_1:
+    pattern: /$YAMLURL/narrate-1
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.templates.g_descriptive
+      headers:
+        Content-Type: application/json
+  nlg_2:
+    pattern: /$YAMLURL/narrate-2
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.templates.g_superlative
+      headers:
+        Content-Type: application/json
