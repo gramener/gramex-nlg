@@ -6,11 +6,89 @@
 Templates used in Gramex NLG.
 """
 import json
-import string
+import random
+from string import Formatter
 
 import pandas as pd
 
 from nlg import grammar
+
+TEMPLATES = {
+    'extreme': '{subject} {verb} the {adjective} {object}.'
+}
+
+
+class Narrative(object):
+
+    def __init__(self, struct):
+        self.intent = struct['intent']
+        self.template = TEMPLATES[self.intent]
+        self.metadata = struct['metadata']
+        self.data = struct['data']
+
+    @property
+    def subject(self):
+        subject = self.metadata['subject']
+        if isinstance(subject, str):
+            return subject
+        if isinstance(subject, dict):
+            pass
+        raise TypeError('Subject not found.')
+
+    @property
+    def verb(self):
+        verb = self.metadata['verb']
+        if isinstance(verb, str):
+            return verb
+        if isinstance(verb, (list, tuple)):
+            return random.choice(verb)
+
+    @property
+    def adjective(self):
+        adj = self.metadata['adjective']
+        if isinstance(adj, str):
+            return adj
+        if isinstance(adj, (list, tuple)):
+            return random.choice(adj)
+
+    @property
+    def object(self):
+        obj = self.metadata['object']
+        if isinstance(obj, str):
+            return obj
+        if isinstance(obj, dict):
+            tmpl = obj['template']
+            fmt_kwargs = {}
+            for _, fname, _, _ in Formatter().parse(tmpl):
+                if fname:
+                    fmt_kwargs[fname] = self.kwarg_from_df(**obj['kwargs'][fname])
+            return tmpl.format(**fmt_kwargs)
+
+    def kwarg_from_df(self, _type, colname, _filter):
+        value = None
+        if isinstance(_filter, str):
+            value = get_series_extreme(self.data[colname], _filter)
+        elif isinstance(_filter, dict):
+            by = _filter['colname']
+            subfilter = _filter['filter']
+            ix = getattr(self.data[by], 'idx' + subfilter)()
+            value = self.data.iloc[ix][colname]
+        return value
+
+    def render(self):
+        fmt_kwargs = {}
+        for _, fieldname, _, _ in Formatter().parse(self.template):
+            if fieldname:
+                fmt_kwargs[fieldname] = getattr(self, fieldname,
+                                                '{{}}'.format(fieldname))
+        return self.template.format(**fmt_kwargs)
+
+
+def get_series_extreme(s, method):
+    value = getattr(s, method)()
+    if method == 'mode':
+        value = value.iloc[0]
+    return value
 
 
 def concatenate_items(items, sep=', ', oxford_comma=False):
@@ -85,7 +163,7 @@ def descriptive(struct, append_results=True, **kwargs):
 
     template = '{subject} {verb} {object} {preposition} {prep_object}'
     fmt_kwargs = {}
-    for _, fieldname, _, _ in string.Formatter().parse(template):
+    for _, fieldname, _, _ in Formatter().parse(template):
         if not fieldname.startswith('_'):
             func = getattr(grammar, 'make_' + fieldname,
                            grammar.keep_fieldname)
@@ -147,7 +225,7 @@ def superlative(struct, *args, **kwargs):
     """
     template = '{subject} {verb} {superlative} {object} {preposition} {prep_object}'
     fmt_kwargs = {}
-    for _, fieldname, _, _ in string.Formatter().parse(template):
+    for _, fieldname, _, _ in Formatter().parse(template):
         if not fieldname.startswith('_'):
             func = getattr(grammar, 'make_' + fieldname,
                            grammar.keep_fieldname)
