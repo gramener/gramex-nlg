@@ -14,7 +14,8 @@ import pandas as pd
 from nlg import grammar
 
 TEMPLATES = {
-    'extreme': '{subject} {verb} the {adjective} {object}.'
+    'extreme': '{subject} {verb} the {adjective} {object}.',
+    'comparison': '{subject} {verb} {quant} {adjective} than {object}.'
 }
 
 
@@ -32,8 +33,32 @@ class Narrative(object):
         if isinstance(subject, str):
             return subject
         if isinstance(subject, dict):
-            pass
+            tmpl = subject.get('template', False)
+            if tmpl:
+                fmt_kwargs = {}
+                for _, fname, _, _, in Formatter().parse(tmpl):
+                    if fname:
+                        fmt_kwargs[fname] = self.kwarg_from_df(
+                            **subject['kwargs'][fname])
+                return tmpl.format(**fmt_kwargs)
+            return self.kwarg_from_df(**subject)
         raise TypeError('Subject not found.')
+
+    @property
+    def quant(self):
+        quant = self.metadata['quant']
+        if isinstance(quant, str):
+            return quant
+        if isinstance(quant, dict):
+            tmpl = quant.get('template', False)
+            if tmpl:
+                fmt_kwargs = {}
+                for _, fname, _, _ in Formatter().parse(tmpl):
+                    if fname:
+                        fmt_kwargs[fname] = self.eval_quant(
+                            **quant['kwargs'][fname])
+            return tmpl.format(**fmt_kwargs)
+        raise TypeError('Quant not found.')
 
     @property
     def verb(self):
@@ -61,8 +86,14 @@ class Narrative(object):
             fmt_kwargs = {}
             for _, fname, _, _ in Formatter().parse(tmpl):
                 if fname:
-                    fmt_kwargs[fname] = self.kwarg_from_df(**obj['kwargs'][fname])
+                    fmt_kwargs[fname] = self.kwarg_from_df(
+                        **obj['kwargs'][fname])
             return tmpl.format(**fmt_kwargs)
+
+    def eval_quant(self, _type, expr):
+        if _type != 'operation':
+            return 0
+        return pd.eval(expr.format(data=self.data))
 
     def kwarg_from_df(self, _type, colname, _filter):
         value = None
