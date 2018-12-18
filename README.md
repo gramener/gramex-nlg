@@ -27,5 +27,5 @@ $ gramex init
 
 After gramex starts running, try these links:
 
-1. [](http://localhost:9988/narrate-1?data=data/assembly.csv&metadata=data/desc_metadata.json)
-2. [](http://localhost:9988/narrate-2?data=data/voteshare.csv&metadata=data/super_metadata.json)
+1. ![](http://localhost:9988/narrate-1?data=data/assembly.csv&metadata=data/desc_metadata.json)
+2. ![](http://localhost:9988/narrate-2?data=data/voteshare.csv&metadata=data/super_metadata.json)
