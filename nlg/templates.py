@@ -9,6 +9,7 @@ import json
 import random
 from string import Formatter
 
+from inflect import engine
 import pandas as pd
 
 from nlg import grammar
@@ -17,6 +18,79 @@ TEMPLATES = {
     'extreme': '{subject} {verb} the {adjective} {object}.',
     'comparison': '{subject} {verb} {quant} {adjective} than {object}.'
 }
+infl = engine()
+
+
+class Description(object):
+
+    prefixes = ['This dataset contains ']
+    metadata_tmpl = '{rowname} for {n_rows} {entities}.'
+
+    def __init__(self, df, rowname=''):
+        self.df = df
+        self.rowname = rowname
+        self.clean()
+        self.categoricals = [c for c, d in df.dtypes.iteritems() if d.name in
+                             ('object', 'bool', 'category')]
+        self.numericals = [c for c, d in df.dtypes.iteritems() if d in
+                           (float, int)]
+        self.desc = df[self.numericals].describe()
+        self.indices = self.find_possible_indices()
+
+    def find_possible_indices(self):
+        indices = []
+        for col in self.categoricals:
+            if self.df[col].nunique() == self.df.shape[0]:
+                indices.append(col)
+        return indices
+
+    def sentences(self):
+        return self.get_metadata() + self.narrate_categoricals() + \
+            self.narrate_numericals()
+
+    def render(self, sep='\n', *args, **kwargs):
+        return sep.join(self.sentences())
+
+    def clean(self):
+        self.df.dropna(inplace=True)
+        self.df.drop_duplicates(inplace=True)
+
+    def get_metadata(self):
+        entity = random.choice(self.indices)
+        if not infl.singular_noun(entity):
+            entity = infl.plural(entity)
+        prefix = [random.choice(self.prefixes)]
+        prefix.append(self.metadata_tmpl.format(rowname=self.rowname,
+                                                n_rows=self.df.shape[0],
+                                                entities=entity))
+        return prefix
+
+    def common_categoricals(self, top_n=5):
+        results = {}
+        if isinstance(top_n, int):
+            top_n = [top_n] * len(self.categoricals)
+        for i, colname in zip(top_n, self.categoricals):
+            vcs = self.df[colname].value_counts()
+            results[colname] = vcs[:i].index
+        return results
+
+    def narrate_categoricals(self, top_n=5):
+        sentences = []
+        for k, v in self.common_categoricals(top_n).items():
+            values = ','.join(v)
+            sent = 'The top {0} {1} are {2}'.format(top_n, k, values)
+            sentences.append(sent)
+        return sentences
+
+    def narrate_numericals(self):
+        sentences = []
+        tmpl = '{colname} vary from a minimum value of {min} to a maximum' + \
+               ' of {max} at an average of {mean}.'
+        for col in self.desc:
+            sentences.append(tmpl.format(colname=col, min=self.desc[col]['min'],
+                                         max=self.desc[col]['max'],
+                                         mean=self.desc[col]['mean']))
+        return sentences
 
 
 class Narrative(object):
