@@ -8,6 +8,7 @@ Miscellaneous utilities.
 from inflect import engine
 
 infl = engine()
+is_plural = infl.singular_noun
 
 
 def concatenate_items(items, sep=', '):
@@ -45,6 +46,6 @@ def pluralize(word):
     str
         Plural of `word`
     """
-    if not infl.singular_noun(word):
+    if not is_plural(word):
         word = infl.plural(word)
     return word

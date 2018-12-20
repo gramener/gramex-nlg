@@ -12,7 +12,7 @@ from string import Formatter
 import pandas as pd
 
 from nlg import grammar
-from nlg.utils import concatenate_items, pluralize
+from nlg.utils import concatenate_items, pluralize, is_plural
 
 TEMPLATES = {
     'extreme': '{subject} {verb} the {adjective} {object}.',
@@ -25,10 +25,11 @@ class Description(object):
     prefixes = ['This dataset contains ']
     metadata_tmpl = '{rowname} for {n_rows} {entities}.'
 
-    def __init__(self, df, rowname=''):
+    def __init__(self, df, entity='', rowname=''):
         self.df = df
         self.rowname = rowname
-        self.clean()
+        self.entity = entity
+        # self.clean()
         self.categoricals = [c for c, d in df.dtypes.iteritems() if d.name in
                              ('object', 'bool', 'category')]
         self.numericals = [c for c, d in df.dtypes.iteritems() if d in
@@ -55,8 +56,9 @@ class Description(object):
         self.df.drop_duplicates(inplace=True)
 
     def get_metadata(self):
-        entity = random.choice(self.indices)
-        entity = pluralize(entity)
+        if self.indices and not self.entity:
+            self.entity = random.choice(self.indices)
+        entity = pluralize(self.entity)
         prefix = [random.choice(self.prefixes)]
         prefix.append(self.metadata_tmpl.format(rowname=self.rowname,
                                                 n_rows=self.df.shape[0],
@@ -81,18 +83,22 @@ class Description(object):
             values = concatenate_items(v)
             if n_items < top_n:
                 top_n = n_items
-            sent = 'The top {0} {1} are {2}'.format(top_n, k, values)
-            sentences.append(sent)
+                sent = 'The {0} unique {1} are {2}.'
+            else:
+                sent = 'The top {0} {1} are {2}.'
+            sentences.append(sent.format(top_n, k, values))
         return sentences
 
     def narrate_numericals(self):
         sentences = []
-        tmpl = '{colname} vary from a minimum value of {min} to a maximum' + \
-               ' of {max} at an average of {mean}.'
+        tmpl = '{colname} {verb} between {min} and {max} at an average of {mean}.'
         for col in self.desc:
-            sentences.append(tmpl.format(colname=col, min=self.desc[col]['min'],
+            colname = col.capitalize() if not col.isupper() else col
+            verb = 'vary' if is_plural(col) else 'varies'
+            sentences.append(tmpl.format(colname=colname, min=self.desc[col]['min'],
                                          max=self.desc[col]['max'],
-                                         mean=self.desc[col]['mean']))
+                                         mean=self.desc[col]['mean'],
+                                         verb=verb))
         return sentences
 
 
@@ -340,5 +346,6 @@ def g_superlative(handler):
 
 
 if __name__ == '__main__':
-    df = pd.read_csv('../gramex/tests/actors.csv')
-    print(Description(df, 'ratings and votes').render())
+    import sys
+    df = pd.read_csv(sys.argv[1])
+    print(Description(df, 'Breast cancer patients', 'details').render())
