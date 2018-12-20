@@ -9,16 +9,15 @@ import json
 import random
 from string import Formatter
 
-from inflect import engine
 import pandas as pd
 
 from nlg import grammar
+from nlg.utils import concatenate_items, pluralize
 
 TEMPLATES = {
     'extreme': '{subject} {verb} the {adjective} {object}.',
     'comparison': '{subject} {verb} {quant} {adjective} than {object}.'
 }
-infl = engine()
 
 
 class Description(object):
@@ -57,8 +56,7 @@ class Description(object):
 
     def get_metadata(self):
         entity = random.choice(self.indices)
-        if not infl.singular_noun(entity):
-            entity = infl.plural(entity)
+        entity = pluralize(entity)
         prefix = [random.choice(self.prefixes)]
         prefix.append(self.metadata_tmpl.format(rowname=self.rowname,
                                                 n_rows=self.df.shape[0],
@@ -70,14 +68,19 @@ class Description(object):
         if isinstance(top_n, int):
             top_n = [top_n] * len(self.categoricals)
         for i, colname in zip(top_n, self.categoricals):
-            vcs = self.df[colname].value_counts()
-            results[colname] = vcs[:i].index
+            if colname not in self.indices:
+                vcs = self.df[colname].value_counts()
+                results[colname] = vcs[:i].index
         return results
 
     def narrate_categoricals(self, top_n=5):
         sentences = []
         for k, v in self.common_categoricals(top_n).items():
-            values = ','.join(v)
+            k = pluralize(k)
+            n_items = len(v)
+            values = concatenate_items(v)
+            if n_items < top_n:
+                top_n = n_items
             sent = 'The top {0} {1} are {2}'.format(top_n, k, values)
             sentences.append(sent)
         return sentences
@@ -194,32 +197,6 @@ def get_series_extreme(s, method):
     if method == 'mode':
         value = value.iloc[0]
     return value
-
-
-def concatenate_items(items, sep=', ', oxford_comma=False):
-    """Concatenate a sequence of tokens into an English string.
-
-    Parameters
-    ----------
-
-    items : list-like
-        List / sequence of items to be printed.
-    sep : str, optional
-        Separator to use when generating the string
-    oxford_comma : bool, optional
-        Whether to use the Oxford comma.
-
-    Returns
-    -------
-
-    """
-    s = sep.join(list(items)[:-1])
-    if sep == ', ':
-        appendix = ' and ' + items[-1]
-        if oxford_comma:
-            appendix = sep.rstrip() + appendix
-        s = s + appendix
-    return s
 
 
 def get_literal_results(struct):
@@ -360,3 +337,8 @@ def g_superlative(handler):
     """
     data, metadata = _process_urlparams(handler)
     return superlative({'data': data, 'metadata': metadata})
+
+
+if __name__ == '__main__':
+    df = pd.read_csv('../gramex/tests/actors.csv')
+    print(Description(df, 'ratings and votes').render())
