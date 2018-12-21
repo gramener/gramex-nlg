@@ -26,7 +26,7 @@ def concatenate_items(items, sep=', '):
     -------
     str
     """
-    if not items:
+    if len(items) == 0:
         return ''
     items = list(map(str, items))
     if sep == ', ':
