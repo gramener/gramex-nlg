@@ -21,13 +21,31 @@ TEMPLATES = {
 
 
 class Description(object):
+    """Generate general purpose natural language descriptions of dataframes."""
 
     prefixes = ['This dataset contains ']
     metadata_tmpl = '{rowname} for {n_rows} {entities}.'
 
-    def __init__(self, df, entity='', rowname=''):
+    def __init__(self, df, entity='', attributes=''):
+        """
+
+        Parameters
+        ----------
+        df : `pandas.DataFrame`
+            The source dataframe
+        entity : str
+            A named entity to represent the rows in the dataframe. For example,
+            in Fisher's Iris dataset, the entity would be 'Iris flower
+            samples', and in the Boston house pricing dataset it would be
+            'Houses in Boston'.
+        attributes : str
+            A collective name to represent which attributes of `entity` are
+            captured in the columns of the dataframe. For example, in the iris
+            dataset, this would be 'petal and sepal measurements' and in the
+            Boston house pricing dataset this would be 'real estate details'.
+        """
         self.df = df
-        self.rowname = rowname
+        self.attributes = attributes
         self.entity = entity
         # self.clean()
         self.categoricals = [c for c, d in df.dtypes.iteritems() if d.name in
@@ -38,6 +56,10 @@ class Description(object):
         self.indices = self.find_possible_indices()
 
     def find_possible_indices(self):
+        """Find columns from the dataframe which can serve as indices.
+
+        Any categorical column from the dataset which contains as many unique
+        elements as the length of the dataframe can be used as an index."""
         indices = []
         for col in self.categoricals:
             if self.df[col].nunique() == self.df.shape[0]:
@@ -45,10 +67,23 @@ class Description(object):
         return indices
 
     def sentences(self):
+        """Get the final narrative as a list of sentences."""
         return self.get_metadata() + self.narrate_categoricals() + \
             self.narrate_numericals()
 
     def render(self, sep='\n', *args, **kwargs):
+        """Generate the narration string.
+
+        Parameters
+        ----------
+        sep : str
+            Separator used to join individual sentences.
+
+        Returns
+        -------
+        str
+            The final narration.
+        """
         return sep.join(self.sentences())
 
     def clean(self):
@@ -56,16 +91,32 @@ class Description(object):
         self.df.drop_duplicates(inplace=True)
 
     def get_metadata(self):
+        """Get the metadata of the dataframe as an English sentence. It
+        contains details like the entity, attributes and the size of the
+        dataset."""
         if self.indices and not self.entity:
             self.entity = random.choice(self.indices)
         entity = pluralize(self.entity)
         prefix = [random.choice(self.prefixes)]
-        prefix.append(self.metadata_tmpl.format(rowname=self.rowname,
+        prefix.append(self.metadata_tmpl.format(rowname=self.attributes,
                                                 n_rows=self.df.shape[0],
                                                 entities=entity))
         return prefix
 
     def common_categoricals(self, top_n=5):
+        """Find the most common occurences of each categorical feature.
+
+        Parameters
+        ----------
+        top_n : int
+            Number of most frequent values to count.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys as the column names and values as lists of
+            the most common occurences of the feature.
+        """
         results = {}
         if isinstance(top_n, int):
             top_n = [top_n] * len(self.categoricals)
@@ -76,6 +127,18 @@ class Description(object):
         return results
 
     def narrate_categoricals(self, top_n=5):
+        """Generate sentences that describe categorical variables.
+
+        Parameters
+        ----------
+        top_n : int
+            Number of most frequent values to count.
+
+        Returns
+        -------
+        list
+            A list of sentences.
+        """
         sentences = []
         for k, v in self.common_categoricals(top_n).items():
             k = pluralize(k)
@@ -90,6 +153,13 @@ class Description(object):
         return sentences
 
     def narrate_numericals(self):
+        """Generate sentences that describe numerical variables.
+
+        Returns
+        -------
+        list
+            A list of sentences.
+        """
         sentences = []
         tmpl = '{colname} {verb} between {min} and {max} at an average of {mean}.'
         for col in self.desc:
@@ -343,9 +413,3 @@ def g_superlative(handler):
     """
     data, metadata = _process_urlparams(handler)
     return superlative({'data': data, 'metadata': metadata})
-
-
-if __name__ == '__main__':
-    import sys
-    df = pd.read_csv(sys.argv[1])
-    print(Description(df, 'Breast cancer patients', 'details').render())

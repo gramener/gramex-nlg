@@ -26,9 +26,14 @@ def concatenate_items(items, sep=', '):
     -------
     str
     """
-    s = sep.join(list(items)[:-1])
+    if not items:
+        return ''
+    items = list(map(str, items))
     if sep == ', ':
+        s = sep.join(items[:-1])
         s += ' and ' + items[-1]
+    else:
+        s = sep.join(items)
     return s
 
 
