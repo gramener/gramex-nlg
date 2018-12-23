@@ -20,7 +20,7 @@ testlib/**/gen.*
 *.sqlite3-journal
 
 # Cache folders used for testing
-.cache-*
+.cache*
 .pytest_cache
 
 # Ignore log files
