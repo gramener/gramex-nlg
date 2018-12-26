@@ -10,6 +10,7 @@ import random
 import re
 from string import Formatter
 
+import numpy as np
 import pandas as pd
 
 from nlg import grammar
@@ -31,17 +32,39 @@ def parse_func_expr(expr):
 
 class Narrative(object):
 
-    def __init__(self, struct):
-        intent = struct.get('intent', False)
-        if intent:
-            self.intent = intent
-            self.template = TEMPLATES[self.intent]
+    def __init__(self, template='', data=None, struct=None, tmpl_weights=None, **fmt_kwargs):
+        self.fmt = Formatter()
+        if struct is None:
+            struct = {}
+        if data is None:
+            self.data = struct.get('data')
         else:
-            if 'template' not in struct:
-                raise KeyError('Either intent or template must be specified.')
-            self.template = struct['template']
-        self.metadata = struct['metadata']
-        self.data = struct['data']
+            self.data = data
+        if isinstance(template, str):
+            self.template = template
+        elif isinstance(template, (list, tuple)):
+            if tmpl_weights is not None:
+                self.template = np.random.choice(template, 1, p=tmpl_weights)[0]
+            else:
+                self.template = random.choice(template)
+        self.fmt_kwargs = fmt_kwargs
+        if struct:
+            intent = struct.get('intent', False)
+            if intent:
+                self.intent = intent
+                self.template = TEMPLATES[self.intent]
+            else:
+                if 'template' not in struct:
+                    raise KeyError('Either intent or template must be specified.')
+                self.template = struct['template']
+            self.metadata = struct['metadata']
+
+    @property
+    def tmpl_fnames(self):
+        return [f for _, f, _, _ in self.fmt.parse(self.template) if f]
+
+    def __repr__(self):
+        return self.render()
 
     def is_template(self, spec):
         """Check if a spec contains a template and the information required to
@@ -58,7 +81,7 @@ class Narrative(object):
         """
         template = spec.get('template')
         if isinstance(template, str):
-            fieldnames = [f for _, f, _, _ in Formatter().parse(template) if f]
+            fieldnames = [f for _, f, _, _ in self.fmt.parse(template) if f]
             kwargs = spec.get('kwargs', {})
             if kwargs:
                 return all([f in kwargs for f in fieldnames])
@@ -68,7 +91,7 @@ class Narrative(object):
     def get_template_kwargs(self, spec):
         """Parse a template dict and find the fieldname kwargs."""
         tmpl = spec.get('template')
-        fieldnames = [f for _, f, _, _ in Formatter().parse(tmpl) if f]
+        fieldnames = [f for _, f, _, _ in self.fmt.parse(tmpl) if f]
         kwargs = spec.get('kwargs', False)
         if kwargs:
             for f in fieldnames:
@@ -123,11 +146,29 @@ class Narrative(object):
             return 0
         return pd.eval(expr.format(data=self.data))
 
-    def process_pos(self, spec):
+    def get_native_fmt_field(self, kw, spec):
+        """Given a field name and a field spec, see if the pair evaluate to a
+        native Python string format.
+
+        Parameters
+        ----------
+
+        kw : str
+            Format field.
+        spec : any
+            Format field specification
+        """
+        _, kw, _, _ = list(self.fmt.parse('{{{}}}'.format(kw)))[0]
+        obj, _ = self.fmt.get_field(kw, (), {kw: spec})
+        return obj
+
+    def process_pos(self, kw, spec):
         """Process the specification for an arbitrary part of speech.
 
         Parameters
         ----------
+        kw : str
+            The format string keyword corresponding to the spec.
         spec : string or dict
             The specification for a given part of speech. If string, it is
             assumed to be a literal. If dict, it is expected to contain filters
@@ -139,7 +180,12 @@ class Narrative(object):
         str
             Rendered string representation of the PoS.
         """
-        if isinstance(spec, str):  # literal string
+        # check if the kw and the spec evaluate to native Python string
+        # formatting
+        obj = self.get_native_fmt_field(kw, spec)
+        if isinstance(obj, str):
+            return obj
+        if isinstance(spec, (str, int, float)):  # literal string
             return spec
         if isinstance(spec, (list, tuple)):
             return random.choice(spec)
@@ -183,19 +229,38 @@ class Narrative(object):
             return self.process_pos(obj)
         raise KeyError('Object not found.')
 
+    def is_data_ref(self, s):
+        fnames = set([f for _, f, _, _ in self.fmt.parse(s) if f])
+        if len(fnames) != 1:
+            return False
+        _, field = self.fmt.get_field(fnames.pop(), (), {'data': self.data})
+        return field == 'data'
+
+    def has_fieldname(self, s):
+        """Check if a string has a fieldname left in it."""
+        return any([f for _, f, _, _ in self.fmt.parse(s) if f])
+
     def render(self):
+        try:
+            s = self.template.format(**self.fmt_kwargs)
+            if not self.has_fieldname(s):
+                return s
+        except KeyError:
+            pass
+
         fmt_kwargs = {}
-        for _, fieldname, _, _ in Formatter().parse(self.template):
-            if fieldname:
-                field_args = getattr(self, fieldname, False)
-                if not field_args:
-                    spec = self.metadata.get(fieldname, False)
-                    if not spec:
-                        raise KeyError("Cannot find {}.".format(fieldname))
-                    fmt_kwargs[fieldname] = self.process_pos(spec)
+        if not hasattr(self, 'intent'):
+            for k, v in self.fmt_kwargs.items():
+                if not isinstance(v, str):
+                    fmt_kwargs[k] = self.process_pos(k, v)
                 else:
-                    fmt_kwargs[fieldname] = getattr(self, fieldname,
-                                                    '{{}}'.format(fieldname))
+                    if self.is_data_ref(v):
+                        fmt_kwargs[k] = v.format(data=self.data)
+                    else:
+                        fmt_kwargs[k] = v
+        else:
+            for k, v in self.metadata.items():
+                fmt_kwargs[k] = self.process_pos(k, v)
         return self.template.format(**fmt_kwargs)
 
 
@@ -370,3 +435,16 @@ def g_superlative(handler):
     """
     data, metadata = _process_urlparams(handler)
     return superlative({'data': data, 'metadata': metadata})
+
+
+if __name__ == '__main__':
+    df = pd.read_csv('data/assembly.csv')
+    df['vote_share'] = df.pop(
+        'Vote share').apply(lambda x: x.replace('%', '')).astype(float)
+    tmpl = """BJP won a voteshare of {x}% in {y}, followed by {a}% in {b} and
+    {c}% in {d}."""
+    N = Narrative(tmpl, data=df,
+                  x='{data.vote_share[0]}', y='{data.AC[0]}',
+                  a='{data.vote_share[1]}', b='{data.AC[1]}',
+                  c='{data.vote_share[2]}', d='{data.AC[2]}')
+    print(N)
