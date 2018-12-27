@@ -245,7 +245,7 @@ class Narrative(object):
 
     def render(self):
         if self.tornado_tmpl:
-            return Template(self.template).generate(**self.fmt_kwargs)
+            return Template(self.template).generate(**self.fmt_kwargs).decode('utf-8')
         try:
             s = self.template.format(**self.fmt_kwargs)
             if not self.has_fieldname(s):

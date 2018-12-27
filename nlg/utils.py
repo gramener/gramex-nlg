@@ -13,25 +13,6 @@ infl = engine()
 is_plural = infl.singular_noun
 
 
-def humanize_timeperiod(start, end='now', resolution='days'):
-    """
-
-    Parameters
-    ----------
-
-    start : vartype
-        start is
-    end : vartype
-        end is
-    resolution : vartype
-        resolution is
-
-    Returns
-    -------
-
-    """
-
-
 def concatenate_items(items, sep=', '):
     """Concatenate a sequence of tokens into an English string.
 
@@ -95,7 +76,7 @@ def pluralize_by_seq(word, by):
 def humanize_comparison(x, y, bit, lot):
     if x == y:
         return choice(['the same', 'identical'])
-    if x > y:
+    if x < y:
         comparative = choice(['higher', 'more', 'greater'])
     else:
         comparative = choice(['less', 'lower'])
