@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <meta charset="utf-8" />
+		<title>Preview</title>
+	</head>
+	<body>
+        <link rel="stylesheet" href="ui/bootstraptheme.css"/>     <!-- Add bootstrap -->
+        <div class="formhandler" data-src="_preview"></div>          <!-- Insert component here -->
+        <!-- Include JS dependencies  -->
+        <script src="ui/lodash/lodash.min.js"></script>
+        <script src="ui/jquery/dist/jquery.min.js"></script>
+        <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+        <script src="ui/bootstrap/dist/js/bootstrap.min.js"></script>
+        <script src="ui/g1/dist/g1.min.js"></script>
+        <script>
+            // Render the FormHandler table
+            $('.formhandler').formhandler()
+        </script>
+        <form method="POST" enctype="multipart/form-data">
+            <div><label for="textbox">Type Something</label>:
+                <textarea id="textbox" name="textbox", value={{ tmpl }}></textarea></div>
+            <div><label for="submit">Submit</label>: <input id="submit" name="submit" type="submit" value="Submit"></div>
+	</body>
+</html>

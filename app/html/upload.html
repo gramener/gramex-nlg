@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <meta charset="utf-8" />
+		<title>File Upload</title>
+	</head>
+	<body>
+        <form method="POST", enctype="multipart/form-data">
+            <div>{{ form.file_upload.label }}: {{ form.file_upload() }}</div>
+            <div>{{ form.submit.label }}: {{ form.submit() }}</div>
+        </form>
+	</body>
+</html>

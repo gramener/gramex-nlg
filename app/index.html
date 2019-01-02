@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+	<head>
+        <meta charset="utf-8" />
+		<title>Preview</title>
+	</head>
+	<body>
+        <link rel="stylesheet" href="ui/bootstraptheme.css"/>     <!-- Add bootstrap -->
+        <div class="formhandler" data-src="_preview"></div>          <!-- Insert component here -->
+        <!-- Include JS dependencies  -->
+        <script src="ui/lodash/lodash.min.js"></script>
+        <script src="ui/jquery/dist/jquery.min.js"></script>
+        <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+        <script src="ui/bootstrap/dist/js/bootstrap.min.js"></script>
+        <script src="ui/g1/dist/g1.min.js"></script>
+        <script>
+            // Render the FormHandler table
+            $('.formhandler').formhandler()
+        </script>
+        <script>
+            function processTemplate() {
+                var tbox = document.getElementById("textbox");
+                var request = new XMLHttpRequest();
+                request.onreadystatechange = function() { 
+                    if (request.readyState == 4 && request.status == 200)
+                        textAreaCallback(request.responseText);
+                }
+                request.open("GET", "http://localhost:9988/textproc?textbox=" + tbox.value, true);
+                request.send(null);
+            }
+            function textAreaCallback(text) {
+                var tbox = document.getElementById("template-preview");
+                tbox.textContent = text;
+            }
+        </script>
+        <form id="myform" action="/textproc" enctype="multipart/form-data">
+        <div>
+            <label for="textbox">Type Something</label>:
+            <textarea id="textbox" name="textbox" style="font-family:monospace"></textarea>
+        </div>
+        <div>
+            <input id="inspect" name="inspect" type="button" value="Inspect" onclick="processTemplate();"/>
+        </div>
+        </form>
+        <br>
+        <h3>Preview Template:</h3>
+        <br>
+        <p id="template-preview" style="font-family:monospace"></p>
+	</body>
+</html>
