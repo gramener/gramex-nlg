@@ -11,6 +11,7 @@ import unittest
 import numpy as np
 import pandas as pd
 from nlg import Narrative as N
+from nlg import utils
 
 np.random.seed(1234)
 
@@ -101,26 +102,26 @@ class TestNarrative(unittest.TestCase):
     def test_filter_expressions(self):
         """test_filter_expressions"""
         struct = {
-           'intent': 'extreme',
-           'data': self.df,
-           'metadata': {
-               'subject': 'BJP',
-               'verb': ['won', 'scored', 'achieved'],
-               'adjective': ['highest', 'greatest', 'most', 'largest'],
-               'object': {
-                   'template': 'vote share of {value}% in {location}',
-                   'location': {
-                       '_type': 'cell',
-                       'colname': 'AC',
-                       '_filter': 'max(vote_share)'  # filter expression
-                   },
-                   'value': {
-                       '_type': 'cell',
-                       'colname': 'vote_share',
-                       '_filter': 'max'
-                   }
-               }
-           }
+            'intent': 'extreme',
+            'data': self.df,
+            'metadata': {
+                'subject': 'BJP',
+                'verb': ['won', 'scored', 'achieved'],
+                'adjective': ['highest', 'greatest', 'most', 'largest'],
+                'object': {
+                    'template': 'vote share of {value}% in {location}',
+                    'location': {
+                        '_type': 'cell',
+                        'colname': 'AC',
+                        '_filter': 'max(vote_share)'  # filter expression
+                    },
+                    'value': {
+                        '_type': 'cell',
+                        'colname': 'vote_share',
+                        '_filter': 'max'
+                    }
+                }
+            }
         }
         ideal = 'BJP ({verbs}) the ({adjs}) vote share of 24% in Jaisalmer'
         self.assertRegex(N(struct=struct).render(),
@@ -248,3 +249,19 @@ class TestNarrative(unittest.TestCase):
             N(struct=struct).render(),
             'BJP\'s voteshare is 4% (higher|greater|more) than in Jaisalmer than in Jodhpur\.'
         )
+
+    def test_tornado_templates_simple(self):
+        self.assertEqual(N('hello world', tornado_tmpl=True).render(),
+                         'hello world')
+        self.assertEqual(N('', tornado_tmpl=True).render(), '')
+
+    def test_tornato_templates_utils(self):
+        t = '''
+        The quick brown {{ utils.plural(x) }} jumped over the lazy {{ utils.concatenate_items(y) }}.
+        '''
+        ideal = '''
+        The quick brown foxes jumped over the lazy dog, cat and rat.
+        '''
+        self.assertEqual(N(t, tornado_tmpl=True, utils=utils, x='fox',
+                           y=['dog', 'cat', 'rat']).render(),
+                         ideal)

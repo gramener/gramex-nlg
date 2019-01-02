@@ -5,7 +5,9 @@
 """
 Miscellaneous utilities.
 """
+from random import choice
 from inflect import engine
+import humanize  # NOQA: F401
 
 infl = engine()
 is_plural = infl.singular_noun
@@ -28,6 +30,8 @@ def concatenate_items(items, sep=', '):
     """
     if len(items) == 0:
         return ''
+    if len(items) == 1:
+        return items[0]
     items = list(map(str, items))
     if sep == ', ':
         s = sep.join(items[:-1])
@@ -37,7 +41,7 @@ def concatenate_items(items, sep=', '):
     return s
 
 
-def pluralize(word):
+def plural(word):
     """Pluralize a word.
 
     Parameters
@@ -54,3 +58,32 @@ def pluralize(word):
     if not is_plural(word):
         word = infl.plural(word)
     return word
+
+
+def singular(word):
+    if is_plural(word):
+        word = infl.singular_noun(word)
+    return word
+
+
+def pluralize_by_seq(word, by):
+    """Pluralize a word depending on a sequence."""
+    if len(by) > 1:
+        return plural(word)
+    return singular(word)
+
+
+def humanize_comparison(x, y, bit, lot):
+    if x == y:
+        return choice(['the same', 'identical'])
+    if x < y:
+        comparative = choice(['higher', 'more', 'greater'])
+    else:
+        comparative = choice(['less', 'lower'])
+    if lot(x, y):
+        adj = choice(['a lot', 'much'])
+    elif bit(x, y):
+        adj = choice(['a little', 'a bit'])
+    else:
+        adj = ''
+    return ' '.join([adj, comparative])

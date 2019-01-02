@@ -1,5 +1,9 @@
-from nlg import Narrative as N
+from datetime import datetime, timedelta
+import numpy as np
 import pandas as pd
+import humanize as hmn
+from nlg import Narrative as N
+from nlg import utils
 
 
 ###############################################################################
@@ -155,3 +159,36 @@ struct = {
     }
 }
 print(N(struct=struct).render())
+
+###############################################################################
+# Fancy templating with tornado ###############################################
+###############################################################################
+
+df = pd.DataFrame.from_dict({'project': ['Dell', 'Ambit', 'Star']})
+df['this_week'] = np.random.rand(3,)
+df['last_week'] = np.random.rand(3,)
+df[['this_week', 'last_week']] /= df[['this_week', 'last_week']].sum(0)
+
+bit = lambda x, y: abs((x - y) / x) > 0.1
+lot = lambda x, y: abs((x - y) / x) > 0.33
+compare = lambda x, y: utils.humanize_comparison(x, y, bit, lot)
+
+
+# In[6]:
+
+t = '''
+{{ name }},
+    {{ humanize.naturaltime(last_ts).capitalize() }},
+    you worked on {% if len(df) == 1 %}the{% end %} {{ utils.concatenate_items(df['project']) }}
+    {{ utils.pluralize_by_seq('project', by=df['project']) }}.
+    {{utils.pluralize('this project', by=df['project'])}} took {{ '{x:%}'.format(x=time_pc) }} of your time.
+
+    {% for prj in range((len(df))) %}
+        {{prj + 1}}. The time spent on {{ df['project'][prj] }} this week is
+            {{ compare(df['last_week'][prj], df['this_week'][prj]) }}
+    {% end %}
+'''
+last_ts = datetime.now() - timedelta(days=6)
+print(N(t, tornado_tmpl=True, name='Anand', humanize=hmn, last_ts=last_ts,
+        utils=utils, df=df,
+        compare=compare, time_pc=df['this_week'].sum()).render())

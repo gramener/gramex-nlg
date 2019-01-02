@@ -12,6 +12,7 @@ from string import Formatter
 
 import numpy as np
 import pandas as pd
+from tornado.template import Template
 
 from nlg import grammar
 
@@ -32,7 +33,9 @@ def parse_func_expr(expr):
 
 class Narrative(object):
 
-    def __init__(self, template='', data=None, struct=None, tmpl_weights=None, **fmt_kwargs):
+    def __init__(self, template='', data=None, struct=None, tmpl_weights=None,
+                 tornado_tmpl=False, **fmt_kwargs):
+        self.tornado_tmpl = tornado_tmpl
         self.fmt = Formatter()
         if struct is None:
             struct = {}
@@ -241,6 +244,8 @@ class Narrative(object):
         return any([f for _, f, _, _ in self.fmt.parse(s) if f])
 
     def render(self):
+        if self.tornado_tmpl:
+            return Template(self.template).generate(**self.fmt_kwargs).decode('utf-8')
         try:
             s = self.template.format(**self.fmt_kwargs)
             if not self.has_fieldname(s):
