@@ -15,7 +15,19 @@
         <script src="ui/g1/dist/g1.min.js"></script>
         <script>
             // Render the FormHandler table
-            $('.formhandler').formhandler()
+            function parseUrlFromHref() {
+                var location = window.location;
+                var prefix = location.protocol + '//' + location.hostname + ':' + location.port + location.pathname;
+                return location.href.replace(prefix, '')
+            }
+            function setDataArgs(x) {
+                df = x.formdata;
+                args = parseUrlFromHref();
+            }
+            $('.formhandler').on('load', setDataArgs);
+            var df = null;
+            var args = null;
+            $('.formhandler').formhandler();
         </script>
         <script>
             function processTemplate() {
@@ -25,8 +37,10 @@
                     if (request.readyState == 4 && request.status == 200)
                         textAreaCallback(request.responseText);
                 }
-                request.open("GET", "http://localhost:9988/textproc?textbox=" + tbox.value, true);
-                request.send(null);
+                var url = "http://localhost:9988/textproc?" + decodeURIComponent(args.replace('#', ''));
+                request.open("POST", url, true);
+                var payload = {"data": df, "text": tbox.value};
+                request.send(JSON.stringify(payload));
             }
             function textAreaCallback(text) {
                 var tbox = document.getElementById("template-preview");

@@ -27,7 +27,7 @@ url:
     pattern: /$YAMLURL/textproc
     handler: FunctionHandler
     kwargs:
-      function: nlg.utils.process_template(handler, '$YAMLPATH/gramupload/file.csv')
+      function: nlg.utils.process_template
       xsrf_cookies: false
       headers:
         Content-Type: application/json
