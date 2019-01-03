@@ -16,7 +16,6 @@ import numpy as np
 import pandas as pd
 from spacy import load
 from spacy.matcher import Matcher
-from tornado.web import RequestHandler
 
 infl = engine()
 is_plural = infl.singular_noun
@@ -38,15 +37,21 @@ def process_template(handler):
     return templatize(text, args, df)
 
 
+def is_overlap(x, y):
+    """Whether the token x is contained within any span in the sequence y."""
+    if "NUM" in [c.pos_ for c in x]:
+        return False
+    return any([x.text in yy for yy in y])
+
+
 def unoverlap(tokens):
     """From a set of tokens, remove all tokens that are contained within
     others."""
     textmap = {c.text: c for c in tokens}
     text_tokens = textmap.keys()
-    is_overlap = lambda x, y: any([x in yy for yy in y])
     newtokens = []
     for token in text_tokens:
-        if not is_overlap(token, text_tokens - {token}):
+        if not is_overlap(textmap[token], text_tokens - {token}):
             newtokens.append(token)
     return [textmap[t] for t in newtokens]
 
@@ -72,7 +77,6 @@ def lemmatized_df_search(x, y, fmt_string='df.columns[{}]'):
             if xx.lemma_ == yy.lemma_:
                 search_res[yy.text] = fmt_string.format(i)
     return search_res
-
 
 
 def search_args(entities, args):
@@ -141,20 +145,38 @@ def search_df(tokens, df):
             else:
                 ix_indexer = str(index)
             search_res[token] = 'df.loc[{}, {}]'.format(ix_indexer, col_indexer)
-    
+
     unfound = [token for token in tokens if token.text not in search_res]
-    search_res.update(lemmatized_df_search(unfound,df.columns))
+    search_res.update(lemmatized_df_search(unfound, df.columns))
     return search_res
+
+
+def sanitize_text(text, d_round=2):
+    """All text cleaning and standardization logic goes here."""
+    nums = re.findall(r'\d+\.\d+', text)
+    for num in nums:
+        text = re.sub(num, str(round(float(num), d_round)), text)
+    return text
+
+
+def sanitize_df(df, d_round=2, **options):
+    """All dataframe cleaning and standardizing logic goes here."""
+    for c in df.columns[df.dtypes == float]:
+        df[c] = df[c].round(d_round)
+    return df
 
 
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
+    text = sanitize_text(text)
+    df = sanitize_df(df)
     doc = nlp(text)
     entities = ner(doc)
     dfix = search_df(entities, df)
     dfix.update(search_args(entities, args))
     for token, ixpattern in dfix.items():
-        text = re.sub(token, '{{{{ {} }}}}'.format(ixpattern), text)
+        text = re.sub('\\b' + token + '\\b',
+                      '{{{{ {} }}}}'.format(ixpattern), text)
     return text
 
 
