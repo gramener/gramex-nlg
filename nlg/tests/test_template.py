@@ -201,7 +201,7 @@ class TestNarrative(unittest.TestCase):
         }
         self.assertRegex(
             N(struct=struct).render(),
-            'Ned Stark\'s screen time per episode is 0.7\d+ minutes more than that of Jon Snow\.'
+            r'Ned Stark\'s screen time per episode is 0.7\d+ minutes more than that of Jon Snow\.'
         )
         struct = {
             'intent': 'comparison',
@@ -247,7 +247,7 @@ class TestNarrative(unittest.TestCase):
         }
         self.assertRegex(
             N(struct=struct).render(),
-            'BJP\'s voteshare is 4% (higher|greater|more) than in Jaisalmer than in Jodhpur\.'
+            r'BJP\'s voteshare is 4% (higher|greater|more) than in Jaisalmer than in Jodhpur\.'
         )
 
     def test_tornado_templates_simple(self):
@@ -257,10 +257,12 @@ class TestNarrative(unittest.TestCase):
 
     def test_tornato_templates_utils(self):
         t = '''
-        The quick brown {{ utils.plural(x) }} jumped over the lazy {{ utils.concatenate_items(y) }}.
+        The quick brown {{ utils.plural(x) }} jumped over the lazy
+        {{ utils.concatenate_items(y) }}.
         '''
         ideal = '''
-        The quick brown foxes jumped over the lazy dog, cat and rat.
+        The quick brown foxes jumped over the lazy
+        dog, cat and rat.
         '''
         self.assertEqual(N(t, tornado_tmpl=True, utils=utils, x='fox',
                            y=['dog', 'cat', 'rat']).render(),

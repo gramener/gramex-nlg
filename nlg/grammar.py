@@ -11,7 +11,7 @@ QUANT_FILTER_TOKENS = {
 }
 
 
-keep_fieldname = lambda x: '{{}}'.format(x)
+keep_fieldname = lambda x: '{{}}'.format(x)  # NOQA: E731
 
 
 def get_quant_qualifier_value(value):

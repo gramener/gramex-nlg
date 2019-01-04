@@ -1,20 +1,16 @@
-// Gramex .htmllintrc v1.2
+// NLG .htmllintrc v1.2
 {
     "plugins": [],
 
     "attr-bans": [
         "align",
         "background",
-        "bgcolor",
         "border",
         // "frameborder",       // frameborder is used in YouTube embeds
         "longdesc",
         "marginwidth",
         "marginheight",
-        "scrolling",
-        "style",                // DO NOT USE style= attribute
-        "onclick",
-        "onload"
+        "scrolling"
     ],
     "attr-name-style": false,
     "attr-no-dup": false,                   // attr name may be computed, and get replaced by {}
@@ -46,7 +42,6 @@
         // "b",                             // Bootstrap caret example uses <b>
         // "i",                             // Font-awesome icons use <i>
         "s",                                // avoid strike tag, deprecated
-        "br",                               // avoid break tag, bad practice, use margin/padding instead
         // "style",                         // Single-page templates need style tag
         "u",
         "strike",

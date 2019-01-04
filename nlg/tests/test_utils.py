@@ -41,8 +41,8 @@ class TestUtils(unittest.TestCase):
         self.assertIn(utils.humanize_comparison(x, y, lambda x, y: True,
                                                 lambda x, y: True),
                       ['the same', 'identical'])
-        bit = lambda x, y: abs((x - y) / x) > 0.1
-        lot = lambda x, y: abs((x - y) / x) > 0.5
+        bit = lambda x, y: abs((x - y) / x) > 0.1  # NOQA: E731
+        lot = lambda x, y: abs((x - y) / x) > 0.5  # NOQA: E731
         self.assertRegex(utils.humanize_comparison(0.1, 0.12, bit, lot),
                          r'(a little|a bit) (higher|more|greater)')
         self.assertRegex(utils.humanize_comparison(0.1, 0.16, bit, lot),
@@ -124,7 +124,7 @@ class TestUtils(unittest.TestCase):
         '''
         args = {'?_sort': ['-votes']}
         actual, _ = utils.templatize(doc, args, df)
-        cleaner = lambda x: re.sub(r'\s+', ' ', x)
+        cleaner = lambda x: re.sub(r'\s+', ' ', x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
 
 

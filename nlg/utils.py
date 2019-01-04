@@ -54,6 +54,7 @@ def download_template(handler):
     tmpl = unquote(handler.args['tmpl'][0])
     return Template(NARRATIVE_TEMPLATE).generate(tmpl=tmpl)
 
+
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
     if "NUM" in [c.pos_ for c in x]:
