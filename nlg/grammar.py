@@ -19,6 +19,7 @@ def get_quant_qualifier_value(value):
         if re.match('^' + k, value):
             return random.choice(v), value.lstrip(k)
 
+
 def make_verb(struct):
     verb = struct['metadata']['verb']
     if not isinstance(verb, str) and len(verb) > 1:

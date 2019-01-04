@@ -5,8 +5,11 @@
 """Tests for nlg.utils"""
 
 import random
+import re
 import unittest
 from nlg import utils
+import pandas as pd
+import os.path as op
 
 
 class TestUtils(unittest.TestCase):
@@ -48,3 +51,82 @@ class TestUtils(unittest.TestCase):
                          r'(a little|a bit) (less|lower)')
         self.assertRegex(utils.humanize_comparison(0.16, 0.07, bit, lot),
                          r'(a lot|much) (less|lower)')
+
+    def test_unoverlap(self):
+        sent = utils.nlp('''
+            United States President Donald Trump is an entrepreneur and
+            used to run his own reality show named 'The Apprentice'.''')
+        ents = [sent[:i] for i in range(5)]
+        self.assertListEqual(utils.unoverlap(ents), ents[-1:])
+
+    def test_ner(self):
+        sent = utils.nlp('''
+            US President Donald Trump is an entrepreneur and
+            used to run his own reality show named 'The Apprentice'.''')
+        ents = utils.ner(sent)
+        self.assertSetEqual(set([c.text for c in utils.unoverlap(ents)]),
+                            {'US President', 'President Donald', 'Donald Trump',
+                             'entrepreneur', 'reality show', 'Apprentice'})
+
+    def test_lemmatized_df_search(self):
+        df = pd.DataFrame.from_dict({
+            'singer': ['Kishore', 'Kishore', 'Kishore'],
+            'partner': ['Lata', 'Asha', 'Rafi'],
+            'songs': [20, 5, 15]
+        })
+        doc = utils.nlp('Kishore Kumar sang the most songs with Lata Mangeshkar.')
+        self.assertDictEqual(utils.lemmatized_df_search([doc], df.columns),
+                             {'songs': 'df.columns[2]'})
+
+    def test_search_args(self):
+        args = {'?_sort': ['-votes']}
+        doc = utils.nlp('James Stewart is the top voted actor.')
+        ents = utils.ner(doc)
+        self.assertDictEqual(utils.search_args(ents, args),
+                             {'voted': 'args[\'_sort\'][0]'})
+
+    def test_sanitize_indices(self):
+        self.assertEqual(utils.sanitize_indices((3, 3), 0), 0)
+        self.assertEqual(utils.sanitize_indices((3, 3), 1), 1)
+        self.assertEqual(utils.sanitize_indices((3, 3), 2), -1)
+        self.assertEqual(utils.sanitize_indices((3, 3), 0, 1), 0)
+        self.assertEqual(utils.sanitize_indices((3, 3), 1, 1), 1)
+        self.assertEqual(utils.sanitize_indices((3, 3), 2, 1), -1)
+
+    def test_search_df(self):
+        fpath = op.join(op.dirname(__file__), 'data', 'actors.csv')
+        df = pd.read_csv(fpath)
+        df.sort_values('votes', ascending=False, inplace=True)
+        df.reset_index(inplace=True, drop=True)
+        doc = utils.nlp('Spencer Tracy is the top voted actor.')
+        ents = utils.ner(doc)
+        self.assertDictEqual(utils.search_df(ents, df),
+                             {'Spencer Tracy': 'df.loc[0, \'name\']',
+                              'voted': 'df.columns[3]'})
+
+    def test_templatize(self):
+        fpath = op.join(op.dirname(__file__), 'data', 'actors.csv')
+        df = pd.read_csv(fpath)
+        df.sort_values('votes', ascending=False, inplace=True)
+        df.reset_index(inplace=True, drop=True)
+
+        doc = '''
+        Spencer Tracy is the top voted actor, followed by Cary Grant.
+        The least voted actress is Bette Davis, trailing at only 14 votes, followed by
+        Ingrid Bergman at a rating of 0.29614.
+        '''
+        ideal = '''
+        {{ df.loc[0, 'name'] }} is the top {{ args['_sort'][0] }}
+        actor, followed by {{ df.loc[1, 'name'] }}. The least {{ args['_sort'][0] }}
+        actress is {{ df.loc[-1, 'name'] }}, trailing at only {{ df.loc[-1, 'votes'] }}
+        {{ args['_sort'][0] }}, followed by {{ df.loc[-2, 'name'] }} at a {{ df.columns[2] }}
+        of {{ df.loc[-2, 'rating'] }}.
+        '''
+        args = {'?_sort': ['-votes']}
+        actual = utils.templatize(doc, args, df)
+        cleaner = lambda x: re.sub(r'\s+', ' ', x)
+        self.assertEqual(*map(cleaner, (ideal, actual)))
+
+
+if __name__ == '__main__':
+    unittest.main()
