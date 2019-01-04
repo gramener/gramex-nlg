@@ -32,7 +32,7 @@ url:
     pattern: /$YAMLURL/textproc
     handler: FunctionHandler
     kwargs:
-      function: nlg.utils.process_template
+      function: nlg.process_template
       xsrf_cookies: false
       headers:
         Content-Type: application/json
@@ -40,7 +40,7 @@ url:
     pattern: /$YAMLURL/tmpl-download
     handler: FunctionHandler
     kwargs:
-      function: nlg.utils.download_template
+      function: nlg.download_template
       xsrf_cookies: false
       headers:
         Content-Type: application/octet-stream
