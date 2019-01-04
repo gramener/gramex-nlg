@@ -12,6 +12,6 @@ deploy:
   only: [master]
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
-    URL: nlg-tmpgen
+    URL: nlg-tmplgen
     SETUP: python setup.py install
     VERSION: py3v1 
