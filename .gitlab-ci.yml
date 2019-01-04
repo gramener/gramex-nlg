@@ -1,4 +1,6 @@
 validate:
   script:
-      - validate v1
+      - python setup.py develop
+      - python -m spacy download en
+      - gramex license accept
       - nosetests
