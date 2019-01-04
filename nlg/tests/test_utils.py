@@ -123,7 +123,7 @@ class TestUtils(unittest.TestCase):
         of {{ df.loc[-2, 'rating'] }}.
         '''
         args = {'?_sort': ['-votes']}
-        actual = utils.templatize(doc, args, df)
+        actual, _ = utils.templatize(doc, args, df)
         cleaner = lambda x: re.sub(r'\s+', ' ', x)
         self.assertEqual(*map(cleaner, (ideal, actual)))
 

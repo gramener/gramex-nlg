@@ -1,0 +1,10 @@
+validate:
+  script:
+    - eclint check '**/*.html' '**/*.js' '**/*.css' '**/*.yaml' '**/*.md'
+    - flake8
+    - eslint nlg/app
+    - htmllint
+    - python setup.py develop
+    - gramex license accept
+    - python -m spacy download en
+    - nosetests

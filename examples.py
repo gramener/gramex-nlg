@@ -169,9 +169,9 @@ df['this_week'] = np.random.rand(3,)
 df['last_week'] = np.random.rand(3,)
 df[['this_week', 'last_week']] /= df[['this_week', 'last_week']].sum(0)
 
-bit = lambda x, y: abs((x - y) / x) > 0.1
-lot = lambda x, y: abs((x - y) / x) > 0.33
-compare = lambda x, y: utils.humanize_comparison(x, y, bit, lot)
+bit = lambda x, y: abs((x - y) / x) > 0.1  # NOQA: E731
+lot = lambda x, y: abs((x - y) / x) > 0.33  # NOQA: E731
+compare = lambda x, y: utils.humanize_comparison(x, y, bit, lot)  # NOQA: E731
 
 
 # In[6]:
@@ -181,7 +181,8 @@ t = '''
     {{ humanize.naturaltime(last_ts).capitalize() }},
     you worked on {% if len(df) == 1 %}the{% end %} {{ utils.concatenate_items(df['project']) }}
     {{ utils.pluralize_by_seq('project', by=df['project']) }}.
-    {{utils.pluralize('this project', by=df['project'])}} took {{ '{x:%}'.format(x=time_pc) }} of your time.
+    {{utils.pluralize('this project', by=df['project'])}} took
+    {{ '{x:%}'.format(x=time_pc) }} of your time.
 
     {% for prj in range((len(df))) %}
         {{prj + 1}}. The time spent on {{ df['project'][prj] }} this week is
