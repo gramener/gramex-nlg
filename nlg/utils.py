@@ -9,6 +9,7 @@ from itertools import chain
 import json
 from random import choice
 import re
+from urllib.parse import unquote
 
 import humanize  # NOQA: F401
 from inflect import engine
@@ -16,6 +17,7 @@ import numpy as np
 import pandas as pd
 from spacy import load
 from spacy.matcher import Matcher
+from tornado.template import Template
 
 infl = engine()
 is_plural = infl.singular_noun
@@ -28,14 +30,29 @@ NP_MATCHER.add('NP3', None, [{'POS': 'ADV', 'OP': '+'}, {'POS': 'VERB', 'OP': '+
 NP_MATCHER.add('NP4', None, [{'POS': 'ADJ', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}])
 NP_MATCHER.add('QUANT', None, [{'POS': 'NUM', 'OP': '+'}])
 
+NARRATIVE_TEMPLATE = '''
+{% autoescape None %}
+from nlg import Narrative as N
+import pandas as pd
+
+df = None  # set your dataframe here.
+narrative = N(\"{{ tmpl }}\", tornado_tmpl=True, data=df)
+print(narrative.render())
+'''
+
 
 def process_template(handler):
     payload = json.loads(handler.request.body.decode('utf-8'))
     text = payload['text']
     df = pd.DataFrame.from_records(payload['data'])
     args = handler.args
-    return templatize(text, args, df)
+    template, replacements = templatize(text, args, df)
+    return {'text': template, 'tokenmap': replacements}
 
+
+def download_template(handler):
+    tmpl = unquote(handler.args['tmpl'][0])
+    return Template(NARRATIVE_TEMPLATE).generate(tmpl=tmpl)
 
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
@@ -177,7 +194,7 @@ def templatize(text, args, df):
     for token, ixpattern in dfix.items():
         text = re.sub('\\b' + token + '\\b',
                       '{{{{ {} }}}}'.format(ixpattern), text)
-    return text
+    return text, dfix
 
 
 def concatenate_items(items, sep=', '):

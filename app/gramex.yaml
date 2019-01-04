@@ -31,3 +31,12 @@ url:
       xsrf_cookies: false
       headers:
         Content-Type: application/json
+  tmpl-download:
+    pattern: /$YAMLURL/tmpl-download
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.utils.download_template
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/octet-stream
+        Content-Disposition: attachment; filename="template.py"
