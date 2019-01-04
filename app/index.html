@@ -43,8 +43,8 @@
                 request.send(JSON.stringify(payload));
             }
             function textAreaCallback(text) {
-                var tbox = document.getElementById("template-preview");
-                tbox.textContent = text;
+                var highlighted = text.replace(/({{[^{}]+}})/g, '<span style=\"background-color:#c8f442\">$1</span>');
+                document.getElementById("template-preview").innerHTML = highlighted;
             }
         </script>
         <form id="myform" action="/textproc" enctype="multipart/form-data">
@@ -59,6 +59,7 @@
         <br>
         <h3>Preview Template:</h3>
         <br>
-        <p id="template-preview" style="font-family:monospace"></p>
+        <p id="template-preview" style="font-family:monospace">Hello
+        <span>World!</span></p>
 	</body>
 </html>
