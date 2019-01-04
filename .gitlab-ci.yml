@@ -4,3 +4,14 @@ validate:
       - python -m spacy download en
       - gramex license accept
       - nosetests
+
+
+deploy:
+  stage: deploy
+  script: deploy
+  only: [master]
+  variables:
+    SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
+    URL: nlg-tmpgen
+    SETUP: python setup.py install
+    VERSION: v1 

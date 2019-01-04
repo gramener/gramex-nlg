@@ -38,7 +38,7 @@
                     if (request.readyState == 4 && request.status == 200)
                         textAreaCallback(request.responseText);
                 }
-                var url = "http://localhost:9988/textproc?" + decodeURIComponent(args.replace('#', ''));
+                var url = "/textproc?" + decodeURIComponent(args.replace('#', ''));
                 request.open("POST", url, true);
                 var payload = {"data": df, "text": tbox.value};
                 request.send(JSON.stringify(payload));
@@ -59,7 +59,7 @@
             function downloadTemplate() {
                 console.log('Start sending req.')
                 var request = new XMLHttpRequest();
-                request.open('GET', "http://localhost:9988/tmpl-download?tmpl=" + encodeURIComponent(nlg_template), true);
+                request.open('GET', "/tmpl-download?tmpl=" + encodeURIComponent(nlg_template), true);
                 request.responseType = 'blob';
                 request.setRequestHeader('X-CSRFToken', false);
                 request.onload = function (event) {
