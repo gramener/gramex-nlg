@@ -1,0 +1,11 @@
+<html>
+    <body>
+        <form action="upload" method="POST" enctype="multipart/form-data">
+            <input name="file" type="file">
+            <button type="submit">Submit</button>
+            <input type="hidden" name="save" value="file.csv">
+            <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
+        </form>
+    </body>
+</html>
+

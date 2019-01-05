@@ -1,0 +1,17 @@
+validate:
+  script:
+      - python setup.py develop
+      - python -m spacy download en
+      - gramex license accept
+      - nosetests
+
+
+deploy:
+  stage: deploy
+  script: deploy
+  only: [master]
+  variables:
+    SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
+    URL: nlg-tmplgen
+    SETUP: python setup.py install
+    VERSION: py3v1 

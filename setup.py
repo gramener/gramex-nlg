@@ -7,7 +7,24 @@ NLG Setup.
 """
 
 from setuptools import setup, find_packages
-setup(name='kepler',
-      version='0.0.1',
+
+install_requires = [
+    'gramex',
+    'humanize',
+    'inflect',
+    'pandas',
+    'tornado',
+    'spacy',
+]
+
+setup(name='nlg',
+      version='0.1.0',
       py_modules=find_packages(),
+      install_requires=install_requires,
+      test_suite='tests',
+      tests_require=[
+          'nose',
+          'coverage',
+          'pytest'
+      ]
       )

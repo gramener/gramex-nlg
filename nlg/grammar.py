@@ -11,13 +11,14 @@ QUANT_FILTER_TOKENS = {
 }
 
 
-keep_fieldname = lambda x: '{{}}'.format(x)
+keep_fieldname = lambda x: '{{}}'.format(x)  # NOQA: E731
 
 
 def get_quant_qualifier_value(value):
     for k, v in QUANT_FILTER_TOKENS.items():
         if re.match('^' + k, value):
             return random.choice(v), value.lstrip(k)
+
 
 def make_verb(struct):
     verb = struct['metadata']['verb']

@@ -1,15 +1,47 @@
+import:
+  table:
+    path: $GRAMEXPATH/apps/formhandler/gramex.yaml
+    YAMLURL: $YAMLURL
+  ui:
+    path: $GRAMEXAPPS/ui/gramex.yaml    # Import the UI components
+    YAMLURL: $YAMLURL/app/ui/               # ... at this URL
 url:
-  nlg_1:
-    pattern: /$YAMLURL/narrate-1
+  landing-page:
+    pattern: /$YAMLURL
+    handler: FileHandler
+    kwargs:
+      path: $YAMLURL/app/grmform.html
+  uploadhandler:
+    pattern: /$YAMLURL/upload
+    handler: UploadHandler
+    kwargs:
+      headers:
+        Cache-Control: no-store
+      path: $YAMLPATH/app/gramupload/
+      xsrf_cookies: false
+      redirect:
+        url: /$YAMLURL/app/index.html
+  tablepreview:
+    pattern: /$YAMLURL/app/_preview
+    handler: FormHandler
+    kwargs:
+      url: $YAMLPATH/app/gramupload/file.csv
+      headers:
+        Cache-Control: no-store
+  textproc:
+    pattern: /$YAMLURL/textproc
     handler: FunctionHandler
     kwargs:
-      function: nlg.templates.g_descriptive
+      function: nlg.process_template
+      xsrf_cookies: false
       headers:
         Content-Type: application/json
-  nlg_2:
-    pattern: /$YAMLURL/narrate-2
+  tmpl-download:
+    pattern: /$YAMLURL/tmpl-download
     handler: FunctionHandler
     kwargs:
-      function: nlg.templates.g_superlative
+      function: nlg.download_template
+      xsrf_cookies: false
       headers:
-        Content-Type: application/json
+        Content-Type: application/octet-stream
+        Content-Disposition: attachment; filename="template.py"
