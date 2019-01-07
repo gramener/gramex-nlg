@@ -7,12 +7,12 @@ import:
     YAMLURL: $YAMLURL/app/ui/               # ... at this URL
 url:
   landing-page:
-    pattern: /$YAMLURL-$*
+    pattern: /$YAMLURL-$$*
     handler: FileHandler
     kwargs:
       path: $YAMLURL/app/grmform.html
   uploadhandler:
-    pattern: /$YAMLURL/upload-$*
+    pattern: /$YAMLURL/upload-$$*
     handler: UploadHandler
     kwargs:
       headers:
@@ -22,14 +22,14 @@ url:
       redirect:
         url: /$YAMLURL/app/index.html
   tablepreview:
-    pattern: /$YAMLURL/app/_preview-$*
+    pattern: /$YAMLURL/app/_preview-$$*
     handler: FormHandler
     kwargs:
       url: $YAMLPATH/app/gramupload/file.csv
       headers:
         Cache-Control: no-store
   textproc:
-    pattern: /$YAMLURL/textproc-$*
+    pattern: /$YAMLURL/textproc-$$*
     handler: FunctionHandler
     kwargs:
       function: nlg.process_template
@@ -37,7 +37,7 @@ url:
       headers:
         Content-Type: application/json
   tmpl-download:
-    pattern: /$YAMLURL/tmpl-download-$*
+    pattern: /$YAMLURL/tmpl-download-$$*
     handler: FunctionHandler
     kwargs:
       function: nlg.download_template
