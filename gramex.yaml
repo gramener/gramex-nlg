@@ -1,16 +1,13 @@
 import:
-  table:
-    path: $GRAMEXPATH/apps/formhandler/gramex.yaml
-    YAMLURL: $YAMLURL
   ui:
     path: $GRAMEXAPPS/ui/gramex.yaml    # Import the UI components
     YAMLURL: $YAMLURL/app/ui/               # ... at this URL
 url:
-  landing-page-$*:
-    pattern: /$YAMLURL
+  nlg-landing-page-$*:
+    pattern: /$YAMLURL/
     handler: FileHandler
     kwargs:
-      path: $YAMLURL/app/grmform.html
+      path: $YAMLPATH/app/grmform.html
   uploadhandler-$*:
     pattern: /$YAMLURL/upload
     handler: UploadHandler
@@ -18,6 +15,7 @@ url:
       headers:
         Cache-Control: no-store
       path: $YAMLPATH/app/gramupload/
+      if_exists: overwrite
       xsrf_cookies: false
       redirect:
         url: /$YAMLURL/app/index.html
