@@ -13,6 +13,6 @@ deploy:
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
     URL: nlg-tmplgen
-    SETUP: python setup.py install
+    SETUP: /home/ubuntu/anaconda3/bin/python setup.py install
     VERSION: py3v1 
     PORT: 8010
