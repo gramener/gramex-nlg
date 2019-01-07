@@ -2,6 +2,7 @@ import:
   ui:
     path: $GRAMEXAPPS/ui/gramex.yaml    # Import the UI components
     YAMLURL: $YAMLURL/app/ui/               # ... at this URL
+    namespace: [url]
 url:
   nlg-landing-page-$*:
     pattern: /$YAMLURL/

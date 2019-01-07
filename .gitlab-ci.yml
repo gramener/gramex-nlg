@@ -1,7 +1,7 @@
 validate:
   script:
-      - python setup.py develop
-      - python -m spacy download en
+      - /home/ubuntu/anaconda3/bin/python setup.py develop
+      - /home/ubuntu/anaconda3/bin/python -m spacy download en
       - gramex license accept
       - nosetests
 
