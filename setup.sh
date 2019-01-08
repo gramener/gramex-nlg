@@ -6,6 +6,7 @@
 # Distributed under terms of the MIT license.
 #
 
+set -ex
 
-/home/anaconda3/bin/python setup.py develop
-/home/anaconda3/bin/python -m spacy download en
+python setup.py develop
+python -m spacy download en
