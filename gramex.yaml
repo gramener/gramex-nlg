@@ -21,7 +21,7 @@ url:
       redirect:
         query: next
         header: Referrer
-        url: /$YAMLURL/app/index.html
+        url: /$YAMLURL/app/
   tablepreview-$*:
     pattern: /$YAMLURL/app/_preview
     handler: FormHandler
