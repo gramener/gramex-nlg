@@ -1,7 +1,7 @@
 validate:
   script:
-      - /home/ubuntu/anaconda3/bin/python setup.py develop
-      - /home/ubuntu/anaconda3/bin/python -m spacy download en
+      - ~/anaconda3/bin/python setup.py develop
+      - ~/anaconda3/bin/python -m spacy download en
       - gramex license accept
       - nosetests
 
@@ -13,6 +13,6 @@ deploy:
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
     URL: nlg-tmplgen
-    SETUP: /home/ubuntu/anaconda3/bin/python setup.py install
+    SETUP: ~/anaconda3/bin/python setup.py install
     VERSION: py3v1 
     PORT: 8010
