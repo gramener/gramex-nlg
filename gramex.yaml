@@ -19,14 +19,15 @@ url:
       if_exists: overwrite
       xsrf_cookies: false
       redirect:
+        query: next
         url: /$YAMLURL/app/index.html
-      #  tablepreview-$*:
-      #    pattern: /$YAMLURL/app/_preview
-      #    handler: FormHandler
-      #    kwargs:
-      #      url: $YAMLPATH/app/gramupload/file.csv
-      #      headers:
-      #        Cache-Control: no-store
+  tablepreview-$*:
+    pattern: /$YAMLURL/app/_preview
+    handler: FormHandler
+    kwargs:
+      url: $YAMLPATH/app/gramupload/file.csv
+      headers:
+        Cache-Control: no-store
       #  textproc-$*:
       #    pattern: /$YAMLURL/textproc
       #    handler: FunctionHandler
