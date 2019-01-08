@@ -20,6 +20,7 @@ url:
       xsrf_cookies: false
       redirect:
         query: next
+        header: Referrer
         url: /$YAMLURL/app/index.html
   tablepreview-$*:
     pattern: /$YAMLURL/app/_preview
@@ -28,20 +29,20 @@ url:
       url: $YAMLPATH/app/gramupload/file.csv
       headers:
         Cache-Control: no-store
-      #  textproc-$*:
-      #    pattern: /$YAMLURL/textproc
-      #    handler: FunctionHandler
-      #    kwargs:
-      #      function: nlg.process_template
-      #      xsrf_cookies: false
-      #      headers:
-      #        Content-Type: application/json
-      #  tmpl-download-$*:
-      #    pattern: /$YAMLURL/tmpl-download
-      #    handler: FunctionHandler
-      #    kwargs:
-      #      function: nlg.download_template
-      #      xsrf_cookies: false
-      #      headers:
-      #        Content-Type: application/octet-stream
-      #        Content-Disposition: attachment; filename="template.py"
+        #  textproc-$*:
+        #    pattern: /$YAMLURL/textproc
+        #    handler: FunctionHandler
+        #    kwargs:
+        #      function: nlg.process_template
+        #      xsrf_cookies: false
+        #      headers:
+        #        Content-Type: application/json
+        #  tmpl-download-$*:
+        #    pattern: /$YAMLURL/tmpl-download
+        #    handler: FunctionHandler
+        #    kwargs:
+        #      function: nlg.download_template
+        #      xsrf_cookies: false
+        #      headers:
+        #        Content-Type: application/octet-stream
+        #        Content-Disposition: attachment; filename="template.py"
