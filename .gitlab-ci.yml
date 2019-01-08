@@ -15,6 +15,6 @@ deploy:
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
     URL: nlg-tmplgen
-    SETUP: setup.sh
+    SETUP: sh setup.sh
     VERSION: py3v1 
     PORT: 8010
