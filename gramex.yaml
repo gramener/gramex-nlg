@@ -9,17 +9,17 @@ url:
     handler: FileHandler
     kwargs:
       path: $YAMLPATH/app/grmform.html
-      #  uploadhandler-$*:
-      #    pattern: /$YAMLURL/upload
-      #    handler: UploadHandler
-      #    kwargs:
-      #      headers:
-      #        Cache-Control: no-store
-      #      path: $YAMLPATH/app/gramupload/
-      #      if_exists: overwrite
-      #      xsrf_cookies: false
-      #      redirect:
-      #        url: /$YAMLURL/app/index.html
+  uploadhandler-$*:
+    pattern: /$YAMLURL/upload
+    handler: UploadHandler
+    kwargs:
+      headers:
+        Cache-Control: no-store
+      path: $YAMLPATH/app/gramupload/
+      if_exists: overwrite
+      xsrf_cookies: false
+      redirect:
+        url: /$YAMLURL/app/index.html
       #  tablepreview-$*:
       #    pattern: /$YAMLURL/app/_preview
       #    handler: FormHandler
