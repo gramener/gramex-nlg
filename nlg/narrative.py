@@ -23,7 +23,7 @@ class Narrative(object):
         for i, sent in enumerate(self.sentences):
             if str(i) in self.conditions:
                 newsent = """
-                {{ % if df.eval(\'{expr}\') % }}
+                {{ % if df.eval(\'{expr}\').any() % }}
                     {sent}
                 {{ % end % }}
                 """.format(

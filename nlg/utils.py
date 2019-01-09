@@ -41,7 +41,7 @@ df = None  # set your dataframe here.
 narrative = N(\"\"\"
               {{ tmpl }}
               \"\"\",
-              tornado_tmpl=True, data=df)
+              tornado_tmpl=True, df=df, args={{ args }})
 print(narrative.render())
 """
 
@@ -59,8 +59,11 @@ def process_template(handler):
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
+    args = json.loads(parse.unquote(handler.args["args"][0]))
+    args = parse.parse_qs(args)
     template = Narrative(tmpl, conditions).templatize()
-    return Template(NARRATIVE_TEMPLATE).generate(tmpl=template).decode("utf8")
+    t_template = Template(NARRATIVE_TEMPLATE)
+    return t_template.generate(tmpl=template, args=args).decode("utf8")
 
 
 def is_overlap(x, y):

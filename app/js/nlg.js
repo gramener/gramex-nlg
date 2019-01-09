@@ -33,7 +33,8 @@ function downloadTemplate() {
     var request = new XMLHttpRequest();
     request.open('GET', "/tmpl-download?tmpl="
         + encodeURIComponent(JSON.stringify(nlg_template))
-        + "&condts=" + encodeURIComponent(JSON.stringify(conditions)),
+        + "&condts=" + encodeURIComponent(JSON.stringify(conditions))
+        + "&args=" + encodeURIComponent(JSON.stringify(getSearchArgs())),
         true);
     request.responseType = 'blob';
     request.setRequestHeader('X-CSRFToken', false);
@@ -119,7 +120,7 @@ function textAreaCallback(payload) {
     var highlighted = payload.text;
     for (let [token, tmpl] of Object.entries(tokenmap)) {
         highlighted = highlighted.replace(`{{ ${tmpl} }}`,
-            `<span style=\"background-color:#c8f442\" title="${token}">{{ ${tmpl} }}</span>`);
+            `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
     }
     previewHTML.push(highlighted);
 
