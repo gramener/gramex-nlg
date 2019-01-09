@@ -9,7 +9,7 @@ from itertools import chain
 import json
 from random import choice
 import re
-from urllib.parse import unquote
+from urllib import parse
 
 import humanize  # NOQA: F401
 from inflect import engine
@@ -19,40 +19,48 @@ from spacy import load
 from spacy.matcher import Matcher
 from tornado.template import Template
 
+from nlg.narrative import Narrative
+
 infl = engine()
 is_plural = infl.singular_noun
-nlp = load('en_core_web_sm')
+nlp = load("en_core_web_sm")
 
 NP_MATCHER = Matcher(nlp.vocab)
-NP_MATCHER.add('NP1', None, [{'POS': 'PROPN', 'OP': '+'}])
-NP_MATCHER.add('NP2', None, [{'POS': 'NOUN', 'OP': '+'}])
-NP_MATCHER.add('NP3', None, [{'POS': 'ADV', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}])
-NP_MATCHER.add('NP4', None, [{'POS': 'ADJ', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}])
-NP_MATCHER.add('QUANT', None, [{'POS': 'NUM', 'OP': '+'}])
+NP_MATCHER.add("NP1", None, [{"POS": "PROPN", "OP": "+"}])
+NP_MATCHER.add("NP2", None, [{"POS": "NOUN", "OP": "+"}])
+NP_MATCHER.add("NP3", None, [{"POS": "ADV", "OP": "+"}, {"POS": "VERB", "OP": "+"}])
+NP_MATCHER.add("NP4", None, [{"POS": "ADJ", "OP": "+"}, {"POS": "VERB", "OP": "+"}])
+NP_MATCHER.add("QUANT", None, [{"POS": "NUM", "OP": "+"}])
 
-NARRATIVE_TEMPLATE = '''
+NARRATIVE_TEMPLATE = """
 {% autoescape None %}
-from nlg import Narrative as N
+from nlg import NLGTemplate as N
 import pandas as pd
 
 df = None  # set your dataframe here.
-narrative = N(\"{{ tmpl }}\", tornado_tmpl=True, data=df)
+narrative = N(\"\"\"
+              {{ tmpl }}
+              \"\"\",
+              tornado_tmpl=True, data=df)
 print(narrative.render())
-'''
+"""
 
 
 def process_template(handler):
-    payload = json.loads(handler.request.body.decode('utf-8'))
-    text = payload['text']
-    df = pd.DataFrame.from_records(payload['data'])
-    args = handler.args
+    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
+    payload = dict(payload)
+    text = payload["text"]
+    df = pd.read_json(payload["data"], orient="records")
+    args = parse.parse_qs(payload.get("args", {}))
     template, replacements = templatize(text, args, df)
-    return {'text': template, 'tokenmap': replacements}
+    return {"text": template, "tokenmap": replacements}
 
 
 def download_template(handler):
-    tmpl = unquote(handler.args['tmpl'][0])
-    return Template(NARRATIVE_TEMPLATE).generate(tmpl=tmpl)
+    tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
+    conditions = json.loads(parse.unquote(handler.args["condts"][0]))
+    template = Narrative(tmpl, conditions).templatize()
+    return Template(NARRATIVE_TEMPLATE).generate(tmpl=template).decode("utf8")
 
 
 def is_overlap(x, y):
@@ -86,7 +94,7 @@ def ner(doc, match_ids=False):
     return unoverlap(entities)
 
 
-def lemmatized_df_search(x, y, fmt_string='df.columns[{}]'):
+def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     search_res = {}
     tokens = list(chain(*x))
     colnames = list(chain(*[nlp(c) for c in y]))
@@ -99,11 +107,11 @@ def lemmatized_df_search(x, y, fmt_string='df.columns[{}]'):
 
 def search_args(entities, args):
     search_res = {}
-    fmt = 'args[\'{}\'][{}]'
+    fmt = "args['{}'][{}]"
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
-        key = k.lstrip('?')
-        argtokens = list(chain(*[re.findall(r'\w+', f) for f in v]))
+        key = k.lstrip("?")
+        argtokens = list(chain(*[re.findall(r"\w+", f) for f in v]))
         argtokens = list(chain(*[nlp(c) for c in argtokens]))
         for i, x in enumerate(argtokens):
             for y in ent_tokens:
@@ -131,16 +139,16 @@ def search_df(tokens, df):
     for ix in column_ix:
         token = df.columns[ix]
         ix = sanitize_indices(df.shape, ix, 1)
-        search_res[token] = 'df.columns[{}]'.format(ix)
+        search_res[token] = "df.columns[{}]".format(ix)
 
     # search in index
     index_ix = df.index.astype(str).isin(txt_tokens)
     for token in df.index[index_ix]:
         if token not in search_res:
-            if ixtype == np.dtype('O'):
-                indexer = 'df.loc[\'{}\']'.format(token)
+            if ixtype == np.dtype("O"):
+                indexer = "df.loc['{}']".format(token)
             else:
-                indexer = 'df.loc[{}]'.format(token)
+                indexer = "df.loc[{}]".format(token)
             search_res[token] = indexer
 
     # search in table
@@ -154,15 +162,15 @@ def search_df(tokens, df):
                 index = sanitize_indices(df.shape, index, 0)
             except IndexError:
                 continue
-            if coltype == np.dtype('O'):
-                col_indexer = '\'{}\''.format(column)
+            if coltype == np.dtype("O"):
+                col_indexer = "'{}'".format(column)
             else:
                 col_indexer = str(column)
-            if ixtype == np.dtype('O'):
-                ix_indexer = '\'{}\''.format(index)
+            if ixtype == np.dtype("O"):
+                ix_indexer = "'{}'".format(index)
             else:
                 ix_indexer = str(index)
-            search_res[token] = 'df.loc[{}, {}]'.format(ix_indexer, col_indexer)
+            search_res[token] = "df.loc[{}, {}]".format(ix_indexer, col_indexer)
 
     unfound = [token for token in tokens if token.text not in search_res]
     search_res.update(lemmatized_df_search(unfound, df.columns))
@@ -171,7 +179,7 @@ def search_df(tokens, df):
 
 def sanitize_text(text, d_round=2):
     """All text cleaning and standardization logic goes here."""
-    nums = re.findall(r'\d+\.\d+', text)
+    nums = re.findall(r"\d+\.\d+", text)
     for num in nums:
         text = re.sub(num, str(round(float(num), d_round)), text)
     return text
@@ -193,12 +201,11 @@ def templatize(text, args, df):
     dfix = search_df(entities, df)
     dfix.update(search_args(entities, args))
     for token, ixpattern in dfix.items():
-        text = re.sub('\\b' + token + '\\b',
-                      '{{{{ {} }}}}'.format(ixpattern), text)
+        text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
     return text, dfix
 
 
-def concatenate_items(items, sep=', '):
+def concatenate_items(items, sep=", "):
     """Concatenate a sequence of tokens into an English string.
 
     Parameters
@@ -214,13 +221,13 @@ def concatenate_items(items, sep=', '):
     str
     """
     if len(items) == 0:
-        return ''
+        return ""
     if len(items) == 1:
         return items[0]
     items = list(map(str, items))
-    if sep == ', ':
+    if sep == ", ":
         s = sep.join(items[:-1])
-        s += ' and ' + items[-1]
+        s += " and " + items[-1]
     else:
         s = sep.join(items)
     return s
@@ -260,15 +267,15 @@ def pluralize_by_seq(word, by):
 
 def humanize_comparison(x, y, bit, lot):
     if x == y:
-        return choice(['the same', 'identical'])
+        return choice(["the same", "identical"])
     if x < y:
-        comparative = choice(['higher', 'more', 'greater'])
+        comparative = choice(["higher", "more", "greater"])
     else:
-        comparative = choice(['less', 'lower'])
+        comparative = choice(["less", "lower"])
     if lot(x, y):
-        adj = choice(['a lot', 'much'])
+        adj = choice(["a lot", "much"])
     elif bit(x, y):
-        adj = choice(['a little', 'a bit'])
+        adj = choice(["a little", "a bit"])
     else:
-        adj = ''
-    return ' '.join([adj, comparative])
+        adj = ""
+    return " ".join([adj, comparative])

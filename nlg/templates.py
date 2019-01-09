@@ -184,7 +184,7 @@ class Description(object):
         return sentences
 
 
-class Narrative(object):
+class NLGTemplate(object):
 
     def __init__(self, template='', data=None, struct=None, tmpl_weights=None,
                  tornado_tmpl=False, **fmt_kwargs):
@@ -575,8 +575,8 @@ if __name__ == '__main__':
         'Vote share').apply(lambda x: x.replace('%', '')).astype(float)
     tmpl = """BJP won a voteshare of {x}% in {y}, followed by {a}% in {b} and
     {c}% in {d}."""
-    N = Narrative(tmpl, data=df,
-                  x='{data.vote_share[0]}', y='{data.AC[0]}',
-                  a='{data.vote_share[1]}', b='{data.AC[1]}',
-                  c='{data.vote_share[2]}', d='{data.AC[2]}')
+    N = NLGTemplate(tmpl, data=df,
+                    x='{data.vote_share[0]}', y='{data.AC[0]}',
+                    a='{data.vote_share[1]}', b='{data.AC[1]}',
+                    c='{data.vote_share[2]}', d='{data.AC[2]}')
     print(N)

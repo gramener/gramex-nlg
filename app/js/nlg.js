@@ -1,29 +1,23 @@
-function parseUrlFromHref() {
-    var location = window.location;
-    var prefix = location.protocol + '//' + location.hostname + ':' + location.port + location.pathname;
-    return location.href.replace(prefix, '')
+function getSearchArgs() {
+    var url = window.location.href;
+    return g1.url.parse(url).hash;
 }
 
 function setDataArgs(x) {
     df = x.formdata;
-    args = parseUrlFromHref();
+    args = getSearchArgs();
 }
 
-function processTemplate() {
-    var tbox = document.getElementById("textbox");
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = function() {
-        if (request.readyState == 4 && request.status == 200)
-            textAreaCallback(request.responseText);
-    }
-    var url = "/textproc?" + decodeURIComponent(args.replace('#', ''));
-    request.open("POST", url, true);
-    var payload = {"data": df, "text": tbox.value};
-    request.send(JSON.stringify(payload));
+function addToTemplate() {
+    $.ajax({
+        type: "POST",
+        url: "textproc",
+        data: { "args": args, "data": JSON.stringify(df), "text": document.getElementById("textbox").value },
+        success: textAreaCallback
+    })
 }
 
 function saveBlob(blob, fileName) {
-    console.log('start saveblob');
     var a = document.createElement('a');
     a.href = window.URL.createObjectURL(blob);
     a.download = fileName;
@@ -33,13 +27,14 @@ function saveBlob(blob, fileName) {
         'bubbles': true,
         'cancelable': false
     }));
-    console.log('end saveblob');
 }
 
 function downloadTemplate() {
-    console.log('Start sending req.')
     var request = new XMLHttpRequest();
-    request.open('GET', "/tmpl-download?tmpl=" + encodeURIComponent(nlg_template), true);
+    request.open('GET', "/tmpl-download?tmpl="
+        + encodeURIComponent(JSON.stringify(nlg_template))
+        + "&condts=" + encodeURIComponent(JSON.stringify(conditions)),
+        true);
     request.responseType = 'blob';
     request.setRequestHeader('X-CSRFToken', false);
     request.onload = function (event) {
@@ -50,22 +45,86 @@ function downloadTemplate() {
         saveBlob(blob, fileName);
     }
     request.send(null);
-    console.log('end download func!');
 }
 
-function textAreaCallback(responseText) {
-    var payload = JSON.parse(responseText);
-    nlg_template = payload.text;
+
+function getConditionBtn(n) {
+    return `<input id="condt-btn-${n}" type="button" value="Add Condition"/>`
+}
+
+
+function addCondition(n) {
+    var expr = prompt('Enter Expression:');
+    if (expr) {
+        conditions[n] = expr;
+        var btn = document.getElementById(`condt-btn-${n}`);
+        btn.value = "Edit Condition";
+        btn.removeEventListener("click", currentEventHandlers[`condt-btn-${n}`])
+        var newlistner = function () { editCondition(n) };
+        btn.addEventListener("click", newlistner);
+        currentEventHandlers[`condt-btn-${n}`] = newlistner;
+    }
+}
+
+function editCondition(n) {
+    var expr = prompt("Enter Expression:", conditions[`${n}`]);
+    if (expr) {
+        conditions[n] = expr;
+    }
+    else if (expr === "") {
+        conditions[n] = "";
+        var btn = document.getElementById(`condt-btn-${n}`);
+        btn.value = "Add Condition";
+        btn.removeEventListener("click", currentEventHandlers[`condt-btn-${n}`])
+        var newlistner = function () { addCondition(n) };
+        btn.addEventListener("click", newlistner);
+        currentEventHandlers[`condt-btn-${n}`] = newlistner;
+    }
+
+}
+
+function renderPreview() {
+    var innerHTML = "<p>\n";
+    for (var i = 0; i < previewHTML.length; i++) {
+        innerHTML += getConditionBtn(i) + "\t" + previewHTML[i] + "</br>";
+    }
+    innerHTML += "</p>"
+    document.getElementById("template-preview").innerHTML = innerHTML;
+
+    // add listeners to conditionals
+    for (let i = 0; i < previewHTML.length; i++) {
+        var btnkey = `condt-btn-${i}`
+        var btn = document.getElementById(btnkey)
+        // check if condition already exists
+        if ((!(i in conditions)) || (conditions[i] === "")) {
+            var listener = function () { addCondition(i) }
+        }
+        else {
+            var listener = function () { editCondition(i) }
+        }
+        // remove old listeners if any
+        if (btnkey in currentEventHandlers) {
+            var oldlistener = currentEventHandlers[btnkey];
+            btn.removeEventListener("click", oldlistener);
+        }
+        btn.addEventListener("click", listener);
+        currentEventHandlers[btnkey] = listener;
+    }
+}
+
+function textAreaCallback(payload) {
+    nlg_template.push(payload.text);
     var tokenmap = payload.tokenmap;
 
     var highlighted = payload.text;
-    var hghlt_tmpl = `<span style="background-color:#c8f442">`
     for (let [token, tmpl] of Object.entries(tokenmap)) {
         highlighted = highlighted.replace(`{{ ${tmpl} }}`,
             `<span style=\"background-color:#c8f442\" title="${token}">{{ ${tmpl} }}</span>`);
     }
+    previewHTML.push(highlighted);
 
     // var highlighted = text.replace(/({{[^{}]+}})/g,
-        // '<span style=\"background-color:#c8f442\">$1</span>');
-    document.getElementById("template-preview").innerHTML = highlighted;
+    // '<span style=\"background-color:#c8f442\">$1</span>');
+    renderPreview();
+    document.getElementById("textbox").value = "";
 }

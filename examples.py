@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import humanize as hmn
-from nlg import Narrative as N
+from nlg import NLGTemplate as N
 from nlg import utils
 
 

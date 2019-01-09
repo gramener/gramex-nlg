@@ -3,14 +3,15 @@
 # vim:fenc=utf-8
 
 """
-Tests for the Narrative class.
+Tests for the NLGTemplate class.
 """
 
 from collections import Counter
+import os.path as op
 import unittest
 import numpy as np
 import pandas as pd
-from nlg import Narrative as N
+from nlg import NLGTemplate as N
 from nlg import utils
 
 np.random.seed(1234)
@@ -267,3 +268,16 @@ class TestNarrative(unittest.TestCase):
         self.assertEqual(N(t, tornado_tmpl=True, utils=utils, x='fox',
                            y=['dog', 'cat', 'rat']).render(),
                          ideal)
+
+    def test_naive_template_condt(self):
+        df = pd.read_csv(op.join(op.dirname(__file__), 'data', 'actors.csv'))
+        template = '''
+        {% if any(df.eval('rating < 0.1')) %}
+            There is at least one very unpopular artist.
+        {% end %}
+        '''
+        actual = N(template, tornado_tmpl=True, df=df).render().lstrip().rstrip()
+        self.assertEqual(actual, 'There is at least one very unpopular artist.')
+        actual = N(template, tornado_tmpl=True, df=df[df['rating'] > 0.1]
+                   ).render().lstrip().rstrip()
+        self.assertEqual(actual, '')
