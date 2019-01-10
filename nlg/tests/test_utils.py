@@ -10,28 +10,6 @@ from nlg import utils
 
 
 class TestUtils(unittest.TestCase):
-    def test_concatenate_items(self):
-        self.assertEqual(utils.concatenate_items("abc"), "a, b and c")
-        self.assertEqual(utils.concatenate_items([1, 2, 3], sep=""), "123")
-        self.assertFalse(utils.concatenate_items([]))
-
-    def test_pluralize(self):
-        self.assertEqual(utils.plural("language"), "languages")
-        self.assertEqual(utils.plural("languages"), "languages")
-        self.assertEqual(utils.plural("bacterium"), "bacteria")
-        self.assertEqual(utils.plural("goose"), "geese")
-
-    def test_singular(self):
-        self.assertEqual(utils.singular("languages"), "language")
-        self.assertEqual(utils.singular("language"), "language")
-        self.assertEqual(utils.singular("bacteria"), "bacterium")
-        self.assertEqual(utils.singular("geese"), "goose")
-
-    def test_pluralize_by_seq(self):
-        self.assertEqual(utils.pluralize_by_seq("language", [1, 2]), "languages")
-        self.assertEqual(utils.pluralize_by_seq("languages", [1]), "language")
-        self.assertEqual(utils.pluralize_by_seq("language", []), "language")
-
     def test_humanize_comparison(self):
         x = y = random.randint(0, 100)
         self.assertIn(
