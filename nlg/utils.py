@@ -9,13 +9,10 @@ from random import choice
 import re
 
 import humanize  # NOQA: F401
-from inflect import engine
 import numpy as np
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
 
-infl = engine()
-is_plural = infl.singular_noun
 nlp = load("en_core_web_sm")
 
 NP_MATCHER = Matcher(nlp.vocab)
@@ -44,6 +41,8 @@ def get_phrase_matcher(df):
     for col in df.columns[df.dtypes == np.dtype("O")]:
         for val in df[col].unique():
             matcher.add(val, None, nlp(val))
+        if str(col).isalpha():
+            matcher.add(col, None, nlp(col))
     return matcher
 
 
@@ -115,66 +114,6 @@ def sanitize_df(df, d_round=2, **options):
     for c in df.columns[df.dtypes == float]:
         df[c] = df[c].round(d_round)
     return df
-
-
-def concatenate_items(items, sep=", "):
-    """Concatenate a sequence of tokens into an English string.
-
-    Parameters
-    ----------
-
-    items : list-like
-        List / sequence of items to be printed.
-    sep : str, optional
-        Separator to use when generating the string
-
-    Returns
-    -------
-    str
-    """
-    if len(items) == 0:
-        return ""
-    if len(items) == 1:
-        return items[0]
-    items = list(map(str, items))
-    if sep == ", ":
-        s = sep.join(items[:-1])
-        s += " and " + items[-1]
-    else:
-        s = sep.join(items)
-    return s
-
-
-def plural(word):
-    """Pluralize a word.
-
-    Parameters
-    ----------
-
-    word : str
-        word to pluralize
-
-    Returns
-    -------
-    str
-        Plural of `word`
-    """
-    if not is_plural(word):
-        word = infl.plural(word)
-    return word
-
-
-def singular(word):
-    if is_plural(word):
-        word = infl.singular_noun(word)
-    return word
-
-
-def pluralize_by_seq(word, by):
-    """Pluralize a word depending on a sequence."""
-    if len(by) > 1:
-        return plural(word)
-    return singular(word)
 
 
 def humanize_comparison(x, y, bit, lot):

@@ -53,6 +53,10 @@ function getConditionBtn(n) {
     return `<input id="condt-btn-${n}" type="button" value="Add Condition"/>`
 }
 
+function getEditTemplateBtn(n) {
+    return `<input id="edit-btn-${n}" type="button" value="Edit"/>`
+}
+
 
 function addCondition(n) {
     var expr = prompt('Enter Expression:');
@@ -84,10 +88,35 @@ function editCondition(n) {
 
 }
 
+function editTemplate(n) {
+    currentEditIndex = n;
+    document.getElementById("edit-template").value = nlg_template[n];
+}
+
+function checkTemplate() {
+    $.ajax({
+        type: "POST",
+        url: "render-template",
+        data: { "args": args, "data": JSON.stringify(df), "text": document.getElementById("edit-template").value },
+        dataType: "text",
+        success: editAreaCallback
+    })
+}
+
+function saveTemplate() {
+    var tbox = document.getElementById("edit-template");
+    var pbox = document.getElementById("edit-preview");
+    nlg_template[currentEditIndex] = tbox.value;
+    previewHTML[currentEditIndex] = pbox.innerHTML;
+    renderPreview();
+    tbox.value = "";
+    currentEditIndex = null;
+}
+
 function renderPreview() {
     var innerHTML = "<p>\n";
     for (var i = 0; i < previewHTML.length; i++) {
-        innerHTML += getConditionBtn(i) + "\t" + previewHTML[i] + "</br>";
+        innerHTML += getEditTemplateBtn(i) + getConditionBtn(i) + "\t" + previewHTML[i] + "</br>";
     }
     innerHTML += "</p>"
     document.getElementById("template-preview").innerHTML = innerHTML;
@@ -110,7 +139,16 @@ function renderPreview() {
         }
         btn.addEventListener("click", listener);
         currentEventHandlers[btnkey] = listener;
+
+        // add the edit listener
+        var btn = document.getElementById(`edit-btn-${i}`)
+        var editListener = function () { editTemplate(i) };
+        btn.addEventListener("click", editListener)
     }
+}
+
+function editAreaCallback(payload) {
+    document.getElementById("edit-preview").innerHTML = payload;
 }
 
 function textAreaCallback(payload) {

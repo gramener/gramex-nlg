@@ -12,20 +12,34 @@ from itertools import chain
 import numpy as np
 from spacy import load
 
-from nlg.utils import ner, sanitize_df, sanitize_indices, sanitize_text
+from nlg import utils
 
-nlp = load("en_core_web_sm")
+default_nlp = load("en_core_web_sm")
 
 
 class DFSearch(object):
-    def __init__(self, df):
-        self.df = df
+    def __init__(self, df, fh_args, nlp=default_nlp):
+        self.df = utils.sanitize_df(df)
+        self.fh_args = fh_args
+        self.pmatch = utils.get_phrase_matcher(df)
+        self.search_results = {}
+        self.nlp = nlp
+
+    def _search_df_literals(self, text):
+        pass
+
+    def search(self, text):
+        text = utils.sanitize_text(text)
+        doc = self.nlp(text)
+        ents = utils.ner(doc)  # NOQA
+        # dfix = search_df(entities, df)
+        # dfix.update(search_args(entities, args))
 
 
 def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     search_res = {}
     tokens = list(chain(*x))
-    colnames = list(chain(*[nlp(c) for c in y]))
+    colnames = list(chain(*[default_nlp(c) for c in y]))
     for i, xx in enumerate(colnames):
         for yy in tokens:
             if xx.lemma_ == yy.lemma_:
@@ -40,7 +54,7 @@ def search_args(entities, args):
     for k, v in args.items():
         key = k.lstrip("?")
         argtokens = list(chain(*[re.findall(r"\w+", f) for f in v]))
-        argtokens = list(chain(*[nlp(c) for c in argtokens]))
+        argtokens = list(chain(*[default_nlp(c) for c in argtokens]))
         for i, x in enumerate(argtokens):
             for y in ent_tokens:
                 if x.lemma_ == y.lemma_:
@@ -59,7 +73,7 @@ def search_df(tokens, df):
     column_ix = np.arange(df.shape[1])[df.columns.astype(str).isin(txt_tokens)]
     for ix in column_ix:
         token = df.columns[ix]
-        ix = sanitize_indices(df.shape, ix, 1)
+        ix = utils.sanitize_indices(df.shape, ix, 1)
         search_res[token] = "df.columns[{}]".format(ix)
 
     # search in index
@@ -80,7 +94,7 @@ def search_df(tokens, df):
                 column = df.columns[mask.sum(0).astype(bool)][0]
                 # don't sanitize column
                 index = df.index[mask.sum(1).astype(bool)][0]
-                index = sanitize_indices(df.shape, index, 0)
+                index = utils.sanitize_indices(df.shape, index, 0)
             except IndexError:
                 continue
             if coltype == np.dtype("O"):
@@ -100,12 +114,14 @@ def search_df(tokens, df):
 
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
-    text = sanitize_text(text)
-    df = sanitize_df(df)
-    doc = nlp(text)
-    entities = ner(doc)
+    # dfs = DFSearch(df, args)
+    text = utils.sanitize_text(text)
+    df = utils.sanitize_df(df)
+    doc = default_nlp(text)
+    entities = utils.ner(doc)
     dfix = search_df(entities, df)
     dfix.update(search_args(entities, args))
+    # dfix = dfs.search(text)
     for token, ixpattern in dfix.items():
         text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
     return text, dfix

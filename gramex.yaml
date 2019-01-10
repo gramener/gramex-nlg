@@ -37,6 +37,14 @@ url:
       xsrf_cookies: false
       headers:
         Content-Type: application/json
+  rendertmpl-$*:
+    pattern: /$YAMLURL/app/render-template
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.render_template
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
   tmpl-download-$*:
     pattern: /$YAMLURL/tmpl-download
     handler: FunctionHandler
