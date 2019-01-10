@@ -5,21 +5,14 @@
 """
 Miscellaneous utilities.
 """
-import json
 from random import choice
 import re
-from urllib import parse
 
 import humanize  # NOQA: F401
 from inflect import engine
 import numpy as np
-import pandas as pd
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
-from tornado.template import Template
-
-from nlg.narrative import Narrative
-from nlg.search import search_df, search_args
 
 infl = engine()
 is_plural = infl.singular_noun
@@ -54,26 +47,6 @@ def get_phrase_matcher(df):
     return matcher
 
 
-def process_template(handler):
-    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    payload = dict(payload)
-    text = payload["text"]
-    df = pd.read_json(payload["data"], orient="records")
-    args = parse.parse_qs(payload.get("args", {}))
-    template, replacements = templatize(text, args, df)
-    return {"text": template, "tokenmap": replacements}
-
-
-def download_template(handler):
-    tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
-    conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))
-    args = parse.parse_qs(args)
-    template = Narrative(tmpl, conditions).templatize()
-    t_template = Template(NARRATIVE_TEMPLATE)
-    return t_template.generate(tmpl=template, args=args).decode("utf8")
-
-
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
     if "NUM" in [c.pos_ for c in x]:
@@ -93,7 +66,7 @@ def unoverlap(tokens):
     return [textmap[t] for t in newtokens]
 
 
-def ner(doc, match_ids=False, remove_overlap=True):
+def ner(doc, matcher=NP_MATCHER, match_ids=False, remove_overlap=True):
     """Find all NEs and other nouns in a spacy doc.
 
     Parameters
@@ -110,12 +83,11 @@ def ner(doc, match_ids=False, remove_overlap=True):
     list
         List of spacy.token.span.Span objects.
     """
-
     entities = set(doc.ents)
     if not match_ids:
-        entities = [doc[start:end] for _, start, end in NP_MATCHER(doc)]
+        entities = [doc[start:end] for _, start, end in matcher(doc)]
     else:
-        for m_id, start, end in NP_MATCHER(doc):
+        for m_id, start, end in matcher(doc):
             if NP_MATCHER.vocab.strings[m_id] in match_ids:
                 entities.add(doc[start:end])
     if remove_overlap:
@@ -143,19 +115,6 @@ def sanitize_df(df, d_round=2, **options):
     for c in df.columns[df.dtypes == float]:
         df[c] = df[c].round(d_round)
     return df
-
-
-def templatize(text, args, df):
-    """Process a piece of text and templatize it according to a dataframe."""
-    text = sanitize_text(text)
-    df = sanitize_df(df)
-    doc = nlp(text)
-    entities = ner(doc)
-    dfix = search_df(entities, df)
-    dfix.update(search_args(entities, args))
-    for token, ixpattern in dfix.items():
-        text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
-    return text, dfix
 
 
 def concatenate_items(items, sep=", "):

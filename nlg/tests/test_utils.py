@@ -5,11 +5,8 @@
 """Tests for nlg.utils"""
 
 import random
-import re
 import unittest
 from nlg import utils
-import pandas as pd
-import os.path as op
 
 
 class TestUtils(unittest.TestCase):
@@ -95,29 +92,6 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.sanitize_indices((3, 3), 0, 1), 0)
         self.assertEqual(utils.sanitize_indices((3, 3), 1, 1), 1)
         self.assertEqual(utils.sanitize_indices((3, 3), 2, 1), -1)
-
-    def test_templatize(self):
-        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
-        df.sort_values("votes", ascending=False, inplace=True)
-        df.reset_index(inplace=True, drop=True)
-
-        doc = """
-        Spencer Tracy is the top voted actor, followed by Cary Grant.
-        The least voted actress is Bette Davis, trailing at only 14 votes, followed by
-        Ingrid Bergman at a rating of 0.29614.
-        """
-        ideal = """
-        {{ df.loc[0, 'name'] }} is the top {{ args['_sort'][0] }}
-        actor, followed by {{ df.loc[1, 'name'] }}. The least {{ args['_sort'][0] }}
-        actress is {{ df.loc[-1, 'name'] }}, trailing at only {{ df.loc[-1, 'votes'] }}
-        {{ args['_sort'][0] }}, followed by {{ df.loc[-2, 'name'] }} at a {{ df.columns[2] }}
-        of {{ df.loc[-2, 'rating'] }}.
-        """
-        args = {"?_sort": ["-votes"]}
-        actual, _ = utils.templatize(doc, args, df)
-        cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
-        self.assertEqual(*map(cleaner, (ideal, actual)))
 
 
 if __name__ == "__main__":

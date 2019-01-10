@@ -6,11 +6,13 @@
 Search tools.
 """
 
-from itertools import chain
 import re
+from itertools import chain
+
 import numpy as np
 from spacy import load
 
+from nlg.utils import ner, sanitize_df, sanitize_indices, sanitize_text
 
 nlp = load("en_core_web_sm")
 
@@ -94,3 +96,16 @@ def search_df(tokens, df):
     unfound = [token for token in tokens if token.text not in search_res]
     search_res.update(lemmatized_df_search(unfound, df.columns))
     return search_res
+
+
+def templatize(text, args, df):
+    """Process a piece of text and templatize it according to a dataframe."""
+    text = sanitize_text(text)
+    df = sanitize_df(df)
+    doc = nlp(text)
+    entities = ner(doc)
+    dfix = search_df(entities, df)
+    dfix.update(search_args(entities, args))
+    for token, ixpattern in dfix.items():
+        text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
+    return text, dfix

@@ -7,6 +7,7 @@ Tests of the nlg.search module
 """
 
 import os.path as op
+import re
 import unittest
 
 import pandas as pd
@@ -47,3 +48,26 @@ class TestSearch(unittest.TestCase):
             search.search_df(ents, df),
             {"Spencer Tracy": "df.loc[0, 'name']", "voted": "df.columns[3]"},
         )
+
+    def test_templatize(self):
+        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
+        df = pd.read_csv(fpath)
+        df.sort_values("votes", ascending=False, inplace=True)
+        df.reset_index(inplace=True, drop=True)
+
+        doc = """
+        Spencer Tracy is the top voted actor, followed by Cary Grant.
+        The least voted actress is Bette Davis, trailing at only 14 votes, followed by
+        Ingrid Bergman at a rating of 0.29614.
+        """
+        ideal = """
+        {{ df.loc[0, 'name'] }} is the top {{ args['_sort'][0] }}
+        actor, followed by {{ df.loc[1, 'name'] }}. The least {{ args['_sort'][0] }}
+        actress is {{ df.loc[-1, 'name'] }}, trailing at only {{ df.loc[-1, 'votes'] }}
+        {{ args['_sort'][0] }}, followed by {{ df.loc[-2, 'name'] }} at a {{ df.columns[2] }}
+        of {{ df.loc[-2, 'rating'] }}.
+        """
+        args = {"?_sort": ["-votes"]}
+        actual, _ = search.templatize(doc, args, df)
+        cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
+        self.assertEqual(*map(cleaner, (ideal, actual)))
