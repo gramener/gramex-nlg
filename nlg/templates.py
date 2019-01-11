@@ -14,31 +14,30 @@ import numpy as np
 import pandas as pd
 from tornado.template import Template
 
-from nlg import grammar
-from nlg.utils import concatenate_items, plural, is_plural
+from nlg import grammar as G
 
 TEMPLATES = {
-    'extreme': '{subject} {verb} the {adjective} {object}.',
-    'comparison': '{subject} {verb} {quant} {adjective} than {object}.'
+    "extreme": "{subject} {verb} the {adjective} {object}.",
+    "comparison": "{subject} {verb} {quant} {adjective} than {object}.",
 }
 
-FUNC_EXPR = re.compile(r'^(?P<filter>[a-z|A-Z]{1}[a-z|A-Z|_|\d]+)\((?P<colname>.*)\)')
+FUNC_EXPR = re.compile(r"^(?P<filter>[a-z|A-Z]{1}[a-z|A-Z|_|\d]+)\((?P<colname>.*)\)")
 
 
 def parse_func_expr(expr):
     m = re.match(FUNC_EXPR, expr)
     if m is None:
-        raise ValueError('Invalid Expression')
-    return {'colname': m.group('colname'), 'filter': m.group('filter')}
+        raise ValueError("Invalid Expression")
+    return {"colname": m.group("colname"), "filter": m.group("filter")}
 
 
 class Description(object):
     """Generate general purpose natural language descriptions of dataframes."""
 
-    prefixes = ['This dataset contains ']
-    metadata_tmpl = '{rowname} for {n_rows} {entities}.'
+    prefixes = ["This dataset contains "]
+    metadata_tmpl = "{rowname} for {n_rows} {entities}."
 
-    def __init__(self, df, entity='', attributes=''):
+    def __init__(self, df, entity="", attributes=""):
         """
 
         Parameters
@@ -60,10 +59,12 @@ class Description(object):
         self.attributes = attributes
         self.entity = entity
         # self.clean()
-        self.categoricals = [c for c, d in df.dtypes.iteritems() if d.name in
-                             ('object', 'bool', 'category')]
-        self.numericals = [c for c, d in df.dtypes.iteritems() if d in
-                           (float, int)]
+        self.categoricals = [
+            c
+            for c, d in df.dtypes.iteritems()
+            if d.name in ("object", "bool", "category")
+        ]
+        self.numericals = [c for c, d in df.dtypes.iteritems() if d in (float, int)]
         self.desc = df[self.numericals].describe()
         self.indices = self.find_possible_indices()
 
@@ -80,10 +81,13 @@ class Description(object):
 
     def sentences(self):
         """Get the final narrative as a list of sentences."""
-        return self.get_metadata() + self.narrate_categoricals() + \
-            self.narrate_numericals()
+        return (
+            self.get_metadata()
+            + self.narrate_categoricals()  # NOQA: W503
+            + self.narrate_numericals()  # NOQA: W503
+        )
 
-    def render(self, sep='\n', *args, **kwargs):
+    def render(self, sep="\n", *args, **kwargs):
         """Generate the narration string.
 
         Parameters
@@ -108,11 +112,13 @@ class Description(object):
         dataset."""
         if self.indices and not self.entity:
             self.entity = random.choice(self.indices)
-        entity = plural(self.entity)
+        entity = G.plural(self.entity)
         prefix = [random.choice(self.prefixes)]
-        prefix.append(self.metadata_tmpl.format(rowname=self.attributes,
-                                                n_rows=self.df.shape[0],
-                                                entities=entity))
+        prefix.append(
+            self.metadata_tmpl.format(
+                rowname=self.attributes, n_rows=self.df.shape[0], entities=entity
+            )
+        )
         return prefix
 
     def common_categoricals(self, top_n=5):
@@ -153,14 +159,14 @@ class Description(object):
         """
         sentences = []
         for k, v in self.common_categoricals(top_n).items():
-            k = plural(k)
+            k = G.plural(k)
             n_items = len(v)
-            values = concatenate_items(v)
+            values = G.concatenate_items(v)
             if n_items < top_n:
                 top_n = n_items
-                sent = 'The {0} unique {1} are {2}.'
+                sent = "The {0} unique {1} are {2}."
             else:
-                sent = 'The top {0} {1} are {2}.'
+                sent = "The top {0} {1} are {2}."
             sentences.append(sent.format(top_n, k, values))
         return sentences
 
@@ -173,27 +179,38 @@ class Description(object):
             A list of sentences.
         """
         sentences = []
-        tmpl = '{colname} {verb} between {min} and {max} at an average of {mean}.'
+        tmpl = "{colname} {verb} between {min} and {max} at an average of {mean}."
         for col in self.desc:
             colname = col.capitalize() if not col.isupper() else col
-            verb = 'vary' if is_plural(col) else 'varies'
-            sentences.append(tmpl.format(colname=colname, min=self.desc[col]['min'],
-                                         max=self.desc[col]['max'],
-                                         mean=self.desc[col]['mean'],
-                                         verb=verb))
+            verb = "vary" if G.is_plural(col) else "varies"
+            sentences.append(
+                tmpl.format(
+                    colname=colname,
+                    min=self.desc[col]["min"],
+                    max=self.desc[col]["max"],
+                    mean=self.desc[col]["mean"],
+                    verb=verb,
+                )
+            )
         return sentences
 
 
-class Narrative(object):
-
-    def __init__(self, template='', data=None, struct=None, tmpl_weights=None,
-                 tornado_tmpl=False, **fmt_kwargs):
+class NLGTemplate(object):
+    def __init__(
+        self,
+        template="",
+        data=None,
+        struct=None,
+        tmpl_weights=None,
+        tornado_tmpl=False,
+        **fmt_kwargs
+    ):
         self.tornado_tmpl = tornado_tmpl
         self.fmt = Formatter()
         if struct is None:
             struct = {}
         if data is None:
-            self.data = struct.get('data')
+            self.data = struct.get("data")
         else:
             self.data = data
         if isinstance(template, str):
@@ -205,15 +222,15 @@ class Narrative(object):
                 self.template = random.choice(template)
         self.fmt_kwargs = fmt_kwargs
         if struct:
-            intent = struct.get('intent', False)
+            intent = struct.get("intent", False)
             if intent:
                 self.intent = intent
                 self.template = TEMPLATES[self.intent]
             else:
-                if 'template' not in struct:
-                    raise KeyError('Either intent or template must be specified.')
-                self.template = struct['template']
-            self.metadata = struct['metadata']
+                if "template" not in struct:
+                    raise KeyError("Either intent or template must be specified.")
+                self.template = struct["template"]
+            self.metadata = struct["metadata"]
 
     @property
     def tmpl_fnames(self):
@@ -235,10 +252,10 @@ class Narrative(object):
         bool
             Whether the given spec contains a template.
         """
-        template = spec.get('template')
+        template = spec.get("template")
         if isinstance(template, str):
             fieldnames = [f for _, f, _, _ in self.fmt.parse(template) if f]
-            kwargs = spec.get('kwargs', {})
+            kwargs = spec.get("kwargs", {})
             if kwargs:
                 return all([f in kwargs for f in fieldnames])
             return all([f in template for f in fieldnames])
@@ -246,9 +263,9 @@ class Narrative(object):
 
     def get_template_kwargs(self, spec):
         """Parse a template dict and find the fieldname kwargs."""
-        tmpl = spec.get('template')
+        tmpl = spec.get("template")
         fieldnames = [f for _, f, _, _ in self.fmt.parse(tmpl) if f]
-        kwargs = spec.get('kwargs', False)
+        kwargs = spec.get("kwargs", False)
         if kwargs:
             for f in fieldnames:
                 if f not in kwargs:
@@ -262,7 +279,7 @@ class Narrative(object):
 
     def process_template(self, spec):
         """Process a template."""
-        tmpl = spec['template']
+        tmpl = spec["template"]
         kwargs = self.get_template_kwargs(spec)
         fmt_kwargs = {}
         for k, v in kwargs.items():
@@ -274,12 +291,12 @@ class Narrative(object):
 
     def is_filter(self, spec):
         """Check if a spec represents a filter."""
-        return all([c in spec for c in ('_type', 'colname', '_filter')])
+        return all([c in spec for c in ("_type", "colname", "_filter")])
 
     def process_filter_dict(self, colname, _filter):
-        by = _filter['colname']
-        subfilter = _filter['filter']
-        ix = getattr(self.data[by], 'idx' + subfilter)()
+        by = _filter["colname"]
+        subfilter = _filter["filter"]
+        ix = getattr(self.data[by], "idx" + subfilter)()
         return self.data.iloc[ix][colname]
 
     def process_filter(self, _type, colname, _filter):
@@ -295,10 +312,10 @@ class Narrative(object):
         return value
 
     def is_quant_operation(self, spec):
-        return ('_type' in spec) and ('expr' in spec)
+        return ("_type" in spec) and ("expr" in spec)
 
     def eval_quant(self, _type, expr):
-        if _type != 'operation':
+        if _type != "operation":
             return 0
         return pd.eval(expr.format(data=self.data))
 
@@ -314,7 +331,7 @@ class Narrative(object):
         spec : any
             Format field specification
         """
-        _, kw, _, _ = list(self.fmt.parse('{{{}}}'.format(kw)))[0]
+        _, kw, _, _ = list(self.fmt.parse("{{{}}}".format(kw)))[0]
         obj, _ = self.fmt.get_field(kw, (), {kw: spec})
         return obj
 
@@ -352,45 +369,45 @@ class Narrative(object):
 
     @property
     def subject(self):
-        subject = self.metadata.get('subject', False)
+        subject = self.metadata.get("subject", False)
         if subject:
             return self.process_pos(subject)
-        raise KeyError('Subject not found.')
+        raise KeyError("Subject not found.")
 
     @property
     def quant(self):
-        quant = self.metadata.get('quant', False)
+        quant = self.metadata.get("quant", False)
         if quant:
             return self.process_pos(quant)
-        raise KeyError('quant not found.')
+        raise KeyError("quant not found.")
 
     @property
     def verb(self):
-        verb = self.metadata.get('verb', False)
+        verb = self.metadata.get("verb", False)
         if verb:
             return self.process_pos(verb)
-        raise KeyError('verb not found.')
+        raise KeyError("verb not found.")
 
     @property
     def adjective(self):
-        adjective = self.metadata.get('adjective', False)
+        adjective = self.metadata.get("adjective", False)
         if adjective:
             return self.process_pos(adjective)
-        raise KeyError('adjective not found.')
+        raise KeyError("adjective not found.")
 
     @property
     def object(self):
-        obj = self.metadata.get('object', False)
+        obj = self.metadata.get("object", False)
         if obj:
             return self.process_pos(obj)
-        raise KeyError('Object not found.')
+        raise KeyError("Object not found.")
 
     def is_data_ref(self, s):
         fnames = set([f for _, f, _, _ in self.fmt.parse(s) if f])
         if len(fnames) != 1:
             return False
-        _, field = self.fmt.get_field(fnames.pop(), (), {'data': self.data})
-        return field == 'data'
+        _, field = self.fmt.get_field(fnames.pop(), (), {"data": self.data})
+        return field == "data"
 
     def has_fieldname(self, s):
         """Check if a string has a fieldname left in it."""
@@ -398,7 +415,7 @@ class Narrative(object):
 
     def render(self):
         if self.tornado_tmpl:
-            return Template(self.template).generate(**self.fmt_kwargs).decode('utf-8')
+            return Template(self.template).generate(**self.fmt_kwargs).decode("utf-8")
         try:
             s = self.template.format(**self.fmt_kwargs)
             if not self.has_fieldname(s):
@@ -407,7 +424,7 @@ class Narrative(object):
             pass
 
         fmt_kwargs = {}
-        if not hasattr(self, 'intent'):
+        if not hasattr(self, "intent"):
             for k, v in self.fmt_kwargs.items():
                 if not isinstance(v, str):
                     fmt_kwargs[k] = self.process_pos(k, v)
@@ -424,7 +441,7 @@ class Narrative(object):
 
 def get_series_extreme(s, method):
     value = getattr(s, method)()
-    if method == 'mode':
+    if method == "mode":
         value = value.iloc[0]
     return value
 
@@ -444,11 +461,11 @@ def get_literal_results(struct):
         An English string containing pluralized items.
 
     """
-    data = struct['data']
-    results = struct['metadata']['results']
-    colname = results['colname']
-    items = getattr(data[colname], results['method'])()
-    return concatenate_items(items)
+    data = struct["data"]
+    results = struct["metadata"]["results"]
+    colname = results["colname"]
+    items = getattr(data[colname], results["method"])()
+    return G.concatenate_items(items)
 
 
 def descriptive(struct, append_results=True, **kwargs):
@@ -473,24 +490,23 @@ def descriptive(struct, append_results=True, **kwargs):
 
     """
 
-    template = '{subject} {verb} {object} {preposition} {prep_object}'
+    template = "{subject} {verb} {object} {preposition} {prep_object}"
     fmt_kwargs = {}
     for _, fieldname, _, _ in Formatter().parse(template):
-        if not fieldname.startswith('_'):
-            func = getattr(grammar, 'make_' + fieldname,
-                           grammar.keep_fieldname)
+        if not fieldname.startswith("_"):
+            func = getattr(G, "make_" + fieldname, G.keep_fieldname)
             fmt_kwargs[fieldname] = func(struct)
     fmt_kwargs.update(kwargs)
     sentence = template.format(**fmt_kwargs)
     if not append_results:
         return sentence
     results = get_literal_results(struct)
-    return sentence + ': ' + results
+    return sentence + ": " + results
 
 
 def _process_urlparams(handler):
-    df = pd.read_csv(handler.args['data'][0])
-    with open(handler.args['metadata'][0], 'r') as f_in:
+    df = pd.read_csv(handler.args["data"][0])
+    with open(handler.args["metadata"][0], "r") as f_in:
         metadata = json.load(f_in)
     return df, metadata
 
@@ -514,7 +530,7 @@ def g_descriptive(handler):
 
     """
     data, metadata = _process_urlparams(handler)
-    return descriptive({'data': data, 'metadata': metadata})
+    return descriptive({"data": data, "metadata": metadata})
 
 
 def superlative(struct, *args, **kwargs):
@@ -535,12 +551,11 @@ def superlative(struct, *args, **kwargs):
     -------
 
     """
-    template = '{subject} {verb} {superlative} {object} {preposition} {prep_object}'
+    template = "{subject} {verb} {superlative} {object} {preposition} {prep_object}"
     fmt_kwargs = {}
     for _, fieldname, _, _ in Formatter().parse(template):
-        if not fieldname.startswith('_'):
-            func = getattr(grammar, 'make_' + fieldname,
-                           grammar.keep_fieldname)
+        if not fieldname.startswith("_"):
+            func = getattr(G, "make_" + fieldname, G.keep_fieldname)
             fmt_kwargs[fieldname] = func(struct)
     fmt_kwargs.update(kwargs)
     return template.format(**fmt_kwargs)
@@ -566,17 +581,24 @@ def g_superlative(handler):
 
     """
     data, metadata = _process_urlparams(handler)
-    return superlative({'data': data, 'metadata': metadata})
+    return superlative({"data": data, "metadata": metadata})
 
 
-if __name__ == '__main__':
-    df = pd.read_csv('data/assembly.csv')
-    df['vote_share'] = df.pop(
-        'Vote share').apply(lambda x: x.replace('%', '')).astype(float)
+if __name__ == "__main__":
+    df = pd.read_csv("data/assembly.csv")
+    df["vote_share"] = (
+        df.pop("Vote share").apply(lambda x: x.replace("%", "")).astype(float)
+    )
     tmpl = """BJP won a voteshare of {x}% in {y}, followed by {a}% in {b} and
     {c}% in {d}."""
-    N = Narrative(tmpl, data=df,
-                  x='{data.vote_share[0]}', y='{data.AC[0]}',
-                  a='{data.vote_share[1]}', b='{data.AC[1]}',
-                  c='{data.vote_share[2]}', d='{data.AC[2]}')
+    N = NLGTemplate(
+        tmpl,
+        data=df,
+        x="{data.vote_share[0]}",
+        y="{data.AC[0]}",
+        a="{data.vote_share[1]}",
+        b="{data.AC[1]}",
+        c="{data.vote_share[2]}",
+        d="{data.AC[2]}",
+    )
     print(N)

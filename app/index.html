@@ -1,43 +1,67 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <meta charset="utf-8" />
-        <title>NLG Template Generation</title>
-    </head>
-    <body>
-        <link rel="stylesheet" href="ui/bootstraptheme.css"/>     <!-- Add bootstrap -->
-        <div class="formhandler" data-src="_preview"></div>          <!-- Insert component here -->
-        <!-- Include JS dependencies  -->
-        <script src="ui/lodash/lodash.min.js"></script>
-        <script src="ui/jquery/dist/jquery.min.js"></script>
-        <script src="ui/popper.js/dist/umd/popper.min.js"></script>
-        <script src="ui/bootstrap/dist/js/bootstrap.min.js"></script>
-        <script src="ui/g1/dist/g1.min.js"></script>
-        <script src="js/nlg.js"></script>
-        <script>
-            // Render the FormHandler table
-            
-            $('.formhandler').on('load', setDataArgs);
-            var df = null;
-            var args = null;
-            var nlg_template = null;
-            $('.formhandler').formhandler();
-        </script>
-        <form id="myform" action="/textproc" enctype="multipart/form-data">
+
+<head>
+    <meta charset="utf-8" />
+    <title>NLG Template Generation</title>
+</head>
+
+<body>
+    <link rel="stylesheet" href="ui/bootstraptheme.css" /> <!-- Add bootstrap -->
+    <div class="formhandler" data-src="_preview"></div> <!-- Insert component here -->
+    <!-- Include JS dependencies  -->
+    <script src="ui/lodash/lodash.min.js"></script>
+    <script src="ui/jquery/dist/jquery.min.js"></script>
+    <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+    <script src="ui/bootstrap/dist/js/bootstrap.min.js"></script>
+    <script src="ui/g1/dist/g1.min.js"></script>
+    <script src="js/nlg.js"></script>
+    <script>
+        // Render the FormHandler table
+
+        $('.formhandler').on('load', setDataArgs);
+        var filepath = "";
+        var df = null;
+        var args = null;
+        var nlg_template = [];
+        var previewHTML = [];
+        var conditions = {};
+        var currentEventHandlers = {};
+        var currentEditIndex = null;
+        $('.formhandler').formhandler();
+    </script>
+    <form id="myform" action="/textproc" enctype="multipart/form-data">
         <div>
             <label for="textbox">Type Something</label>:
             <textarea id="textbox" name="textbox" style="font-family:monospace"></textarea>
         </div>
         <div>
-            <input id="inspect" name="inspect" type="button" value="Inspect" onclick="processTemplate();"/>
+            <input id="inspect" name="inspect" type="button" value="Add" />
         </div>
-        </form>
-        <br>
-        <h3>Preview Template:</h3>
-        <br>
-        <p id="template-preview" style="font-family:monospace"></p>
-        <div>
-            <input id="download-btn" name="download" type="button" value="Download Template" onclick="downloadTemplate();"/>
-        </div>
-    </body>
+    </form>
+    <br>
+    <div>
+        <h6>Edit Template:</h6>
+        <textarea id="edit-template" , name="templateditor" , style="font-family:monospace"></textarea>
+        <p id="edit-preview" style="font-family:monospace"></p>
+        <input id="check-template" name="check-tmpl" type="button" value="Check" />
+        <input id="save-template" name="save-tmpl" type="button" value="Save" />
+    </div>
+    <h6>Preview Template:</h6>
+    <br>
+    <p id="template-preview" style="font-family:monospace"></p>
+    <div>
+        <input id="download-btn" name="download" type="button" value="Download Template" />
+    </div>
+    <!-- Template preview -->
+    <script>
+        document.getElementById("download-btn").addEventListener("click", downloadTemplate);
+        document.getElementById("inspect").addEventListener("click", addToTemplate);
+        document.getElementById("check-template").addEventListener("click", checkTemplate);
+        document.getElementById("save-template").addEventListener("click", saveTemplate);
+        document.getElementById("textbox").cols = 119;
+        document.getElementById("textbox").cols = 119;
+    </script>
+</body>
+
 </html>
