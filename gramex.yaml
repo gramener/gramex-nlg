@@ -55,6 +55,14 @@ url:
             xsrf_cookies: false
             headers:
                 Content-Type: application/json
+    ctxmenu-$*:
+        pattern: /$YAMLURL/ctxmenu
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.get_ctxmenu
+            xsrf_cookies: false
+            headers:
+                Content-Type: application/json
     tmpl-download-$*:
         pattern: /$YAMLURL/tmpl-download
         handler: FunctionHandler

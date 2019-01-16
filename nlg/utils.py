@@ -36,6 +36,13 @@ print(narrative.render())
 """
 
 
+def ctxmenu(func):
+    """Decorator for adding callables to context menus for the webapp.
+    """
+    func.ctxmenu = True
+    return func
+
+
 def get_phrase_matcher(df):
     matcher = PhraseMatcher(nlp.vocab)
     for col in df.columns[df.dtypes == np.dtype("O")]:

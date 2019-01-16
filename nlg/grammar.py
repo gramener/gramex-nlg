@@ -2,6 +2,8 @@ import random
 import re
 from inflect import engine
 
+from nlg.utils import ctxmenu
+
 infl = engine()
 is_plural = infl.singular_noun
 
@@ -65,7 +67,7 @@ def make_superlative(struct, *args, **kwargs):
     tokens.append(random.choice(mdata["superlative"]))
     return " ".join(tokens)
 
-
+@ctxmenu
 def concatenate_items(items, sep=", "):
     """Concatenate a sequence of tokens into an English string.
 
@@ -94,6 +96,7 @@ def concatenate_items(items, sep=", "):
     return s
 
 
+@ctxmenu
 def plural(word):
     """Pluralize a word.
 
@@ -113,6 +116,7 @@ def plural(word):
     return word
 
 
+@ctxmenu
 def singular(word):
     if is_plural(word):
         word = infl.singular_noun(word)
