@@ -31,7 +31,7 @@ function saveBlob(blob, fileName) {
 
 function downloadTemplate() {
     var request = new XMLHttpRequest();
-    request.open('GET', "/tmpl-download?tmpl="
+    request.open('GET', "tmpl-download?tmpl="
         + encodeURIComponent(JSON.stringify(nlg_template))
         + "&condts=" + encodeURIComponent(JSON.stringify(conditions))
         + "&args=" + encodeURIComponent(JSON.stringify(getSearchArgs())),

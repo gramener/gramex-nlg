@@ -52,13 +52,13 @@ def search_args(entities, args):
     fmt = "args['{}'][{}]"
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
-        key = k.lstrip("?")
+        # key = k.lstrip("?")
         argtokens = list(chain(*[re.findall(r"\w+", f) for f in v]))
         argtokens = list(chain(*[default_nlp(c) for c in argtokens]))
         for i, x in enumerate(argtokens):
             for y in ent_tokens:
                 if x.lemma_ == y.lemma_:
-                    search_res[y.text] = fmt.format(key, i)
+                    search_res[y.text] = fmt.format(k, i)
     return search_res
 
 
@@ -105,7 +105,7 @@ def search_df(tokens, df):
                 ix_indexer = "'{}'".format(index)
             else:
                 ix_indexer = str(index)
-            search_res[token] = "df.loc[{}, {}]".format(ix_indexer, col_indexer)
+            search_res[token] = "df.iloc[{}][{}]".format(ix_indexer, col_indexer)
 
     unfound = [token for token in tokens if token.text not in search_res]
     search_res.update(lemmatized_df_search(unfound, df.columns))

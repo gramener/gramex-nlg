@@ -19,7 +19,7 @@ install_requires = [
 
 setup(name='nlg',
       version='0.1.0',
-      py_modules=find_packages(),
+      packages=find_packages(),
       install_requires=install_requires,
       test_suite='tests',
       tests_require=[

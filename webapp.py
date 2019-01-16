@@ -7,11 +7,11 @@ Module for gramex exposure. This shouldn't be imported anywhere, only for use
 with gramex.
 """
 from urllib import parse
-from nlg.search import templatize
+from nlg import templatize
 from nlg import grammar as G
+from nlg import Narrative
 from nlg.utils import NARRATIVE_TEMPLATE
 from tornado.template import Template
-from nlg.narrative import Narrative
 import pandas as pd
 import json
 

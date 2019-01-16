@@ -6,7 +6,8 @@
 # Distributed under terms of the MIT license.
 #
 
-set -ex
+set -x
 
-python setup.py develop
-python -m spacy download en
+git clean -fdx
+/home/ubuntu/anaconda3/bin/pip install -e .
+/home/ubuntu/anaconda3/bin/python -m spacy download en_core_web_sm
