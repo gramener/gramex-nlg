@@ -8,6 +8,35 @@ function setDataArgs(x) {
     args = getSearchArgs();
 }
 
+function wrapSelection(pyfunc) {
+    var editor = document.getElementById('edit-template');
+    var currentText = editor.value;
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var oldSelection = currentText.substring(start, end);
+    var newSelection = `{{ ${pyfunc}('${oldSelection}') }}`;
+    editor.value = currentText.replace(oldSelection, newSelection)
+}
+
+function makeContextMenuHTML(payload) {
+    var elem = document.getElementById("contextmenu");
+    for (let i = 0; i < payload.length; i++) {
+        var melem = document.createElement('menuitem');
+        melem.label = payload[i];
+        var mylistener = function () { wrapSelection(payload[i]) };
+        melem.addEventListener('click', mylistener);
+        elem.appendChild(melem);
+    }
+}
+
+function setContextMenu() {
+    $.ajax({
+        type: "GET",
+        url: "ctxmenu",
+        success: makeContextMenuHTML
+    })
+}
+
 function addToTemplate() {
     $.ajax({
         type: "POST",
