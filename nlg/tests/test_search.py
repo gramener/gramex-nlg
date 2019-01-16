@@ -34,7 +34,7 @@ class TestSearch(unittest.TestCase):
         doc = utils.nlp("James Stewart is the top voted actor.")
         ents = utils.ner(doc)
         self.assertDictEqual(
-            search.search_args(ents, args), {"voted": "args['_sort'][0]"}
+            search.search_args(ents, args), {"voted": "args['?_sort'][0]"}
         )
 
     def test_search_df(self):
@@ -46,7 +46,7 @@ class TestSearch(unittest.TestCase):
         ents = utils.ner(doc)
         self.assertDictEqual(
             search.search_df(ents, df),
-            {"Spencer Tracy": "df.loc[0, 'name']", "voted": "df.columns[3]"},
+            {"Spencer Tracy": "df.iloc[0]['name']", "voted": "df.columns[3]"},
         )
 
     def test_templatize(self):
@@ -61,11 +61,11 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df.loc[0, 'name'] }} is the top {{ args['_sort'][0] }}
-        actor, followed by {{ df.loc[1, 'name'] }}. The least {{ args['_sort'][0] }}
-        actress is {{ df.loc[-1, 'name'] }}, trailing at only {{ df.loc[-1, 'votes'] }}
-        {{ args['_sort'][0] }}, followed by {{ df.loc[-2, 'name'] }} at a {{ df.columns[2] }}
-        of {{ df.loc[-2, 'rating'] }}.
+        {{ df.iloc[0]['name'] }} is the top {{ args['?_sort'][0] }}
+        actor, followed by {{ df.iloc[1]['name'] }}. The least {{ args['?_sort'][0] }}
+        actress is {{ df.iloc[-1]['name'] }}, trailing at only {{ df.iloc[-1]['votes'] }}
+        {{ args['?_sort'][0] }}, followed by {{ df.iloc[-2]['name'] }} at a {{ df.columns[2] }}
+        of {{ df.iloc[-2]['rating'] }}.
         """
         args = {"?_sort": ["-votes"]}
         actual, _ = search.templatize(doc, args, df)

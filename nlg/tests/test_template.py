@@ -11,7 +11,7 @@ import os.path as op
 import unittest
 import numpy as np
 import pandas as pd
-from nlg import NLGTemplate as N
+from nlg.templates import NLGTemplate as N
 from nlg import grammar as G
 
 np.random.seed(1234)
