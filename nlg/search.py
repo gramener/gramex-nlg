@@ -56,17 +56,25 @@ class DFSearch(object):
                cell_fmt="df['{}'][{}]", **kwargs):
         self.search_nes(text)
         for token, ix in self.search_columns(text, **kwargs).items():
+            ix = utils.sanitize_indices(self.df.shape, ix, 1)
             self.results[token] = ("colname", colname_fmt.format(ix))
         for token, (x, y) in self.search_table(text, **kwargs).items():
+            x = utils.sanitize_indices(self.df.shape, x, 0)
+            y = utils.sanitize_indices(self.df.shape, y, 1)
             self.results[token] = ("cell", cell_fmt.format(self.df.columns[y], x))
+        self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
         return self.results.clean()
 
     def search_nes(self, text, colname_fmt="df.columns[{}]", cell_fmt="df['{}'][{}]"):
-        doc = self.nlp(text)
-        ents = [c.text for c in utils.ner(doc)]
+        self.doc = self.nlp(text)
+        self.ents = utils.ner(self.doc)
+        ents = [c.text for c in self.ents]
         for token, ix in self.search_columns(ents, literal=True).items():
+            ix = utils.sanitize_indices(self.df.shape, ix, 1)
             self.results[token] = ("colname", colname_fmt.format(ix))
         for token, (x, y) in self.search_table(ents, literal=True).items():
+            x = utils.sanitize_indices(self.df.shape, x, 0)
+            y = utils.sanitize_indices(self.df.shape, y, 1)
             self.results[token] = ("cell", cell_fmt.format(self.df.columns[y], x))
 
     def search_table(self, text, **kwargs):
@@ -77,6 +85,16 @@ class DFSearch(object):
         kwargs['array'] = self.df.columns
         return self._search_array(text, **kwargs)
 
+    def search_quant(self, quants, nround=2, cell_fmt="df['{}'][{}]"):
+        dfclean = utils.sanitize_df(self.df, nround)
+        quants = np.array(quants)
+        n_quant = quants.astype('float').round(2)
+        for x, y in zip(*dfclean.isin(n_quant).values.nonzero()):
+            x = utils.sanitize_indices(dfclean.shape, x, 0)
+            y = utils.sanitize_indices(dfclean.shape, y, 1)
+            tk = quants[n_quant == dfclean.iloc[x, y]][0].item()
+            self.results[tk] = ("cell", cell_fmt.format(self.df.columns[y], x))
+
     def _search_array(self, text, array, literal=False,
                       case=False, lemmatize=True, nround=2):
         """Search for tokens in text within a pandas array.
@@ -85,9 +103,9 @@ class DFSearch(object):
             # Expect text to be a list of strings, no preprocessing on anything.
             if not isinstance(text, list):
                 raise TypeError('text is expected to be list of strs when literal=True.')
-            if set([type(c) for c in text]) != {str}:
-                raise TypeError('text can contain only strings when literal=True.')
-            tokens = {c: c for c in text}
+            if not set([type(c) for c in text]).issubset({str, float, int}):
+                raise TypeError('text can contain only strings or numbers when literal=True.')
+            tokens = {c: str(c) for c in text}
         elif lemmatize:
             tokens = {c.lemma_: c.text for c in self.nlp(text)}
             if array.ndim == 1:
@@ -234,7 +252,9 @@ def templatize(text, args, df):
     # dfix = search_concatenations(text, df)
     # dfix = search_df(entities, df)
     # dfix.update(search_args(entities, args))
-    dfix = DFSearch(df).search(text)
+    dfs = DFSearch(df)
+    dfix = dfs.search(text)
+    dfix.update(search_args(dfs.ents, args))
     for token, ixpattern in dfix.items():
         text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
     return text, dfix

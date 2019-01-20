@@ -60,7 +60,7 @@ class TestDFSearch(unittest.TestCase):
         sent = "Spencer Tracy is the top voted actor."
         self.assertDictEqual(dfs.search(sent),
                              {"Spencer Tracy": "df['name'][0]",
-                              "voted": "df.columns[3]", 'actor': "df['category'][7]"})
+                              "voted": "df.columns[-1]", 'actor': "df['category'][-4]"})
 
 
 class TestSearch(unittest.TestCase):
@@ -94,11 +94,11 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df.iloc[0]['name'] }} is the top {{ args['?_sort'][0] }}
-        actor, followed by {{ df.iloc[1]['name'] }}. The least {{ args['?_sort'][0] }}
-        actress is {{ df.iloc[-1]['name'] }}, trailing at only {{ df.iloc[-1]['votes'] }}
-        {{ args['?_sort'][0] }}, followed by {{ df.iloc[-2]['name'] }} at a {{ df.columns[2] }}
-        of {{ df.iloc[-2]['rating'] }}.
+        {{ df['name'][0] }} is the top {{ args['?_sort'][0] }}
+        {{ df['category'][-4] }}, followed by {{ df['name'][1] }}. The least {{ args['?_sort'][0] }}
+        {{ df['category'][-1] }} is {{ df['name'][-1] }}, trailing at only {{ df['votes'][-1] }}
+        {{ args['?_sort'][0] }}, followed by {{ df['name'][-2] }} at a {{ df.columns[2] }}
+        of {{ df['rating'][-2] }}.
         """
         args = {"?_sort": ["-votes"]}
         actual, _ = search.templatize(doc, args, df)
