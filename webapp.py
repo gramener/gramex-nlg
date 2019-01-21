@@ -21,20 +21,27 @@ from nlg import utils as U
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
     payload = dict(payload)
-    text = payload["text"]
+    text = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
     args = parse.parse_qs(payload.get("args", {}))
-    return Template(text).generate(df=df, args=args, G=G)
+    resp = []
+    for t in text:
+        tmpl = Template(t).generate(df=df, args=args, G=G)
+        resp.append(tmpl.decode('utf8'))
+    return json.dumps(resp)
 
 
 def process_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
     payload = dict(payload)
-    text = payload["text"]
+    text = json.loads(payload["text"])
     df = pd.read_json(payload["data"], orient="records")
     args = parse.parse_qs(payload.get("args", {}))
-    template, replacements = templatize(text, args, df)
-    return {"text": template, "tokenmap": replacements}
+    resp = []
+    for t in text:
+        template, replacements = templatize(t, args, df)
+        resp.append({"text": t, "template": template, "tokenmap": replacements})
+    return json.dumps(resp)
 
 
 def download_template(handler):

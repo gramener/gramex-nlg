@@ -15,19 +15,64 @@ import pandas as pd
 from nlg import search, utils
 
 
-class TestSearch(unittest.TestCase):
-    def test_lemmatized_df_search(self):
+class TestDFSearch(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
+        cls.df = pd.read_csv(fpath)
+        cls.dfs = search.DFSearch(cls.df)
+
+    def test__search_array(self):
+        sent = "The votes, names and ratings of artists."
+        res = self.dfs._search_array(sent, self.df.columns, lemmatize=False)
+        self.assertDictEqual(res, {'votes': 3})
+
+        res = self.dfs._search_array(sent, self.df.columns)
+        self.assertDictEqual(res, {'votes': 3, 'names': 1, 'ratings': 2})
+
+        sent = "The votes, NAME and ratings of artists."
+        res = self.dfs._search_array(sent, self.df.columns,
+                                     lemmatize=False)
+        self.assertDictEqual(res, {'votes': 3, 'NAME': 1})
+        res = self.dfs._search_array(sent, self.df.columns, lemmatize=False,
+                                     case=True)
+        self.assertDictEqual(res, {'votes': 3})
+
+    def test_dfsearch_lemmatized(self):
         df = pd.DataFrame.from_dict(
             {
-                "singer": ["Kishore", "Kishore", "Kishore"],
                 "partner": ["Lata", "Asha", "Rafi"],
-                "songs": [20, 5, 15],
+                "song": [20, 5, 15],
             }
         )
-        doc = utils.nlp("Kishore Kumar sang the most songs with Lata Mangeshkar.")
-        self.assertDictEqual(
-            search.lemmatized_df_search([doc], df.columns), {"songs": "df.columns[2]"}
-        )
+        sent = "Kishore Kumar sang the most songs with Lata Mangeshkar."
+        dfs = search.DFSearch(df)
+        self.assertDictEqual(dfs.search(sent, lemmatize=True),
+                             {'songs': "df.columns[1]", 'Lata': "df['partner'].iloc[0]"})
+
+    def test_search_df(self):
+        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
+        df = pd.read_csv(fpath)
+        df.sort_values("votes", ascending=False, inplace=True)
+        df.reset_index(inplace=True, drop=True)
+        dfs = search.DFSearch(df)
+        sent = "Spencer Tracy is the top voted actor."
+        self.assertDictEqual(dfs.search(sent),
+                             {"Spencer Tracy": "df['name'].iloc[0]",
+                              "voted": "df.columns[-1]", 'actor': "df['category'].iloc[-4]"})
+
+
+class TestSearch(unittest.TestCase):
+    def test_dfsearches(self):
+        x = search.dfsearchres()
+        x['hello'] = 'world'
+        x['hello'] = 'world'
+        self.assertDictEqual(x, {'hello': ['world']})
+        x = search.dfsearchres()
+        x['hello'] = 'world'
+        x['hello'] = 'underworld'
+        self.assertDictEqual(x, {'hello': ['world', 'underworld']})
 
     def test_search_args(self):
         args = {"?_sort": ["-votes"]}
@@ -37,17 +82,12 @@ class TestSearch(unittest.TestCase):
             search.search_args(ents, args), {"voted": "args['?_sort'][0]"}
         )
 
-    def test_search_df(self):
-        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
-        df.sort_values("votes", ascending=False, inplace=True)
-        df.reset_index(inplace=True, drop=True)
-        doc = utils.nlp("Spencer Tracy is the top voted actor.")
+    def test_search_args_literal(self):
+        args = {"?_sort": ["-rating"]}
+        doc = utils.nlp("James Stewart has the highest rating.")
         ents = utils.ner(doc)
-        self.assertDictEqual(
-            search.search_df(ents, df),
-            {"Spencer Tracy": "df.iloc[0]['name']", "voted": "df.columns[3]"},
-        )
+        self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
+                             {'rating': "args['?_sort'][0]"})
 
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
@@ -61,13 +101,18 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df.iloc[0]['name'] }} is the top {{ args['?_sort'][0] }}
-        actor, followed by {{ df.iloc[1]['name'] }}. The least {{ args['?_sort'][0] }}
-        actress is {{ df.iloc[-1]['name'] }}, trailing at only {{ df.iloc[-1]['votes'] }}
-        {{ args['?_sort'][0] }}, followed by {{ df.iloc[-2]['name'] }} at a {{ df.columns[2] }}
-        of {{ df.iloc[-2]['rating'] }}.
+        {{ df['name'].iloc[0] }} is the top {{ args['?_sort'][0] }}
+        {{ df['category'].iloc[-4] }}, followed by {{ df['name'].iloc[1] }}.
+        The least {{ args['?_sort'][0] }} {{ df['category'].iloc[-1] }} is
+        {{ df['name'].iloc[-1] }}, trailing at only {{ df['votes'].iloc[-1] }}
+        {{ args['?_sort'][0] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
+        of {{ df['rating'].iloc[-2] }}.
         """
         args = {"?_sort": ["-votes"]}
         actual, _ = search.templatize(doc, args, df)
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
+
+
+if __name__ == "__main__":
+    unittest.main()
