@@ -23,18 +23,18 @@
         var df = null;
         var args = null;
         var templates = [];
-        // var nlg_template = [];
-        // var previewHTML = [];
-        // var conditions = {};
         var currentEventHandlers = {};
         var currentEditIndex = null;
+        setContextMenu();
         $('.formhandler').on('load', renderPreview);
         $('.formhandler').formhandler();
     </script>
     <form id="myform" enctype="multipart/form-data">
         <div>
             <label for="textbox">Type Something</label>:
-            <textarea id="textbox" name="textbox" style="font-family:monospace"></textarea>
+            <div>
+                <textarea id="textbox" name="textbox" style="font-family:monospace"></textarea>
+            </div>
         </div>
         <p>
             <button id="inspect" type="button" title="Add to Template"
@@ -46,8 +46,9 @@
     <br>
     <div>
         <h6>Edit Template:</h6>
-        <textarea id="edit-template" name="templateditor" style="font-family:monospace">
-        </textarea>
+        <div contextmenu="contextmenu">
+            <textarea id="edit-template" , name="templateditor" , style="font-family:monospace"></textarea>
+        </div>
         <p id="edit-preview" style="font-family:monospace"></p>
             <button id="check-template" title="Run template" type="button" class="btn btn-primary">
                 <i class="fa fa-play"></i>
@@ -63,6 +64,10 @@
         <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
             <i class="fa fa-download"></i>
         </button>
+    <div>
+    </div>
+        <menu id="contextmenu" type="context">
+        </menu>
     </div>
     <!-- Template preview -->
     <script>

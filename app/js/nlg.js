@@ -1,3 +1,62 @@
+function ignoreTemplateSection(event) {
+    var editor = document.getElementById('edit-template')
+    var currentText = editor.value;
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var selection = currentText.substring(start, end)
+    var replacement = deTemplatizeSelection(selection, currentEditIndex)
+    if (replacement) {
+        editor.value =  currentText.replace(selection, replacement)
+    }
+}
+
+function deTemplatizeSelection(selection, index) {
+    var tkmap = templates[index].tokenmap
+    var pandasExpr = selection.replace(/(^{{\ |\ }})/g, "")
+    for (let [token, tmpl] of Object.entries(tkmap)) {
+        if (pandasExpr == tmpl) {
+            return token
+        }
+    }
+    return false
+}
+
+function wrapSelection(pyfunc) {
+    console.log(`${pyfunc} called!`)
+    var editor = document.getElementById('edit-template');
+    var currentText = editor.value;
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var oldSelection = currentText.substring(start, end);
+    var newSelection = `{{ ${pyfunc}('${oldSelection}') }}`;
+    editor.value = currentText.replace(oldSelection, newSelection)
+}
+
+function makeContextMenuHTML(payload) {
+    var elem = document.getElementById("contextmenu");
+    for (let i = 0; i < payload.length; i++) {
+        var melem = document.createElement('menuitem');
+        melem.label = payload[i];
+        var mylistener = function () { wrapSelection(payload[i]) };
+        melem.addEventListener('click', mylistener);
+        elem.appendChild(melem);
+    }
+
+    // add Native JS listeners
+    var melem = document.createElement('menuitem');
+    melem.label = "Ignore"
+    melem.addEventListener('click', ignoreTemplateSection)
+    elem.appendChild(melem)
+}
+
+function setContextMenu() {
+    $.ajax({
+        type: "GET",
+        url: "ctxmenu",
+        success: makeContextMenuHTML
+    })
+}
+
 function addToNarrative() {
     // Add a template to the list of templates.
     $.ajax({
@@ -235,17 +294,4 @@ function highlightTemplate(template, tokenmap) {
             `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
     }
     return highlighted;
-}
-
-function textAreaCallback(payload) {
-    return false
-    //nlg_template.push(payload.text);
-    //var tokenmap = payload.tokenmap;
-
-    
-    //previewHTML.push(highlighted);
-
-    // var highlighted = text.replace(/({{[^{}]+}})/g,
-    // '<span style=\"background-color:#c8f442\">$1</span>');
-    // renderPreview(null);
 }
