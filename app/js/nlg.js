@@ -188,9 +188,8 @@ function renderTemplate(text, success) {
         url: "render-template",
         data: {
             "args": args, "data": JSON.stringify(df),
-             "text": JSON.stringify(text)
+            "template": JSON.stringify(text)
         },
-        dataType: "text",
         success: success
     })
 }
@@ -198,6 +197,10 @@ function renderTemplate(text, success) {
 function checkTemplate() {
     // Render the template found in the template editor box against the df and args.
     renderTemplate([document.getElementById("edit-template").value], editAreaCallback);
+}
+
+function editAreaCallback(payload) {
+    document.getElementById("edit-preview").innerHTML = payload;
 }
 
 function saveTemplate() {
@@ -281,10 +284,6 @@ function renderPreview(fh) {
         var deleteListener = function () { deleteTemplate(i) };
         btn.addEventListener("click", deleteListener);
     }
-}
-
-function editAreaCallback(payload) {
-    document.getElementById("edit-preview").innerHTML = payload;
 }
 
 function highlightTemplate(template, tokenmap) {
