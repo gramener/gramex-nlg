@@ -53,7 +53,7 @@ class DFSearch(object):
         self.nlp = nlp
 
     def search(self, text, colname_fmt="df.columns[{}]",
-               cell_fmt="df['{}'][{}]", **kwargs):
+               cell_fmt="df['{}'].iloc[{}]", **kwargs):
         self.search_nes(text)
         for token, ix in self.search_columns(text, **kwargs).items():
             ix = utils.sanitize_indices(self.df.shape, ix, 1)
@@ -65,7 +65,7 @@ class DFSearch(object):
         self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
         return self.results.clean()
 
-    def search_nes(self, text, colname_fmt="df.columns[{}]", cell_fmt="df['{}'][{}]"):
+    def search_nes(self, text, colname_fmt="df.columns[{}]", cell_fmt="df['{}'].iloc[{}]"):
         self.doc = self.nlp(text)
         self.ents = utils.ner(self.doc)
         ents = [c.text for c in self.ents]
@@ -85,7 +85,7 @@ class DFSearch(object):
         kwargs['array'] = self.df.columns
         return self._search_array(text, **kwargs)
 
-    def search_quant(self, quants, nround=2, cell_fmt="df['{}'][{}]"):
+    def search_quant(self, quants, nround=2, cell_fmt="df['{}'].iloc[{}]"):
         dfclean = utils.sanitize_df(self.df, nround)
         quants = np.array(quants)
         n_quant = quants.astype('float').round(2)

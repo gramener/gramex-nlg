@@ -49,7 +49,7 @@ class TestDFSearch(unittest.TestCase):
         sent = "Kishore Kumar sang the most songs with Lata Mangeshkar."
         dfs = search.DFSearch(df)
         self.assertDictEqual(dfs.search(sent, lemmatize=True),
-                             {'songs': "df.columns[1]", 'Lata': "df['partner'][0]"})
+                             {'songs': "df.columns[1]", 'Lata': "df['partner'].iloc[0]"})
 
     def test_search_df(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
@@ -59,8 +59,8 @@ class TestDFSearch(unittest.TestCase):
         dfs = search.DFSearch(df)
         sent = "Spencer Tracy is the top voted actor."
         self.assertDictEqual(dfs.search(sent),
-                             {"Spencer Tracy": "df['name'][0]",
-                              "voted": "df.columns[-1]", 'actor': "df['category'][-4]"})
+                             {"Spencer Tracy": "df['name'].iloc[0]",
+                              "voted": "df.columns[-1]", 'actor': "df['category'].iloc[-4]"})
 
 
 class TestSearch(unittest.TestCase):
@@ -94,11 +94,12 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df['name'][0] }} is the top {{ args['?_sort'][0] }}
-        {{ df['category'][-4] }}, followed by {{ df['name'][1] }}. The least {{ args['?_sort'][0] }}
-        {{ df['category'][-1] }} is {{ df['name'][-1] }}, trailing at only {{ df['votes'][-1] }}
-        {{ args['?_sort'][0] }}, followed by {{ df['name'][-2] }} at a {{ df.columns[2] }}
-        of {{ df['rating'][-2] }}.
+        {{ df['name'].iloc[0] }} is the top {{ args['?_sort'][0] }}
+        {{ df['category'].iloc[-4] }}, followed by {{ df['name'].iloc[1] }}.
+        The least {{ args['?_sort'][0] }} {{ df['category'].iloc[-1] }} is
+        {{ df['name'].iloc[-1] }}, trailing at only {{ df['votes'].iloc[-1] }}
+        {{ args['?_sort'][0] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
+        of {{ df['rating'].iloc[-2] }}.
         """
         args = {"?_sort": ["-votes"]}
         actual, _ = search.templatize(doc, args, df)
