@@ -82,6 +82,13 @@ class TestSearch(unittest.TestCase):
             search.search_args(ents, args), {"voted": "args['?_sort'][0]"}
         )
 
+    def test_search_args_literal(self):
+        args = {"?_sort": ["-rating"]}
+        doc = utils.nlp("James Stewart has the highest rating.")
+        ents = utils.ner(doc)
+        self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
+                             {'rating': "args['?_sort'][0]"})
+
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
         df = pd.read_csv(fpath)

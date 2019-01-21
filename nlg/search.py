@@ -178,9 +178,8 @@ def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     return search_res
 
 
-def search_args(entities, args):
+def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]"):
     search_res = {}
-    fmt = "args['{}'][{}]"
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
         # key = k.lstrip("?")
@@ -188,8 +187,12 @@ def search_args(entities, args):
         argtokens = list(chain(*[default_nlp(c) for c in argtokens]))
         for i, x in enumerate(argtokens):
             for y in ent_tokens:
-                if x.lemma_ == y.lemma_:
-                    search_res[y.text] = fmt.format(k, i)
+                if lemmatized:
+                    if x.lemma_ == y.lemma_:
+                        search_res[y.text] = fmt.format(k, i)
+                else:
+                    if x.text == y.text:
+                        search_res[y.text] = fmt.format(k, i)
     return search_res
 
 

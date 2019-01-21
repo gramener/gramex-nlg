@@ -22,7 +22,6 @@ function deTemplatizeSelection(selection, index) {
 }
 
 function wrapSelection(pyfunc) {
-    console.log(`${pyfunc} called!`)
     var editor = document.getElementById('edit-template');
     var currentText = editor.value;
     var start = editor.selectionStart;
