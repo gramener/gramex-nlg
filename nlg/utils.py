@@ -36,10 +36,15 @@ print(narrative.render())
 """
 
 
-def ctxmenu(func):
+def join_words(x, sep=' '):
+    return sep.join(re.findall(r'\w+', x, re.IGNORECASE))
+
+
+def ctxmenu(func, requires_templates=False):
     """Decorator for adding callables to context menus for the webapp.
     """
     func.ctxmenu = True
+    func.requires_templates = requires_templates
     return func
 
 
@@ -121,6 +126,12 @@ def sanitize_df(df, d_round=2, **options):
     for c in df.columns[df.dtypes == float]:
         df[c] = df[c].round(d_round)
     return df
+
+
+def sanitize_fh_args(args, func=join_words):
+    for k, v in args.items():
+        args[k] = [join_words(x) for x in v]
+    return args
 
 
 def humanize_comparison(x, y, bit, lot):

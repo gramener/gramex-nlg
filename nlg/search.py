@@ -178,7 +178,30 @@ def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     return search_res
 
 
-def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]"):
+def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]",
+                argkeys=('_sort',)):
+    """
+    Search formhandler arguments.
+
+    Parameters
+    ----------
+    entities : list
+        list of spacyy entities
+    args : Formhandler args
+        [description]
+    lemmatized : bool, optional
+        whether to lemmatize search (the default is True, which [default_description])
+    fmt : str, optional
+        format used in the template (the default is "args['{}'][{}]", which [default_description])
+    argkeys : list, optional
+        keys to be considered for the search (the default is None, which [default_description])
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    args = {k: v for k, v in args.items() if k in argkeys}
     search_res = {}
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
@@ -250,11 +273,7 @@ def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
     text = utils.sanitize_text(text)
     df = utils.sanitize_df(df)
-    # doc = default_nlp(text)
-    # entities = utils.ner(doc)
-    # dfix = search_concatenations(text, df)
-    # dfix = search_df(entities, df)
-    # dfix.update(search_args(entities, args))
+    args = utils.sanitize_fh_args(args)
     dfs = DFSearch(df)
     dfix = dfs.search(text)
     dfix.update(search_args(dfs.ents, args))

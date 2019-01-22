@@ -46,6 +46,22 @@ function makeContextMenuHTML(payload) {
     melem.label = "Ignore"
     melem.addEventListener('click', ignoreTemplateSection)
     elem.appendChild(melem)
+
+    var melem = document.createElement('menuitem');
+    melem.label = "Assign to Variable"
+    melem.addEventListener('click', assignToVariable)
+    elem.appendChild(melem)
+}
+
+function assignToVariable(event) {
+    var editor = document.getElementById('edit-template');
+    var currentText = editor.value;
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var selection = currentText.substring(start, end)
+    var varString = selection.replace(/(^{{\ |\ }}$)/g, '')
+    var assignmentStr = `{% set x = ${varString} %}`
+    editor.value = assignmentStr + '\n' + currentText
 }
 
 function setContextMenu() {
@@ -61,7 +77,7 @@ function addToNarrative() {
     $.ajax({
         type: "POST",
         url: "textproc",
-        data: { "args": args, "data": JSON.stringify(df),
+        data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                 "text": JSON.stringify([document.getElementById("textbox").value]) },
         success: gramexTemplatize
     })
@@ -186,7 +202,7 @@ function renderTemplate(text, success) {
         type: "POST",
         url: "render-template",
         data: {
-            "args": args, "data": JSON.stringify(df),
+            "args": JSON.stringify(args), "data": JSON.stringify(df),
             "template": JSON.stringify(text)
         },
         success: success
@@ -221,7 +237,7 @@ function refreshTemplates() {
         $.ajax({
             type: "POST",
             url: "render-template",
-            data: { "args": args, "data": JSON.stringify(df),
+            data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                     "template": JSON.stringify(currentTemplates) },
             success: function (payload) { updateTemplates(payload, templates) }
         })
@@ -241,7 +257,7 @@ function renderPreview(fh) {
     // Render the list of templates and their renditions
     if (fh) {
         df = fh.formdata
-        args = fh.args
+        args = g1.url.parse(g1.url.parse(window.location.href).hash).searchList
         refreshTemplates()
         return true
     }

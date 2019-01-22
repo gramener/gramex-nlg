@@ -23,7 +23,7 @@ def render_template(handler):
     payload = dict(payload)
     text = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
-    args = parse.parse_qs(payload.get("args", {}))
+    args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
         tmpl = Template(t).generate(df=df, args=args, G=G)
@@ -36,7 +36,7 @@ def process_template(handler):
     payload = dict(payload)
     text = json.loads(payload["text"])
     df = pd.read_json(payload["data"], orient="records")
-    args = parse.parse_qs(payload.get("args", {}))
+    args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
         template, replacements = templatize(t, args, df)

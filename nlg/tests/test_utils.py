@@ -10,6 +10,17 @@ from nlg import utils
 
 
 class TestUtils(unittest.TestCase):
+
+    def test_join_words(self):
+        sent = 'The quick brown fox jumps over the lazy dog.'
+        self.assertEqual(utils.join_words(sent), sent.rstrip('.'))
+        self.assertEqual(utils.join_words(sent, ''), sent.rstrip('.').replace(' ', ''))
+        self.assertEqual(utils.join_words('-Office supplies'), 'Office supplies')
+
+    def test_sanitize_args(self):
+        self.assertDictEqual(utils.sanitize_fh_args({'_sort': ['-Office supplies']}),
+                             {'_sort': ['Office supplies']})
+
     def test_humanize_comparison(self):
         x = y = random.randint(0, 100)
         self.assertIn(

@@ -75,19 +75,19 @@ class TestSearch(unittest.TestCase):
         self.assertDictEqual(x, {'hello': ['world', 'underworld']})
 
     def test_search_args(self):
-        args = {"?_sort": ["-votes"]}
+        args = {"_sort": ["-votes"]}
         doc = utils.nlp("James Stewart is the top voted actor.")
         ents = utils.ner(doc)
         self.assertDictEqual(
-            search.search_args(ents, args), {"voted": "args['?_sort'][0]"}
+            search.search_args(ents, args), {"voted": "args['_sort'][0]"}
         )
 
     def test_search_args_literal(self):
-        args = {"?_sort": ["-rating"]}
+        args = {"_sort": ["-rating"]}
         doc = utils.nlp("James Stewart has the highest rating.")
         ents = utils.ner(doc)
         self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
-                             {'rating': "args['?_sort'][0]"})
+                             {'rating': "args['_sort'][0]"})
 
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
@@ -101,14 +101,14 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df['name'].iloc[0] }} is the top {{ args['?_sort'][0] }}
+        {{ df['name'].iloc[0] }} is the top {{ args['_sort'][0] }}
         {{ df['category'].iloc[-4] }}, followed by {{ df['name'].iloc[1] }}.
-        The least {{ args['?_sort'][0] }} {{ df['category'].iloc[-1] }} is
+        The least {{ args['_sort'][0] }} {{ df['category'].iloc[-1] }} is
         {{ df['name'].iloc[-1] }}, trailing at only {{ df['votes'].iloc[-1] }}
-        {{ args['?_sort'][0] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
+        {{ args['_sort'][0] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
         of {{ df['rating'].iloc[-2] }}.
         """
-        args = {"?_sort": ["-votes"]}
+        args = {"_sort": ["-votes"]}
         actual, _ = search.templatize(doc, args, df)
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
