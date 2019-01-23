@@ -46,15 +46,6 @@ class TestUtils(unittest.TestCase):
             r"(a lot|much) (less|lower)",
         )
 
-    def test_unoverlap(self):
-        sent = utils.nlp(
-            """
-            United States President Donald Trump is an entrepreneur and
-            used to run his own reality show named 'The Apprentice'."""
-        )
-        ents = [sent[:i] for i in range(5)]
-        self.assertListEqual(utils.unoverlap(ents), ents[-1:])
-
     def test_ner(self):
         sent = utils.nlp(
             """
@@ -65,12 +56,12 @@ class TestUtils(unittest.TestCase):
         self.assertSetEqual(
             set([c.text for c in utils.unoverlap(ents)]),
             {
+                "Donald Trump",
+                "\'The Apprentice\'",
                 "US President",
                 "President Donald",
-                "Donald Trump",
                 "entrepreneur",
-                "reality show",
-                "Apprentice",
+                "reality show"
             },
         )
 

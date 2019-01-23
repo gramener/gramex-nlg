@@ -94,9 +94,14 @@ def ner(doc, matcher=NP_MATCHER, match_ids=False, remove_overlap=True):
     list
         List of spacy.token.span.Span objects.
     """
-    entities = set(doc.ents)
+    entities = set()
+    for span in doc.ents:
+        newtokens = [c for c in span if not c.is_space]
+        if newtokens:
+            newspan = doc[newtokens[0].i: (newtokens[-1].i + 1)]
+            entities.add(newspan)
     if not match_ids:
-        entities = [doc[start:end] for _, start, end in matcher(doc)]
+        entities.update([doc[start:end] for _, start, end in matcher(doc)])
     else:
         for m_id, start, end in matcher(doc):
             if NP_MATCHER.vocab.strings[m_id] in match_ids:
