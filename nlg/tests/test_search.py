@@ -113,6 +113,43 @@ class TestSearch(unittest.TestCase):
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
 
+    def test_search_sort(self):
+
+        results = [
+            {'tmpl': 'df.loc[0, "name"]', 'type': 'ne', 'location': 'cell'},
+            {'tmpl': 'df.columns[0]', 'type': 'token', 'location': 'colname'},
+            {'tmpl': 'args["_sort"][0]', 'type': 'token', 'location': 'fh_args'}
+        ]
+        _sorted = search._sort_search_results(results)
+        enabled = [c for c in _sorted if c.get('enabled', False)]
+        self.assertListEqual(enabled, results[:1])
+
+        results = [
+            {'tmpl': 'df.columns[0]', 'type': 'token', 'location': 'colname'},
+            {'tmpl': 'args["_sort"][0]', 'type': 'token', 'location': 'fh_args'},
+            {'tmpl': 'df["foo"].iloc[0]', 'type': 'token', 'location': 'cell'}
+        ]
+        _sorted = search._sort_search_results(results)
+        enabled = [c for c in _sorted if c.get('enabled', False)]
+        self.assertListEqual(enabled, results[1:2])
+
+        results = [
+            {'tmpl': 'df.columns[0]', 'type': 'token', 'location': 'colname'},
+            {'tmpl': 'args["_sort"][0]', 'type': 'token', 'location': 'cell'},
+            {'tmpl': 'df["foo"].iloc[0]', 'type': 'quant', 'location': 'cell'}
+        ]
+        _sorted = search._sort_search_results(results)
+        enabled = [c for c in _sorted if c.get('enabled', False)]
+        self.assertListEqual(enabled, results[:1])
+
+        results = [
+            {'tmpl': 'args["_sort"][0]', 'type': 'token', 'location': 'cell'},
+            {'tmpl': 'df["foo"].iloc[0]', 'type': 'quant', 'location': 'cell'}
+        ]
+        _sorted = search._sort_search_results(results)
+        enabled = [c for c in _sorted if c.get('enabled', False)]
+        self.assertListEqual(enabled, results[1:])
+
 
 if __name__ == "__main__":
     unittest.main()

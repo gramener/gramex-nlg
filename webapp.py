@@ -39,16 +39,15 @@ def process_template(handler):
     args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
-        template, replacements = templatize(t, args, df)
-        resp.append({"text": t, "template": template, "tokenmap": replacements})
+        replacements = templatize(t, args, df)
+        resp.append({"text": t, "tokenmap": replacements})
     return json.dumps(resp)
 
 
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))
-    args = parse.parse_qs(args)
+    args = json.loads(parse.unquote(handler.args["args"][0]))['args']
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
     return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")

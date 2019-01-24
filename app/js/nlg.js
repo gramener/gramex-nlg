@@ -83,11 +83,138 @@ function addToNarrative() {
     })
 }
 
+function makeTemplate(searchResult) {
+    sent = searchResult.text
+    for (let [token, tmpls] of Object.entries(searchResult.tokenmap)) {
+        for (var i=0; i < tmpls.length; i ++ ) {
+            tmpl = tmpls[i]
+            if (tmpl.enabled) {
+                sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
+            }
+        }
+    }
+    searchResult.template = sent
+}
+
+
+function highlightTemplate(payload) {
+    highlighted = payload.template
+    for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
+        if (tmpls.length == 1) {
+            span_id = `${templates.length}-${token}-0`
+            tmpl = tmpls[0]
+            highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
+                `<span id="${span_id}" style=\"background-color:#c8f442\" title="${tmpl.tmpl}">
+                    ${token}
+                </span>`);
+        }
+        else {
+            for (var i = 0; i < tmpls.length; i++ ) {
+                span_id = `${templates.length}-${token}-${i}`
+                tmpl = tmpls[i]
+                if (tmpl.enabled) {
+                    highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
+                        `<span id="${span_id}" style=\"background-color:#c8f442\" title="Click for options">
+                            ${token}
+                        </span>`);
+                }
+            }
+        }
+    }
+    payload.previewHTML = highlighted
+}
+
+function getTemplateBySpanId(span_id) {
+    let re = /(\d+)\-(.+)\-(\d+)/gm
+    let [_, sent_id, token, token_tmpl_id] = re.exec(span_id)
+    token_tmpls = templates[sent_id].tokenmap[token]
+    makeTemplateSelectorHTML(token_tmpls)
+}
+
+function makeTemplateSelectorHTML(token_tmpls) {
+    html = ''
+    for (let i = 0; i < token_tmpls.length; i ++ ) {
+        tmpl = token_tmpls[i]
+        if (tmpl.enabled) {
+            var check = "checked"
+        } else { var check = "" }
+        html += `
+        <div class="radio">
+        <label style="font-family:monospace">
+            <input id="token-tmpl-${i}" type="radio" name="optradio" ${check}>${tmpl.tmpl}</label>
+        </div>`
+    }
+    document.getElementById("tmplradiolist").innerHTML = html
+}
+
+
+function editTokenTemplate(event, span_id) {
+    currentSpanId = span_id
+    getTemplateBySpanId(span_id)
+    $('#template-select').modal({'show': true})
+}
+
+
+function registerTemplateOptions(payload) {
+    for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
+        for (let i = 0; i < tmpls.length; i ++ ) {
+            currentTemplate = templates.length - 1
+            let span_id = `${currentTemplate}-${token}-${i}`
+            span = document.getElementById(span_id)
+            if (span) {
+                span.addEventListener('click', function (event) {editTokenTemplate(event, span_id)})
+            }
+        }
+    }
+}
+
+
+function changeTemplateBtn(event) {
+    let re = /(\d+)\-(.+)\-(\d+)/gm
+    let [_, sent_id, token, tid] = re.exec(currentSpanId)
+    template = templates[sent_id]
+    tokenlist = template.tokenmap[token]
+    for (let index = 0; index < tokenlist.length; index++) {
+        token_tmpl_id = `token-tmpl-${index}`
+        elem = document.getElementById(token_tmpl_id)
+        if (elem.checked) {
+            for (let i = 0; i < tokenlist.length; i++) {
+                tokenlist[i].enabled = false
+            }
+            template.tokenmap[token] = tokenlist
+            template.tokenmap[token][index].enabled = true
+            reassignTokenTemplates();
+            return true
+        }
+    }
+}
+
+// Depending on which template ID is active in all templates,
+// update them
+function reassignTokenTemplates() {
+    for (let index = 0; index < templates.length; index++) {
+        template = templates[index]
+        sent = template.text
+        for (let [token, tmpls] of Object.entries(template.tokenmap)) {
+            for (var i=0; i < tmpls.length; i ++ ) {
+                tmpl = tmpls[i]
+                if (tmpl.enabled) {
+                    sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
+                }
+            }
+        }
+        template.template = sent
+    }
+}
+
+
 function gramexTemplatize(payload) {
     payload = payload[0]
-    payload.previewHTML = highlightTemplate(payload.template, payload.tokenmap)
+    makeTemplate(payload)
+    highlightTemplate(payload)
     templates.push(payload)
     renderPreview(null)
+    registerTemplateOptions(payload)
     document.getElementById("textbox").value = "";
 }
 
@@ -106,24 +233,25 @@ function saveBlob(blob, fileName) {
 
 function downloadNarrative() {
     // Download the narrative as injected into a Python file.
-    var request = new XMLHttpRequest();
     currentTemplates = templates.map(x => x.template)
     currentConditions = templates.map(x => x.condition)
-    request.open('GET', "tmpl-download?tmpl="
+    url = "tmpl-download?tmpl="
         + encodeURIComponent(JSON.stringify(currentTemplates))
         + "&condts=" + encodeURIComponent(JSON.stringify(currentConditions))
-        + "&args=" + encodeURIComponent(JSON.stringify({df: df, args: args})),
-        true);
-    request.responseType = 'blob';
-    request.setRequestHeader('X-CSRFToken', false);
-    request.onload = function (event) {
-        var blob = this.response;
-        var contentDispo = this.getResponseHeader('Content-Disposition');
-        // https://stackoverflow.com/a/23054920/
-        var fileName = contentDispo.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1];
-        saveBlob(blob, fileName);
-    }
-    request.send(null);
+        + "&args=" + encodeURIComponent(JSON.stringify(args))
+    $.ajax({
+        url: url,
+        responseType: 'blob',
+        type: "GET",
+        headers: {'X-CSRFToken': false},
+        success: function (event) {
+            var blob = this.response;
+            var contentDispo = this.getResponseHeader('Content-Disposition');
+            // https://stackoverflow.com/a/23054920/
+            var fileName = contentDispo.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1];
+            saveBlob(blob, fileName);
+        }
+    })
 }
 
 
@@ -301,11 +429,11 @@ function renderPreview(fh) {
     }
 }
 
-function highlightTemplate(template, tokenmap) {
-    var highlighted = template;
-    for (let [token, tmpl] of Object.entries(tokenmap)) {
-        highlighted = highlighted.replace(`{{ ${tmpl} }}`,
-            `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
-    }
-    return highlighted;
-}
+// function highlightTemplate(template, tokenmap) {
+    // var highlighted = template;
+    // for (let [token, tmpl] of Object.entries(tokenmap)) {
+        // highlighted = highlighted.replace(`{{ ${tmpl} }}`,
+            // `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
+    // }
+    // return highlighted;
+// }
