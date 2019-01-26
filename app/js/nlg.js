@@ -100,113 +100,19 @@ function makeTemplate(searchResult) {
 function highlightTemplate(payload) {
     highlighted = payload.template
     for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
-        if (tmpls.length == 1) {
-            span_id = `${templates.length}-${token}-0`
-            tmpl = tmpls[0]
-            highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
-                `<span id="${span_id}" style=\"background-color:#c8f442\" title="${tmpl.tmpl}">
-                    ${token}
-                </span>`);
-        }
-        else {
-            for (var i = 0; i < tmpls.length; i++ ) {
-                span_id = `${templates.length}-${token}-${i}`
-                tmpl = tmpls[i]
-                if (tmpl.enabled) {
-                    highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
-                        `<span id="${span_id}" style=\"background-color:#c8f442\" title="Click for options">
-                            ${token}
-                        </span>`);
-                }
+        for (var i = 0; i < tmpls.length; i++ ) {
+            span_id = `${templates.length}-${token}-${i}`
+            tmpl = tmpls[i]
+            if (tmpl.enabled) {
+                highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
+                    `<span id="${span_id}" style=\"background-color:#c8f442\">
+                        ${token}
+                    </span>`);
             }
         }
     }
     payload.previewHTML = highlighted
 }
-
-function getTemplateBySpanId(span_id) {
-    let re = /(\d+)\-(.+)\-(\d+)/gm
-    let [_, sent_id, token, token_tmpl_id] = re.exec(span_id)
-    token_tmpls = templates[sent_id].tokenmap[token]
-    makeTemplateSelectorHTML(token_tmpls)
-}
-
-function makeTemplateSelectorHTML(token_tmpls) {
-    html = ''
-    for (let i = 0; i < token_tmpls.length; i ++ ) {
-        tmpl = token_tmpls[i]
-        if (tmpl.enabled) {
-            var check = "checked"
-        } else { var check = "" }
-        html += `
-        <div class="radio">
-        <label style="font-family:monospace">
-            <input id="token-tmpl-${i}" type="radio" name="optradio" ${check}>${tmpl.tmpl}</label>
-        </div>`
-    }
-    document.getElementById("tmplradiolist").innerHTML = html
-}
-
-
-function editTokenTemplate(event, span_id) {
-    currentSpanId = span_id
-    getTemplateBySpanId(span_id)
-    $('#template-select').modal({'show': true})
-}
-
-
-function registerTemplateOptions(payload) {
-    for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
-        for (let i = 0; i < tmpls.length; i ++ ) {
-            currentTemplate = templates.length - 1
-            let span_id = `${currentTemplate}-${token}-${i}`
-            span = document.getElementById(span_id)
-            if (span) {
-                span.addEventListener('click', function (event) {editTokenTemplate(event, span_id)})
-            }
-        }
-    }
-}
-
-
-function changeTemplateBtn(event) {
-    let re = /(\d+)\-(.+)\-(\d+)/gm
-    let [_, sent_id, token, tid] = re.exec(currentSpanId)
-    template = templates[sent_id]
-    tokenlist = template.tokenmap[token]
-    for (let index = 0; index < tokenlist.length; index++) {
-        token_tmpl_id = `token-tmpl-${index}`
-        elem = document.getElementById(token_tmpl_id)
-        if (elem.checked) {
-            for (let i = 0; i < tokenlist.length; i++) {
-                tokenlist[i].enabled = false
-            }
-            template.tokenmap[token] = tokenlist
-            template.tokenmap[token][index].enabled = true
-            reassignTokenTemplates();
-            return true
-        }
-    }
-}
-
-// Depending on which template ID is active in all templates,
-// update them
-function reassignTokenTemplates() {
-    for (let index = 0; index < templates.length; index++) {
-        template = templates[index]
-        sent = template.text
-        for (let [token, tmpls] of Object.entries(template.tokenmap)) {
-            for (var i=0; i < tmpls.length; i ++ ) {
-                tmpl = tmpls[i]
-                if (tmpl.enabled) {
-                    sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
-                }
-            }
-        }
-        template.template = sent
-    }
-}
-
 
 function gramexTemplatize(payload) {
     payload = payload[0]
@@ -214,7 +120,7 @@ function gramexTemplatize(payload) {
     highlightTemplate(payload)
     templates.push(payload)
     renderPreview(null)
-    registerTemplateOptions(payload)
+    // registerTemplateOptions(payload)
     document.getElementById("textbox").value = "";
 }
 
@@ -257,7 +163,7 @@ function downloadNarrative() {
 
 function getConditionBtn(n) {
     // Get HTML for the "Add Condition" button.
-    return `<input id="condt-btn-${n}" type="button" value="Add Condition"/>`
+    return `<button id="condt-btn-${n}" type="button" class="btn btn-primary">Add Condition</button>`
 }
 
 function getRmButton(n) {
@@ -276,6 +182,14 @@ function getEditTemplateBtn(n) {
         <i class="fa fa-edit"></i>
      </button>
      `
+}
+
+function getSettingsBtn(n) {
+    return `
+    <button id="settings-btn-${n}" title="Settings" type="button" class="btn btn-primary">
+        <i class="fa fa-wrench"></i>
+    </button>
+    `
 }
 
 
@@ -381,6 +295,70 @@ function updateTemplates(payload) {
     renderPreview(null)
 }
 
+function makeTemplateSettingsHTML(editIndex) {
+    tkmap = templates[editIndex].tokenmap
+    html = '<ul id="settings-modal-body">'
+    for (let [token, tmpllist] of Object.entries(tkmap)) {
+        html += `<li><div id="token-tmpl-selector-${token}">
+            <p style="font-family:monospace">${token}</p>`
+        for (let i = 0; i < tmpllist.length; i ++ ) {
+            tmpl = tmpllist[i]
+            if (tmpl['enabled']) {
+                var check = "checked"
+            } else { var check = "" }
+            html += `
+            <div class="radio">
+            <label style="font-family:monospace">
+                <input id="rb-${token}-${i}" type="radio"
+                name="optradio-${token}" ${check}>
+                    ${tmpl.tmpl}</label>
+            </div>`
+        }
+        html += "</div></li>"
+    }
+    html += "</ul>"
+    document.getElementById("tmplradiolist").innerHTML = html
+}
+
+function changeTemplateBtn(event) {
+    tkmap = templates[currentEditIndex].tokenmap
+    for (let [token, tmpllist] of Object.entries(tkmap)) {
+        for (let index = 0; index < tmpllist.length; index++) {
+            tmpl = tmpllist[index]
+            tmpl.enabled = false
+            rb = document.getElementById(`rb-${token}-${index}`)
+            if (rb.checked) {
+                tmpl.enabled = true
+            }
+        }
+    }
+    reassignTokenTemplates()
+}
+
+function reassignTokenTemplates() {
+    for (let index = 0; index < templates.length; index++) {
+        template = templates[index]
+        sent = template.text
+        for (let [token, tmpls] of Object.entries(template.tokenmap)) {
+            for (var i=0; i < tmpls.length; i ++ ) {
+                tmpl = tmpls[i]
+                if (tmpl.enabled) {
+                    sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
+                }
+            }
+        }
+        template.template = sent
+    }
+}
+
+function triggerSettings(sentid) {
+    currentEditIndex = sentid
+    template = templates[currentEditIndex]
+    makeTemplateSettingsHTML(currentEditIndex)
+    $('#template-settings').modal({'show': true})
+}
+
+
 function renderPreview(fh) {
     // Render the list of templates and their renditions
     if (fh) {
@@ -392,7 +370,8 @@ function renderPreview(fh) {
     
     var innerHTML = "<p>\n";
     for (var i = 0; i < templates.length; i++) {
-        innerHTML += getRmButton(i) + getEditTemplateBtn(i) + getConditionBtn(i)
+        innerHTML += getConditionBtn(i) + getRmButton(i) + getEditTemplateBtn(i) 
+            + getSettingsBtn(i)
             + "\t" + templates[i].previewHTML + "</br>";
     }
     innerHTML += "</p>"
@@ -426,14 +405,11 @@ function renderPreview(fh) {
         var btn = document.getElementById(`rm-btn-${i}`)
         var deleteListener = function () { deleteTemplate(i) };
         btn.addEventListener("click", deleteListener);
+
+        // add setting listener
+        var btn = document.getElementById(`settings-btn-${i}`)
+        var settingsListener = function () { triggerSettings(i) };
+        btn.addEventListener("click", settingsListener);
+
     }
 }
-
-// function highlightTemplate(template, tokenmap) {
-    // var highlighted = template;
-    // for (let [token, tmpl] of Object.entries(tokenmap)) {
-        // highlighted = highlighted.replace(`{{ ${tmpl} }}`,
-            // `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
-    // }
-    // return highlighted;
-// }
