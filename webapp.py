@@ -21,11 +21,11 @@ from nlg import utils as U
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
     payload = dict(payload)
-    text = json.loads(payload["template"])
+    templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
     args = json.loads(payload.get("args", {}))
     resp = []
-    for t in text:
+    for t in templates:
         tmpl = Template(t).generate(df=df, args=args, G=G)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
@@ -39,7 +39,7 @@ def process_template(handler):
     args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
-        replacements = templatize(t, args, df)
+        replacements, t = templatize(t, args, df)
         resp.append({"text": t, "tokenmap": replacements})
     return json.dumps(resp)
 

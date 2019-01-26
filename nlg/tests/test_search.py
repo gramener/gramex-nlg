@@ -11,6 +11,7 @@ import re
 import unittest
 
 import pandas as pd
+from tornado.template import Template
 
 from nlg import search, utils
 
@@ -48,8 +49,13 @@ class TestDFSearch(unittest.TestCase):
         )
         sent = "Kishore Kumar sang the most songs with Lata Mangeshkar."
         dfs = search.DFSearch(df)
-        self.assertDictEqual(dfs.search(sent, lemmatize=True),
-                             {'songs': "df.columns[1]", 'Lata': "df['partner'].iloc[0]"})
+        self.assertDictEqual(
+            dfs.search(sent, lemmatize=True),
+            {
+                'songs': [{"location": "colname", "type": "token", "tmpl": "df.columns[1]"}],
+                'Lata': [{'location': 'cell', 'tmpl': "df['partner'].iloc[0]", 'type': 'token'}],
+            }
+        )
 
     def test_search_df(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
@@ -58,9 +64,14 @@ class TestDFSearch(unittest.TestCase):
         df.reset_index(inplace=True, drop=True)
         dfs = search.DFSearch(df)
         sent = "Spencer Tracy is the top voted actor."
-        self.assertDictEqual(dfs.search(sent),
-                             {"Spencer Tracy": "df['name'].iloc[0]",
-                              "voted": "df.columns[-1]", 'actor': "df['category'].iloc[-4]"})
+        self.assertDictEqual(
+            dfs.search(sent),
+            {
+                'Spencer Tracy': [{'location': 'cell', 'tmpl': "df['name'].iloc[0]", 'type': 'ne'}],
+                'voted': [{'location': 'colname', 'tmpl': 'df.columns[-1]', 'type': 'token'}],
+                'actor': [{'location': 'cell', 'tmpl': "df['category'].iloc[-4]", 'type': 'token'}]
+            }
+        )
 
 
 class TestSearch(unittest.TestCase):
@@ -79,7 +90,14 @@ class TestSearch(unittest.TestCase):
         doc = utils.nlp("James Stewart is the top voted actor.")
         ents = utils.ner(doc)
         self.assertDictEqual(
-            search.search_args(ents, args), {"voted": "args['_sort'][0]"}
+            search.search_args(ents, args),
+            {
+                "voted": {
+                    "tmpl": "args['_sort'][0]",
+                    "type": "token",
+                    "location": "fh_args"
+                }
+            }
         )
 
     def test_search_args_literal(self):
@@ -87,7 +105,10 @@ class TestSearch(unittest.TestCase):
         doc = utils.nlp("James Stewart has the highest rating.")
         ents = utils.ner(doc)
         self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
-                             {'rating': "args['_sort'][0]"})
+                             {'rating': {
+                                 "tmpl": "args['_sort'][0]",
+                                 "location": "fh_args",
+                                 "type": "token"}})
 
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
@@ -105,11 +126,15 @@ class TestSearch(unittest.TestCase):
         {{ df['category'].iloc[-4] }}, followed by {{ df['name'].iloc[1] }}.
         The least {{ args['_sort'][0] }} {{ df['category'].iloc[-1] }} is
         {{ df['name'].iloc[-1] }}, trailing at only {{ df['votes'].iloc[-1] }}
-        {{ args['_sort'][0] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
+        {{ df.columns[-1] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
         of {{ df['rating'].iloc[-2] }}.
         """
         args = {"_sort": ["-votes"]}
-        actual, _ = search.templatize(doc, args, df)
+        tokenmap, text = search.templatize(doc, args, df)
+        actual = text
+        for token, tmpls in tokenmap.items():
+            tmpl = [t for t in tmpls if t.get('enabled', False)][0]
+            actual = actual.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
 

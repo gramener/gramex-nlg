@@ -84,7 +84,6 @@ class DFSearch(object):
             self.results[token] = {
                 'location': "cell", 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'token'}
-
         self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
         return self.results
 
@@ -306,10 +305,9 @@ def search_df(tokens, df):
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
     text = utils.sanitize_text(text)
-    df = utils.sanitize_df(df)
     args = utils.sanitize_fh_args(args)
     dfs = DFSearch(df)
     dfix = dfs.search(text)
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
-    return dfix
+    return dfix, text
