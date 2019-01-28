@@ -12,6 +12,7 @@ import humanize  # NOQA: F401
 import numpy as np
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
+from tornado.template import Template
 
 nlp = load("en_core_web_sm")
 
@@ -36,10 +37,22 @@ print(narrative.render())
 """
 
 
-def ctxmenu(func):
+def render_search_result(text, results, **kwargs):
+    for token, tokenlist in results.items():
+        tmpl = [t for t in tokenlist if t.get('enabled', False)][0]
+        text = text.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
+    return Template(text).generate(**kwargs).decode('utf-8')
+
+
+def join_words(x, sep=' '):
+    return sep.join(re.findall(r'\w+', x, re.IGNORECASE))
+
+
+def ctxmenu(func, requires_templates=False):
     """Decorator for adding callables to context menus for the webapp.
     """
     func.ctxmenu = True
+    func.requires_templates = requires_templates
     return func
 
 
@@ -89,9 +102,14 @@ def ner(doc, matcher=NP_MATCHER, match_ids=False, remove_overlap=True):
     list
         List of spacy.token.span.Span objects.
     """
-    entities = set(doc.ents)
+    entities = set()
+    for span in doc.ents:
+        newtokens = [c for c in span if not c.is_space]
+        if newtokens:
+            newspan = doc[newtokens[0].i: (newtokens[-1].i + 1)]
+            entities.add(newspan)
     if not match_ids:
-        entities = [doc[start:end] for _, start, end in matcher(doc)]
+        entities.update([doc[start:end] for _, start, end in matcher(doc)])
     else:
         for m_id, start, end in matcher(doc):
             if NP_MATCHER.vocab.strings[m_id] in match_ids:
@@ -121,6 +139,12 @@ def sanitize_df(df, d_round=2, **options):
     for c in df.columns[df.dtypes == float]:
         df[c] = df[c].round(d_round)
     return df
+
+
+def sanitize_fh_args(args, func=join_words):
+    for k, v in args.items():
+        args[k] = [join_words(x) for x in v]
+    return args
 
 
 def humanize_comparison(x, y, bit, lot):

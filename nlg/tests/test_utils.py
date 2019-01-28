@@ -10,6 +10,17 @@ from nlg import utils
 
 
 class TestUtils(unittest.TestCase):
+
+    def test_join_words(self):
+        sent = 'The quick brown fox jumps over the lazy dog.'
+        self.assertEqual(utils.join_words(sent), sent.rstrip('.'))
+        self.assertEqual(utils.join_words(sent, ''), sent.rstrip('.').replace(' ', ''))
+        self.assertEqual(utils.join_words('-Office supplies'), 'Office supplies')
+
+    def test_sanitize_args(self):
+        self.assertDictEqual(utils.sanitize_fh_args({'_sort': ['-Office supplies']}),
+                             {'_sort': ['Office supplies']})
+
     def test_humanize_comparison(self):
         x = y = random.randint(0, 100)
         self.assertIn(
@@ -35,15 +46,6 @@ class TestUtils(unittest.TestCase):
             r"(a lot|much) (less|lower)",
         )
 
-    def test_unoverlap(self):
-        sent = utils.nlp(
-            """
-            United States President Donald Trump is an entrepreneur and
-            used to run his own reality show named 'The Apprentice'."""
-        )
-        ents = [sent[:i] for i in range(5)]
-        self.assertListEqual(utils.unoverlap(ents), ents[-1:])
-
     def test_ner(self):
         sent = utils.nlp(
             """
@@ -54,12 +56,12 @@ class TestUtils(unittest.TestCase):
         self.assertSetEqual(
             set([c.text for c in utils.unoverlap(ents)]),
             {
+                "Donald Trump",
+                "\'The Apprentice\'",
                 "US President",
                 "President Donald",
-                "Donald Trump",
                 "entrepreneur",
-                "reality show",
-                "Apprentice",
+                "reality show"
             },
         )
 

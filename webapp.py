@@ -21,12 +21,14 @@ from nlg import utils as U
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
     payload = dict(payload)
-    text = json.loads(payload["template"])
+    templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
-    args = parse.parse_qs(payload.get("args", {}))
+    fh_args = json.loads(payload.get("args", {}))
+    for k, v in fh_args.items():
+        v = [x.lstrip('-') for x in v]
     resp = []
-    for t in text:
-        tmpl = Template(t).generate(df=df, args=args, G=G)
+    for t in templates:
+        tmpl = Template(t).generate(df=df, args=fh_args, G=G)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
 
@@ -36,19 +38,19 @@ def process_template(handler):
     payload = dict(payload)
     text = json.loads(payload["text"])
     df = pd.read_json(payload["data"], orient="records")
-    args = parse.parse_qs(payload.get("args", {}))
+    args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
-        template, replacements = templatize(t, args, df)
-        resp.append({"text": t, "template": template, "tokenmap": replacements})
+        replacements, t, infl = templatize(t, args, df)
+        resp.append({
+            "text": t, "tokenmap": replacements, 'inflections': infl})
     return json.dumps(resp)
 
 
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))
-    args = parse.parse_qs(args)
+    args = json.loads(parse.unquote(handler.args["args"][0]))['args']
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
     return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")

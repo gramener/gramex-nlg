@@ -46,6 +46,22 @@ function makeContextMenuHTML(payload) {
     melem.label = "Ignore"
     melem.addEventListener('click', ignoreTemplateSection)
     elem.appendChild(melem)
+
+    var melem = document.createElement('menuitem');
+    melem.label = "Assign to Variable"
+    melem.addEventListener('click', assignToVariable)
+    elem.appendChild(melem)
+}
+
+function assignToVariable(event) {
+    var editor = document.getElementById('edit-template');
+    var currentText = editor.value;
+    var start = editor.selectionStart;
+    var end = editor.selectionEnd;
+    var selection = currentText.substring(start, end)
+    var varString = selection.replace(/(^{{\ |\ }}$)/g, '')
+    var assignmentStr = `{% set x = ${varString} %}`
+    editor.value = assignmentStr + '\n' + currentText
 }
 
 function setContextMenu() {
@@ -61,17 +77,71 @@ function addToNarrative() {
     $.ajax({
         type: "POST",
         url: "textproc",
-        data: { "args": args, "data": JSON.stringify(df),
+        data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                 "text": JSON.stringify([document.getElementById("textbox").value]) },
         success: gramexTemplatize
     })
 }
 
+
+function makeTemplate(searchResult) {
+    sent = searchResult.text
+    inflections = searchResult.inflections
+    for (let [token, tmpls] of Object.entries(searchResult.tokenmap)) {
+        for (var i=0; i < tmpls.length; i ++ ) {
+            tmpl = tmpls[i]
+            if (tmpl.enabled) {
+                tmplstr = tmpl.tmpl
+                if (token in inflections) {
+                    tk_infl = inflections[token]
+                    for (let [pymod, funcname] of Object.entries(tk_infl)) {
+                        if (pymod == "str") {
+                            funcname = funcname
+                            tmplstr = tmplstr + '.' + funcname + '()'
+                        }
+                        else {
+                            if (funcname.length > 1) {
+                                [func, funcargs] = funcname
+                                tmplstr = `${pymod}.${func}(${tmplstr}, ${funcargs})`
+                            }
+                            else {
+                                func = funcname
+                                tmplstr = `${pymod}.${func}(${tmplstr})`
+                            }
+                        }
+                    }
+                }
+                sent = sent.replace(token, `{{ ${tmplstr} }}`)
+            }
+        }
+    }
+    searchResult.template = sent
+}
+
+
+function highlightTemplate(payload) {
+    highlighted = payload.text
+    for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
+        for (let i = 0; i < tmpls.length; i++ ) {
+            tmpl = tmpls[i]
+            if (tmpl.enabled) {
+                highlighted = highlighted.replace(token,
+                    `<span style=\"background-color:#c8f442\">
+                        ${token}
+                    </span>`);
+            }
+        }
+    }
+    payload.previewHTML = highlighted
+}
+
 function gramexTemplatize(payload) {
     payload = payload[0]
-    payload.previewHTML = highlightTemplate(payload.template, payload.tokenmap)
+    makeTemplate(payload)
+    highlightTemplate(payload)
     templates.push(payload)
     renderPreview(null)
+    // registerTemplateOptions(payload)
     document.getElementById("textbox").value = "";
 }
 
@@ -90,30 +160,31 @@ function saveBlob(blob, fileName) {
 
 function downloadNarrative() {
     // Download the narrative as injected into a Python file.
-    var request = new XMLHttpRequest();
     currentTemplates = templates.map(x => x.template)
     currentConditions = templates.map(x => x.condition)
-    request.open('GET', "tmpl-download?tmpl="
+    url = "tmpl-download?tmpl="
         + encodeURIComponent(JSON.stringify(currentTemplates))
         + "&condts=" + encodeURIComponent(JSON.stringify(currentConditions))
-        + "&args=" + encodeURIComponent(JSON.stringify({df: df, args: args})),
-        true);
-    request.responseType = 'blob';
-    request.setRequestHeader('X-CSRFToken', false);
-    request.onload = function (event) {
-        var blob = this.response;
-        var contentDispo = this.getResponseHeader('Content-Disposition');
-        // https://stackoverflow.com/a/23054920/
-        var fileName = contentDispo.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1];
-        saveBlob(blob, fileName);
-    }
-    request.send(null);
+        + "&args=" + encodeURIComponent(JSON.stringify(args))
+    $.ajax({
+        url: url,
+        responseType: 'blob',
+        type: "GET",
+        headers: {'X-CSRFToken': false},
+        success: function (event) {
+            var blob = this.response;
+            var contentDispo = this.getResponseHeader('Content-Disposition');
+            // https://stackoverflow.com/a/23054920/
+            var fileName = contentDispo.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1];
+            saveBlob(blob, fileName);
+        }
+    })
 }
 
 
 function getConditionBtn(n) {
     // Get HTML for the "Add Condition" button.
-    return `<input id="condt-btn-${n}" type="button" value="Add Condition"/>`
+    return `<button id="condt-btn-${n}" type="button" class="btn btn-primary">Add Condition</button>`
 }
 
 function getRmButton(n) {
@@ -132,6 +203,14 @@ function getEditTemplateBtn(n) {
         <i class="fa fa-edit"></i>
      </button>
      `
+}
+
+function getSettingsBtn(n) {
+    return `
+    <button id="settings-btn-${n}" title="Settings" type="button" class="btn btn-primary">
+        <i class="fa fa-wrench"></i>
+    </button>
+    `
 }
 
 
@@ -186,7 +265,7 @@ function renderTemplate(text, success) {
         type: "POST",
         url: "render-template",
         data: {
-            "args": args, "data": JSON.stringify(df),
+            "args": JSON.stringify(args), "data": JSON.stringify(df),
             "template": JSON.stringify(text)
         },
         success: success
@@ -221,7 +300,7 @@ function refreshTemplates() {
         $.ajax({
             type: "POST",
             url: "render-template",
-            data: { "args": args, "data": JSON.stringify(df),
+            data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                     "template": JSON.stringify(currentTemplates) },
             success: function (payload) { updateTemplates(payload, templates) }
         })
@@ -237,18 +316,73 @@ function updateTemplates(payload) {
     renderPreview(null)
 }
 
+function makeTemplateSettingsHTML(editIndex) {
+    tkmap = templates[editIndex].tokenmap
+    html = '<ul id="settings-modal-body">'
+    for (let [token, tmpllist] of Object.entries(tkmap)) {
+        html += `<li><div id="token-tmpl-selector-${token}">
+            <p style="font-family:monospace">${token}</p>`
+        for (let i = 0; i < tmpllist.length; i ++ ) {
+            tmpl = tmpllist[i]
+            if (tmpl['enabled']) {
+                var check = "checked"
+            } else { var check = "" }
+            html += `
+            <div class="radio">
+            <label style="font-family:monospace">
+                <input id="rb-${token}-${i}" type="radio"
+                name="optradio-${token}" ${check}>
+                    ${tmpl.tmpl}</label>
+            </div>`
+        }
+        html += "</div></li>"
+    }
+    html += "</ul>"
+    document.getElementById("tmplradiolist").innerHTML = html
+}
+
+function changeTemplateBtn(event) {
+    tkmap = templates[currentEditIndex].tokenmap
+    for (let [token, tmpllist] of Object.entries(tkmap)) {
+        for (let index = 0; index < tmpllist.length; index++) {
+            tmpl = tmpllist[index]
+            tmpl.enabled = false
+            rb = document.getElementById(`rb-${token}-${index}`)
+            if (rb.checked) {
+                tmpl.enabled = true
+            }
+        }
+    }
+    reassignTokenTemplates()
+}
+
+function reassignTokenTemplates() {
+    for (let index = 0; index < templates.length; index++) {
+        makeTemplate(templates[index])
+    }
+}
+
+function triggerSettings(sentid) {
+    currentEditIndex = sentid
+    template = templates[currentEditIndex]
+    makeTemplateSettingsHTML(currentEditIndex)
+    $('#template-settings').modal({'show': true})
+}
+
+
 function renderPreview(fh) {
     // Render the list of templates and their renditions
     if (fh) {
         df = fh.formdata
-        args = fh.args
+        args = g1.url.parse(g1.url.parse(window.location.href).hash).searchList
         refreshTemplates()
         return true
     }
     
     var innerHTML = "<p>\n";
     for (var i = 0; i < templates.length; i++) {
-        innerHTML += getRmButton(i) + getEditTemplateBtn(i) + getConditionBtn(i)
+        innerHTML += getConditionBtn(i) + getRmButton(i) + getEditTemplateBtn(i) 
+            + getSettingsBtn(i)
             + "\t" + templates[i].previewHTML + "</br>";
     }
     innerHTML += "</p>"
@@ -282,14 +416,11 @@ function renderPreview(fh) {
         var btn = document.getElementById(`rm-btn-${i}`)
         var deleteListener = function () { deleteTemplate(i) };
         btn.addEventListener("click", deleteListener);
-    }
-}
 
-function highlightTemplate(template, tokenmap) {
-    var highlighted = template;
-    for (let [token, tmpl] of Object.entries(tokenmap)) {
-        highlighted = highlighted.replace(`{{ ${tmpl} }}`,
-            `<span style=\"background-color:#c8f442\" title="{{ ${tmpl} }}">${token}</span>`);
+        // add setting listener
+        var btn = document.getElementById(`settings-btn-${i}`)
+        var settingsListener = function () { triggerSettings(i) };
+        btn.addEventListener("click", settingsListener);
+
     }
-    return highlighted;
 }

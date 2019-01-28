@@ -15,11 +15,24 @@ from spacy import load
 from spacy.matcher import PhraseMatcher
 
 from nlg import utils
-from nlg.grammar import concatenate_items
+from nlg.grammar import concatenate_items, find_inflections
 
 default_nlp = load("en_core_web_sm")
 
-SEARCH_PRIORITIES = {"args": 0, "colname": 1, "cell": 2}
+SEARCH_PRIORITIES = [
+    {'type': 'ne'},  # A match which is an NE gets the higest priority
+    {'location': 'fh_args'},  # then one that is a formhandler arg
+    {'location': 'colname'},  # then one that is a column name
+    {'type': 'quant'},  # etc
+    {'location': 'cell'}
+]
+
+
+def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
+    match_ix = [[p.items() <= item.items() for p in priorities] for item in items]
+    min_match = [m.index(True) for m in match_ix]
+    items[min_match.index(min(min_match))]['enabled'] = True
+    return items
 
 
 class dfsearchres(dict):
@@ -30,17 +43,21 @@ class dfsearchres(dict):
         elif self[key][0] != value:
             self[key].append(value)
 
+    def update(self, other):
+        # Needed because the default update method doesn't seem to use setitem
+        for k, v in other.items():
+            self[k] = v
+
     def clean(self):
-        results = {}
         for k, v in self.items():
-            column_results = [r[1] for r in v if r[0] == "colname"]
-            if len(column_results) > 0:
-                results[k] = column_results[0]
-            else:
-                cell_results = [r[1] for r in v if r[0] == "cell"]
-                if len(cell_results) > 0:
-                    results[k] = cell_results[0]
-        return results
+            _sort_search_results(v)
+        # unoverlap the keys
+        to_remove = []
+        for k in self:
+            if any([k in c for c in self.keys() - {k}]):
+                to_remove.append(k)
+        for i in to_remove:
+            del self[i]
 
 
 class DFSearch(object):
@@ -55,15 +72,20 @@ class DFSearch(object):
     def search(self, text, colname_fmt="df.columns[{}]",
                cell_fmt="df['{}'].iloc[{}]", **kwargs):
         self.search_nes(text)
+
         for token, ix in self.search_columns(text, **kwargs).items():
             ix = utils.sanitize_indices(self.df.shape, ix, 1)
-            self.results[token] = ("colname", colname_fmt.format(ix))
+            self.results[token] = {'location': 'colname', 'tmpl': colname_fmt.format(ix),
+                                   'type': 'token'}
+
         for token, (x, y) in self.search_table(text, **kwargs).items():
             x = utils.sanitize_indices(self.df.shape, x, 0)
             y = utils.sanitize_indices(self.df.shape, y, 1)
-            self.results[token] = ("cell", cell_fmt.format(self.df.columns[y], x))
+            self.results[token] = {
+                'location': "cell", 'tmpl': cell_fmt.format(self.df.columns[y], x),
+                'type': 'token'}
         self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
-        return self.results.clean()
+        return self.results
 
     def search_nes(self, text, colname_fmt="df.columns[{}]", cell_fmt="df['{}'].iloc[{}]"):
         self.doc = self.nlp(text)
@@ -71,11 +93,16 @@ class DFSearch(object):
         ents = [c.text for c in self.ents]
         for token, ix in self.search_columns(ents, literal=True).items():
             ix = utils.sanitize_indices(self.df.shape, ix, 1)
-            self.results[token] = ("colname", colname_fmt.format(ix))
+            self.results[token] = {
+                'location': "colname",
+                'tmpl': colname_fmt.format(ix), 'type': 'ne'
+            }
         for token, (x, y) in self.search_table(ents, literal=True).items():
             x = utils.sanitize_indices(self.df.shape, x, 0)
             y = utils.sanitize_indices(self.df.shape, y, 1)
-            self.results[token] = ("cell", cell_fmt.format(self.df.columns[y], x))
+            self.results[token] = {
+                'location': "cell",
+                'tmpl': cell_fmt.format(self.df.columns[y], x), 'type': 'ne'}
 
     def search_table(self, text, **kwargs):
         kwargs['array'] = self.df.copy()
@@ -93,7 +120,9 @@ class DFSearch(object):
             x = utils.sanitize_indices(dfclean.shape, x, 0)
             y = utils.sanitize_indices(dfclean.shape, y, 1)
             tk = quants[n_quant == dfclean.iloc[x, y]][0].item()
-            self.results[tk] = ("cell", cell_fmt.format(self.df.columns[y], x))
+            self.results[tk] = {
+                'location': "cell", 'tmpl': cell_fmt.format(self.df.columns[y], x),
+                'type': 'quant'}
 
     def _search_array(self, text, array, literal=False,
                       case=False, lemmatize=True, nround=2):
@@ -178,7 +207,30 @@ def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     return search_res
 
 
-def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]"):
+def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]",
+                argkeys=('_sort',)):
+    """
+    Search formhandler arguments.
+
+    Parameters
+    ----------
+    entities : list
+        list of spacyy entities
+    args : Formhandler args
+        [description]
+    lemmatized : bool, optional
+        whether to lemmatize search (the default is True, which [default_description])
+    fmt : str, optional
+        format used in the template (the default is "args['{}'][{}]", which [default_description])
+    argkeys : list, optional
+        keys to be considered for the search (the default is None, which [default_description])
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    args = {k: v for k, v in args.items() if k in argkeys}
     search_res = {}
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
@@ -189,10 +241,14 @@ def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]"):
             for y in ent_tokens:
                 if lemmatized:
                     if x.lemma_ == y.lemma_:
-                        search_res[y.text] = fmt.format(k, i)
+                        search_res[y.text] = {
+                            'type': 'token', 'tmpl': fmt.format(k, i),
+                            'location': 'fh_args'}
                 else:
                     if x.text == y.text:
-                        search_res[y.text] = fmt.format(k, i)
+                        search_res[y.text] = {
+                            'type': 'token', 'tmpl': fmt.format(k, i),
+                            'location': 'fh_args'}
     return search_res
 
 
@@ -248,16 +304,11 @@ def search_df(tokens, df):
 
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
-    text = utils.sanitize_text(text)
-    df = utils.sanitize_df(df)
-    # doc = default_nlp(text)
-    # entities = utils.ner(doc)
-    # dfix = search_concatenations(text, df)
-    # dfix = search_df(entities, df)
-    # dfix.update(search_args(entities, args))
+    clean_text = utils.sanitize_text(text)
+    args = utils.sanitize_fh_args(args)
     dfs = DFSearch(df)
-    dfix = dfs.search(text)
+    dfix = dfs.search(clean_text)
     dfix.update(search_args(dfs.ents, args))
-    for token, ixpattern in dfix.items():
-        text = re.sub("\\b" + token + "\\b", "{{{{ {} }}}}".format(ixpattern), text)
-    return text, dfix
+    dfix.clean()
+    inflections = find_inflections(clean_text, dfix, args, df)
+    return dfix, clean_text, inflections
