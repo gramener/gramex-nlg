@@ -83,13 +83,35 @@ function addToNarrative() {
     })
 }
 
+
 function makeTemplate(searchResult) {
     sent = searchResult.text
+    inflections = searchResult.inflections
     for (let [token, tmpls] of Object.entries(searchResult.tokenmap)) {
         for (var i=0; i < tmpls.length; i ++ ) {
             tmpl = tmpls[i]
             if (tmpl.enabled) {
-                sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
+                tmplstr = tmpl.tmpl
+                if (token in inflections) {
+                    tk_infl = inflections[token]
+                    for (let [pymod, funcname] of Object.entries(tk_infl)) {
+                        if (pymod == "str") {
+                            funcname = funcname
+                            tmplstr = tmplstr + '.' + funcname + '()'
+                        }
+                        else {
+                            if (funcname.length > 1) {
+                                [func, funcargs] = funcname
+                                tmplstr = `${pymod}.${func}(${tmplstr}, ${funcargs})`
+                            }
+                            else {
+                                func = funcname
+                                tmplstr = `${pymod}.${func}(${tmplstr})`
+                            }
+                        }
+                    }
+                }
+                sent = sent.replace(token, `{{ ${tmplstr} }}`)
             }
         }
     }
@@ -98,14 +120,13 @@ function makeTemplate(searchResult) {
 
 
 function highlightTemplate(payload) {
-    highlighted = payload.template
+    highlighted = payload.text
     for (let [token, tmpls] of Object.entries(payload.tokenmap)) {
-        for (var i = 0; i < tmpls.length; i++ ) {
-            span_id = `${templates.length}-${token}-${i}`
+        for (let i = 0; i < tmpls.length; i++ ) {
             tmpl = tmpls[i]
             if (tmpl.enabled) {
-                highlighted = highlighted.replace(`{{ ${tmpl.tmpl} }}`,
-                    `<span id="${span_id}" style=\"background-color:#c8f442\">
+                highlighted = highlighted.replace(token,
+                    `<span style=\"background-color:#c8f442\">
                         ${token}
                     </span>`);
             }
@@ -337,17 +358,7 @@ function changeTemplateBtn(event) {
 
 function reassignTokenTemplates() {
     for (let index = 0; index < templates.length; index++) {
-        template = templates[index]
-        sent = template.text
-        for (let [token, tmpls] of Object.entries(template.tokenmap)) {
-            for (var i=0; i < tmpls.length; i ++ ) {
-                tmpl = tmpls[i]
-                if (tmpl.enabled) {
-                    sent = sent.replace(token, `{{ ${tmpl.tmpl} }}`)
-                }
-            }
-        }
-        template.template = sent
+        makeTemplate(templates[index])
     }
 }
 

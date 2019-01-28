@@ -11,7 +11,6 @@ import re
 import unittest
 
 import pandas as pd
-from tornado.template import Template
 
 from nlg import search, utils
 
@@ -67,7 +66,9 @@ class TestDFSearch(unittest.TestCase):
         self.assertDictEqual(
             dfs.search(sent),
             {
-                'Spencer Tracy': [{'location': 'cell', 'tmpl': "df['name'].iloc[0]", 'type': 'ne'}],
+                'Spencer Tracy': [
+                    {'location': 'cell', 'tmpl': "df['name'].iloc[0]", 'type': 'ne'}
+                ],
                 'voted': [{'location': 'colname', 'tmpl': 'df.columns[-1]', 'type': 'token'}],
                 'actor': [{'location': 'cell', 'tmpl': "df['category'].iloc[-4]", 'type': 'token'}]
             }
@@ -130,13 +131,17 @@ class TestSearch(unittest.TestCase):
         of {{ df['rating'].iloc[-2] }}.
         """
         args = {"_sort": ["-votes"]}
-        tokenmap, text = search.templatize(doc, args, df)
+        tokenmap, text, inflections = search.templatize(doc, args, df)
         actual = text
         for token, tmpls in tokenmap.items():
             tmpl = [t for t in tmpls if t.get('enabled', False)][0]
             actual = actual.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
+        self.assertDictEqual(inflections,
+                             {'actor': {'G': 'singular'},
+                              'actress': {'G': 'singular'},
+                              'voted': {'G': ('lemmatizer', 'VERB')}})
 
     def test_search_sort(self):
 

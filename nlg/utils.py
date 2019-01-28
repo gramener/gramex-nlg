@@ -12,6 +12,7 @@ import humanize  # NOQA: F401
 import numpy as np
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
+from tornado.template import Template
 
 nlp = load("en_core_web_sm")
 
@@ -34,6 +35,13 @@ narrative = N(\"\"\"
               tornado_tmpl=True, df=df, args={{ args }})
 print(narrative.render())
 """
+
+
+def render_search_result(text, results, **kwargs):
+    for token, tokenlist in results.items():
+        tmpl = [t for t in tokenlist if t.get('enabled', False)][0]
+        text = text.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
+    return Template(text).generate(**kwargs).decode('utf-8')
 
 
 def join_words(x, sep=' '):

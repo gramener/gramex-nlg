@@ -15,7 +15,7 @@ from spacy import load
 from spacy.matcher import PhraseMatcher
 
 from nlg import utils
-from nlg.grammar import concatenate_items
+from nlg.grammar import concatenate_items, find_inflections
 
 default_nlp = load("en_core_web_sm")
 
@@ -304,10 +304,11 @@ def search_df(tokens, df):
 
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
-    text = utils.sanitize_text(text)
+    clean_text = utils.sanitize_text(text)
     args = utils.sanitize_fh_args(args)
     dfs = DFSearch(df)
-    dfix = dfs.search(text)
+    dfix = dfs.search(clean_text)
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
-    return dfix, text
+    inflections = find_inflections(clean_text, dfix, args, df)
+    return dfix, clean_text, inflections

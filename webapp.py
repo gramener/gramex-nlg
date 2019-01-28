@@ -23,10 +23,12 @@ def render_template(handler):
     payload = dict(payload)
     templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
-    args = json.loads(payload.get("args", {}))
+    fh_args = json.loads(payload.get("args", {}))
+    for k, v in fh_args.items():
+        v = [x.lstrip('-') for x in v]
     resp = []
     for t in templates:
-        tmpl = Template(t).generate(df=df, args=args, G=G)
+        tmpl = Template(t).generate(df=df, args=fh_args, G=G)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
 
@@ -39,8 +41,9 @@ def process_template(handler):
     args = json.loads(payload.get("args", {}))
     resp = []
     for t in text:
-        replacements, t = templatize(t, args, df)
-        resp.append({"text": t, "tokenmap": replacements})
+        replacements, t, infl = templatize(t, args, df)
+        resp.append({
+            "text": t, "tokenmap": replacements, 'inflections': infl})
     return json.dumps(resp)
 
 

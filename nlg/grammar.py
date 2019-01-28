@@ -1,10 +1,14 @@
 import random
 import re
 from inflect import engine
+from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
+from spacy.lemmatizer import Lemmatizer
+from tornado.template import Template
 
 from nlg.utils import ctxmenu, nlp
 
 infl = engine()
+lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
 
 QUANT_FILTER_TOKENS = {
     ">=": ["at least", "more than", "over"],
@@ -146,3 +150,47 @@ def pluralize_by(x, y):
     if not is_plural_noun(y):
         return singular(x)
     return plural(x)
+
+
+def _token_inflections(x, y):
+    """
+    Make changes in x lexically to turn it into y.
+
+    Parameters
+    ----------
+    x : [type]
+        [description]
+    y : [type]
+        [description]
+    """
+    if x.lemma_ != y.lemma_:
+        return False
+    if len(x.text) == len(y.text):
+        for methname in ['capitalize', 'lower', 'swapcase', 'title', 'upper']:
+            func = lambda x: getattr(x, methname)()  # NOQA: E731
+            if func(x.text) == y.text:
+                return {'str': methname}
+    # check if x and y are singulars or plurals of each other.
+    if is_singular_noun(y.text):
+        if singular(x.text).lower() == y.text.lower():
+            return {'G': ('singular')}
+    elif is_plural_noun(y.text):
+        if plural(x.text).lower() == y.text.lower():
+            return {'G': ('plural',)}
+    if x.pos_ != y.pos_:
+        return {'G': ('lemmatizer', y.pos_)}
+    return False
+
+
+def find_inflections(text, search, fh_args, df):
+    text = nlp(text)
+    inflections = {}
+    for token, tklist in search.items():
+        tmpl = [t['tmpl'] for t in tklist if t.get('enabled', False)][0]
+        rendered = Template('{{{{ {} }}}}'.format(tmpl)).generate(
+            df=df, args=fh_args).decode('utf8')
+        if rendered != token:
+            x = nlp(rendered)[0]
+            y = text[[c.text for c in text].index(token)]
+            inflections[token] = _token_inflections(x, y)
+    return inflections
