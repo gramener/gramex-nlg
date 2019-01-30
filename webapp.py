@@ -50,7 +50,7 @@ def process_template(handler):
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))['args']
+    args = json.loads(parse.unquote(handler.args["args"][0]))
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
     return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")

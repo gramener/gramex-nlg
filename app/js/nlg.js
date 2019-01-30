@@ -1,24 +1,47 @@
-function ignoreTemplateSection(event) {
-    var editor = document.getElementById('edit-template')
-    var currentText = editor.value;
-    var start = editor.selectionStart;
-    var end = editor.selectionEnd;
-    var selection = currentText.substring(start, end)
-    var replacement = deTemplatizeSelection(selection, currentEditIndex)
-    if (replacement) {
-        editor.value =  currentText.replace(selection, replacement)
-    }
+t_templatize = function (x) {return `{{ ${x} }}`}
+
+function escapeRegExp(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 
-function deTemplatizeSelection(selection, index) {
-    var tkmap = templates[index].tokenmap
-    var pandasExpr = selection.replace(/(^{{\ |\ }})/g, "")
-    for (let [token, tmpl] of Object.entries(tkmap)) {
-        if (pandasExpr == tmpl) {
-            return token
-        }
-    }
-    return false
+function ignoreTokenTemplate(token) {
+    var template = templates[currentEditIndex]
+    var enabled_tmpl = getEnabledTemplate(template.tokenmap[token])
+    var escaped_tmpl = escapeRegExp(t_templatize(enabled_tmpl.tmpl))
+    var pattern = new RegExp(escaped_tmpl)
+    template.template = template.template.replace(pattern, token)
+    
+    // set editor to current template
+    document.getElementById('edit-template').value = template.template
+
+    // change the button to add
+    btn = document.getElementById(`rmtoken-${currentEditIndex}-${token}`)
+    btn.setAttribute("class", "btn btn-success round")
+    btn.setAttribute("title", "Add Token")
+    btn.innerHTML = '<i class="fa fa-plus-circle">'
+    
+    // change the listener to adder
+    btn.addEventListener("click", function (e) { addTokenTemplate(token) })
+    // btn.click = function (e) { console.log('This is now an adder') }
+}
+
+function addTokenTemplate(token) {
+    var template = templates[currentEditIndex]
+    var enabled_tmpl = getEnabledTemplate(template.tokenmap[token])
+    var pattern = new RegExp(token)
+    template.template = template.template.replace(pattern, t_templatize(enabled_tmpl.tmpl))
+
+    // set editor to current template
+    document.getElementById('edit-template').value = template.template
+
+    // change the button to remove
+    btn = document.getElementById(`rmtoken-${currentEditIndex}-${token}`)
+    btn.setAttribute("class", "btn btn-danger round")
+    btn.setAttribute("title", "Ignore Token")
+    btn.innerHTML = '<i class="fa fa-times-circle">'
+    
+    // change the listener to adder
+    btn.addEventListener("click", function (e) { ignoreTokenTemplate(token) })
 }
 
 function wrapSelection(pyfunc) {
@@ -31,46 +54,62 @@ function wrapSelection(pyfunc) {
     editor.value = currentText.replace(oldSelection, newSelection)
 }
 
-function makeContextMenuHTML(payload) {
-    var elem = document.getElementById("contextmenu");
-    for (let i = 0; i < payload.length; i++) {
-        var melem = document.createElement('menuitem');
-        melem.label = payload[i];
-        var mylistener = function () { wrapSelection(payload[i]) };
-        melem.addEventListener('click', mylistener);
-        elem.appendChild(melem);
+// function makeContextMenuHTML(payload) {
+//     var elem = document.getElementById("contextmenu");
+//     for (let i = 0; i < payload.length; i++) {
+//         var melem = document.createElement('menuitem');
+//         melem.label = payload[i];
+//         var mylistener = function () { wrapSelection(payload[i]) };
+//         melem.addEventListener('click', mylistener);
+//         elem.appendChild(melem);
+//     }
+
+//     // add Native JS listeners
+//     var melem = document.createElement('menuitem');
+//     melem.label = "Ignore"
+//     melem.addEventListener('click', ignoreTemplateSection)
+//     elem.appendChild(melem)
+
+//     var melem = document.createElement('menuitem');
+//     melem.label = "Assign to Variable"
+//     melem.addEventListener('click', assignToVariable)
+//     elem.appendChild(melem)
+// }
+
+
+function getCurrentTokenTemplate(editIndex, token) {
+    // get the template currently assigned to the given token
+    var template = templates[editIndex]
+    var enabled_tmpl = getEnabledTemplate(template.tokenmap[token])
+    if (token in template.inflections) {
+        var infl = template.inflections[token]
+        var inflstring = makeInflString(enabled_tmpl.tmpl, infl)
+        return inflstring
     }
-
-    // add Native JS listeners
-    var melem = document.createElement('menuitem');
-    melem.label = "Ignore"
-    melem.addEventListener('click', ignoreTemplateSection)
-    elem.appendChild(melem)
-
-    var melem = document.createElement('menuitem');
-    melem.label = "Assign to Variable"
-    melem.addEventListener('click', assignToVariable)
-    elem.appendChild(melem)
+    return enabled_tmpl.tmpl
 }
 
-function assignToVariable(event) {
-    var editor = document.getElementById('edit-template');
-    var currentText = editor.value;
-    var start = editor.selectionStart;
-    var end = editor.selectionEnd;
-    var selection = currentText.substring(start, end)
-    var varString = selection.replace(/(^{{\ |\ }}$)/g, '')
-    var assignmentStr = `{% set x = ${varString} %}`
-    editor.value = assignmentStr + '\n' + currentText
+
+function assignToVariable(token) {
+    var varname = prompt('Enter variable name:');
+    if (varname) {
+        var currentTmpl = getCurrentTokenTemplate(currentEditIndex, token)
+        var assignmentStr = `{% set ${varname} = ${currentTmpl} %}`
+        var pattern = new RegExp(escapeRegExp(t_templatize(currentTmpl)))
+        var template = templates[currentEditIndex].template
+        var newTemplate = template.replace(pattern, t_templatize(varname))
+        templates[currentEditIndex].template = assignmentStr + '\n' + newTemplate
+        document.getElementById('edit-template').value = templates[currentEditIndex].template
+    }
 }
 
-function setContextMenu() {
-    $.ajax({
-        type: "GET",
-        url: "ctxmenu",
-        success: makeContextMenuHTML
-    })
-}
+// function setContextMenu() {
+//     $.ajax({
+//         type: "GET",
+//         url: "ctxmenu",
+//         success: makeContextMenuHTML
+//     })
+// }
 
 function addToNarrative() {
     // Add a template to the list of templates.
@@ -84,6 +123,28 @@ function addToNarrative() {
 }
 
 
+function makeInflString(tmpl, infl) {
+    tmplstr = tmpl
+    for (let [pymod, funcname] of Object.entries(infl)) {
+        if (pymod == "str") {
+            funcname = funcname
+            tmplstr = tmplstr + '.' + funcname + '()'
+        }
+        else {
+            if (funcname.length > 1) {
+                [func, funcargs] = funcname
+                tmplstr = `${pymod}.${func}(${tmplstr}, ${funcargs})`
+            }
+            else {
+                func = funcname
+                tmplstr = `${pymod}.${func}(${tmplstr})`
+            }
+        }
+    }
+    return tmplstr
+}
+
+
 function makeTemplate(searchResult) {
     sent = searchResult.text
     inflections = searchResult.inflections
@@ -94,22 +155,7 @@ function makeTemplate(searchResult) {
                 tmplstr = tmpl.tmpl
                 if (token in inflections) {
                     tk_infl = inflections[token]
-                    for (let [pymod, funcname] of Object.entries(tk_infl)) {
-                        if (pymod == "str") {
-                            funcname = funcname
-                            tmplstr = tmplstr + '.' + funcname + '()'
-                        }
-                        else {
-                            if (funcname.length > 1) {
-                                [func, funcargs] = funcname
-                                tmplstr = `${pymod}.${func}(${tmplstr}, ${funcargs})`
-                            }
-                            else {
-                                func = funcname
-                                tmplstr = `${pymod}.${func}(${tmplstr})`
-                            }
-                        }
-                    }
+                    tmplstr = makeInflString(tmplstr, tk_infl)
                 }
                 sent = sent.replace(token, `{{ ${tmplstr} }}`)
             }
@@ -171,36 +217,16 @@ function downloadNarrative() {
         responseType: 'blob',
         type: "GET",
         headers: {'X-CSRFToken': false},
-        success: function (event) {
-            var blob = this.response;
-            var contentDispo = this.getResponseHeader('Content-Disposition');
-            // https://stackoverflow.com/a/23054920/
-            var fileName = contentDispo.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)[1];
-            saveBlob(blob, fileName);
-        }
+        success: function() { window.location = url }
     })
 }
 
-
-function getConditionBtn(n) {
-    // Get HTML for the "Add Condition" button.
-    return `<button id="condt-btn-${n}" type="button" class="btn btn-primary">Add Condition</button>`
-}
 
 function getRmButton(n) {
     // Get HTML for the delete template button.
     return `
      <button id="rm-btn-${n}" title="Remove" type="button" class="btn btn-primary">
         <i class="fa fa-trash"></i>
-     </button>
-     `
-}
-
-function getEditTemplateBtn(n) {
-    // Get HTML for the edit template button.
-    return `
-     <button id="edit-btn-${n}" title="Edit" type="button" class="btn btn-primary">
-        <i class="fa fa-edit"></i>
      </button>
      `
 }
@@ -213,43 +239,133 @@ function getSettingsBtn(n) {
     `
 }
 
-
-function addCondition(n) {
+function addCondition(event) {
     // Propmt for adding a condition to a template.
-    var expr = prompt('Enter Expression:');
-    if (expr) {
-        templates[n].condition = expr;
-        var btn = document.getElementById(`condt-btn-${n}`);
-        btn.value = "Edit Condition";
-        btn.removeEventListener("click", currentEventHandlers[`condt-btn-${n}`])
-        var newlistner = function () { editCondition(n) };
-        btn.addEventListener("click", newlistner);
-        currentEventHandlers[`condt-btn-${n}`] = newlistner;
+    var condition = document.getElementById('condition-editor').value
+    if (condition) {
+        templates[currentEditIndex].condition = condition
+        var currentTemplate = templates[currentEditIndex].template
+        var newTemplate = `{% if ${condition} %}\n\t` + currentTemplate + '\n{% end %}'
+        templates[currentEditIndex].template = newTemplate
+        document.getElementById('edit-template').value = newTemplate
     }
-}
-
-function editCondition(n) {
-    // Propmt for editing a condition on a template.
-    var expr = prompt("Enter Expression:", templates[n].condition);
-    if (expr) {
-        templates[n].condition = expr
-    }
-    else if (expr === "") {
-        templates[n].condition = "";
-        var btn = document.getElementById(`condt-btn-${n}`);
-        btn.value = "Add Condition";
-        btn.removeEventListener("click", currentEventHandlers[`condt-btn-${n}`])
-        var newlistner = function () { addCondition(n) };
-        btn.addEventListener("click", newlistner);
-        currentEventHandlers[`condt-btn-${n}`] = newlistner;
-    }
-
+    
 }
 
 function editTemplate(n) {
     // Set the template to be edited into the template editor box.
     currentEditIndex = n;
-    document.getElementById("edit-template").value = templates[n].template;
+    document.getElementById("edit-template").value = templates[n].template
+    document.getElementById("tmpl-setting-preview").textContent = templates[n].text
+    currentCondition = templates[n].condition
+    if (currentCondition) {
+        document.getElementById("condition-editor").value = currentCondition
+    }
+    makeSettingsTable(n)
+}
+
+function getEnabledTemplate(tmpl_list) {
+    for (let i = 0; i < tmpl_list.length; i ++ ) {
+        tmpl = tmpl_list[i]
+        if (tmpl.enabled) {
+            return tmpl
+        }
+    }
+}
+
+function makeSearchResultsDropdown(token, tmpl_list) {
+    var dropdown_id = `srdd-${currentEditIndex}-${token}`
+    var default_tmpl = getEnabledTemplate(tmpl_list)
+    var html = `
+    <div style="font-family:monospace">
+        <select class="selectpicker" id="${dropdown_id}">
+            <option selected>
+                ${default_tmpl.tmpl}
+            </option>`
+    for (let i = 0; i < tmpl_list.length; i ++ ) {
+        let tmpl = tmpl_list[i]
+        if (!(tmpl.enabled)) {
+            html += `<div style="font-family:monospace">
+                        <option>${tmpl.tmpl}</option>
+                     </div>`
+        }
+    }
+    // add dd option change listeners here.
+    return html + "</select></div>"
+}
+
+function makeGrammarOptionsSelector(token) {
+    var dropdown_id = `godd-${currentEditIndex}-${token}`
+    var html = `
+    <select class="select-multiple" multiple id="${dropdown_id}">
+    `
+    for (let i = 0; i < grammarOptions.length; i++ ) {
+        html += `<option>${grammarOptions[i]}</option>`
+    }
+    return html + "</select>"
+}
+
+function makeSettingsTable(n) {
+    // make the HTML table for the nth template.
+    var tokenmap = templates[n].tokenmap
+    var html = ''
+    for (let [token, tmpllist] of Object.entries(tokenmap)) {
+        html += `<tr><th scope="row" class="align-middle">${token}</th>`
+
+        if (tmpllist.length > 1) {
+            dd_html = makeSearchResultsDropdown(token, tmpllist)
+            html += `<td>${dd_html}</td>`
+        } else {
+            html += `<td class="align-middle" style="font-family:monospace">${tmpllist[0].tmpl}</td>`
+        }
+
+        // grammar dropdown
+        var grop_html = makeGrammarOptionsSelector(token)
+        html += `<td class="align-middle">${grop_html}</td>`
+
+        // add button to assign to variable
+        html += `<td class="align-middle">
+            <button id="assignvar-${n}-${token}" title="Assign to variable" class="btn btn-success round">
+            <i class="fa fa-plus-circle">
+        </td>`
+
+        // remover dropdown
+        html += `<td class="align-middle">
+                 <button id="rmtoken-${n}-${token}" title="Ignore token" class="btn btn-danger round">
+                    <i class="fa fa-times-circle">
+                 </button></td></tr>`
+    }
+    document.getElementById('table-body').innerHTML = html
+    
+    for (let [token, tmpllist] of Object.entries(tokenmap)) {
+        // add search result dropdown listeners
+        if (tmpllist.length > 1) {
+            let dd_id = `srdd-${n}-${token}`
+            document.getElementById(dd_id).onchange = function (e) { changeTokenTemplate(token) }
+        }
+        // add variable assignment listener
+        var assignBtn = document.getElementById(`assignvar-${n}-${token}`)
+        assignBtn.addEventListener('click', function(e) { assignToVariable(token) })
+        // Add remove listener
+        var rmtokenbtn = document.getElementById(`rmtoken-${n}-${token}`)
+        rmtokenbtn.addEventListener("click", function (e) { ignoreTokenTemplate(token) })
+    }
+}
+
+function changeTokenTemplate(token) {
+    var dd_id = `srdd-${currentEditIndex}-${token}`
+    var newTmpl = document.getElementById(dd_id).value
+    var tmpllist = templates[currentEditIndex].tokenmap[token]
+    for (let i = 0; i < tmpllist.length; i ++ ) {
+        tmplobj = tmpllist[i]
+        if (tmplobj.tmpl == newTmpl) {
+            tmplobj.enabled = true
+        }
+        else { tmplobj.enabled = false }
+    }
+    reassignTokenTemplates()
+    document.getElementById('edit-template').value = templates[currentEditIndex].template
+
 }
 
 function deleteTemplate(n) {
@@ -278,18 +394,16 @@ function checkTemplate() {
 }
 
 function editAreaCallback(payload) {
-    document.getElementById("edit-preview").innerHTML = payload;
+    document.getElementById("tmpl-setting-preview").textContent = payload
 }
 
 function saveTemplate() {
     // Save the template found in the template editor box at `currentEditIndex`.
     var tbox = document.getElementById("edit-template");
-    var pbox = document.getElementById("edit-preview");
+    var pbox = document.getElementById("tmpl-setting-preview");
     templates[currentEditIndex].template = tbox.value;
-    templates[currentEditIndex].previewHTML = pbox.innerHTML;
+    templates[currentEditIndex].previewHTML = pbox.textContent;
     renderPreview(null);
-    tbox.value = "";
-    currentEditIndex = null;
 }
 
 function refreshTemplates() {
@@ -316,31 +430,6 @@ function updateTemplates(payload) {
     renderPreview(null)
 }
 
-function makeTemplateSettingsHTML(editIndex) {
-    tkmap = templates[editIndex].tokenmap
-    html = '<ul id="settings-modal-body">'
-    for (let [token, tmpllist] of Object.entries(tkmap)) {
-        html += `<li><div id="token-tmpl-selector-${token}">
-            <p style="font-family:monospace">${token}</p>`
-        for (let i = 0; i < tmpllist.length; i ++ ) {
-            tmpl = tmpllist[i]
-            if (tmpl['enabled']) {
-                var check = "checked"
-            } else { var check = "" }
-            html += `
-            <div class="radio">
-            <label style="font-family:monospace">
-                <input id="rb-${token}-${i}" type="radio"
-                name="optradio-${token}" ${check}>
-                    ${tmpl.tmpl}</label>
-            </div>`
-        }
-        html += "</div></li>"
-    }
-    html += "</ul>"
-    document.getElementById("tmplradiolist").innerHTML = html
-}
-
 function changeTemplateBtn(event) {
     tkmap = templates[currentEditIndex].tokenmap
     for (let [token, tmpllist] of Object.entries(tkmap)) {
@@ -362,13 +451,12 @@ function reassignTokenTemplates() {
     }
 }
 
-function triggerSettings(sentid) {
+function triggerTemplateSettings(sentid) {
     currentEditIndex = sentid
-    template = templates[currentEditIndex]
-    makeTemplateSettingsHTML(currentEditIndex)
+    editTemplate(currentEditIndex)
+    // makeTemplateSettingsHTML(currentEditIndex)
     $('#template-settings').modal({'show': true})
 }
-
 
 function renderPreview(fh) {
     // Render the list of templates and their renditions
@@ -381,36 +469,14 @@ function renderPreview(fh) {
     
     var innerHTML = "<p>\n";
     for (var i = 0; i < templates.length; i++) {
-        innerHTML += getConditionBtn(i) + getRmButton(i) + getEditTemplateBtn(i) 
-            + getSettingsBtn(i)
-            + "\t" + templates[i].previewHTML + "</br>";
+        innerHTML += getRmButton(i) // + getConditionBtn(i) + getEditTemplateBtn(i)
+            + getSettingsBtn(i) + "\t" + templates[i].previewHTML + "</br>";
     }
     innerHTML += "</p>"
     document.getElementById("template-preview").innerHTML = innerHTML;
 
     // add listeners to buttons
     for (let i = 0; i < templates.length; i++) {
-        var btnkey = `condt-btn-${i}`
-        var btn = document.getElementById(btnkey)
-        // check if condition already exists
-        if ((!(i in templates)) || (templates[i].condition === "")) {
-            var listener = function () { addCondition(i) }
-        }
-        else {
-            var listener = function () { editCondition(i) }
-        }
-        // remove old listeners if any
-        if (btnkey in currentEventHandlers) {
-            var oldlistener = currentEventHandlers[btnkey];
-            btn.removeEventListener("click", oldlistener);
-        }
-        btn.addEventListener("click", listener);
-        currentEventHandlers[btnkey] = listener;
-
-        // add the edit listener
-        var btn = document.getElementById(`edit-btn-${i}`)
-        var editListener = function () { editTemplate(i) };
-        btn.addEventListener("click", editListener)
 
         // add the remove listener
         var btn = document.getElementById(`rm-btn-${i}`)
@@ -419,7 +485,7 @@ function renderPreview(fh) {
 
         // add setting listener
         var btn = document.getElementById(`settings-btn-${i}`)
-        var settingsListener = function () { triggerSettings(i) };
+        var settingsListener = function () { triggerTemplateSettings(i) };
         btn.addEventListener("click", settingsListener);
 
     }
