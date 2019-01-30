@@ -55,11 +55,11 @@ url:
             xsrf_cookies: false
             headers:
                 Content-Type: application/json
-    ctxmenu-$*:
-        pattern: /$YAMLURL/ctxmenu
+    nlg_gramopts-$*:
+        pattern: /$YAMLURL/get-gramopts
         handler: FunctionHandler
         kwargs:
-            function: webapp.get_ctxmenu
+            function: webapp.get_gramopts
             xsrf_cookies: false
             headers:
                 Content-Type: application/json

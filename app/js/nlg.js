@@ -106,7 +106,7 @@ function assignToVariable(token) {
 // function setContextMenu() {
 //     $.ajax({
 //         type: "GET",
-//         url: "ctxmenu",
+//         url: "set_nlg_gramopt",
 //         success: makeContextMenuHTML
 //     })
 // }
@@ -124,42 +124,30 @@ function addToNarrative() {
 
 
 function makeInflString(tmpl, infl) {
-    tmplstr = tmpl
-    for (let [pymod, funcname] of Object.entries(infl)) {
-        if (pymod == "str") {
-            funcname = funcname
-            tmplstr = tmplstr + '.' + funcname + '()'
-        }
-        else {
-            if (funcname.length > 1) {
-                [func, funcargs] = funcname
-                tmplstr = `${pymod}.${func}(${tmplstr}, ${funcargs})`
-            }
-            else {
-                func = funcname
-                tmplstr = `${pymod}.${func}(${tmplstr})`
-            }
-        }
+    var tmplstr = tmpl
+    var infl_source = infl.source
+    if (infl_source == "str") {
+        tmplstr = tmplstr + `.${infl.func_name}()`
     }
+    else { tmplstr = `${infl.source}.${infl.func_name}(${tmplstr})` }
     return tmplstr
 }
 
 
 function makeTemplate(searchResult) {
-    sent = searchResult.text
-    inflections = searchResult.inflections
+    // make a template from the current searchResult object
+    var sent = searchResult.text
+    var inflections = searchResult.inflections
     for (let [token, tmpls] of Object.entries(searchResult.tokenmap)) {
-        for (var i=0; i < tmpls.length; i ++ ) {
-            tmpl = tmpls[i]
-            if (tmpl.enabled) {
-                tmplstr = tmpl.tmpl
-                if (token in inflections) {
-                    tk_infl = inflections[token]
-                    tmplstr = makeInflString(tmplstr, tk_infl)
-                }
-                sent = sent.replace(token, `{{ ${tmplstr} }}`)
+        var enabled_tmpl = getEnabledTemplate(searchResult.tokenmap[token])
+        var tmplstr = enabled_tmpl.tmpl
+        if (token in inflections) {
+            tk_infl = inflections[token]
+            for (var i = 0; i < tk_infl.length; i ++ ) {
+                tmplstr = makeInflString(tmplstr, tk_infl[i])
             }
         }
+        sent = sent.replace(token, t_templatize(tmplstr))
     }
     searchResult.template = sent
 }
@@ -189,19 +177,6 @@ function gramexTemplatize(payload) {
     renderPreview(null)
     // registerTemplateOptions(payload)
     document.getElementById("textbox").value = "";
-}
-
-function saveBlob(blob, fileName) {
-    // Helper to save / download files.
-    var a = document.createElement('a');
-    a.href = window.URL.createObjectURL(blob);
-    a.download = fileName.replace(/(^_|_$)/g, '');
-    // click working with firefox & chrome: https://stackoverflow.com/a/22469115/
-    a.dispatchEvent(new MouseEvent('click', {
-        'view': window,
-        'bubbles': true,
-        'cancelable': false
-    }));
 }
 
 function downloadNarrative() {
@@ -294,15 +269,30 @@ function makeSearchResultsDropdown(token, tmpl_list) {
     return html + "</select></div>"
 }
 
-function makeGrammarOptionsSelector(token) {
-    var dropdown_id = `godd-${currentEditIndex}-${token}`
-    var html = `
-    <select class="select-multiple" multiple id="${dropdown_id}">
-    `
-    for (let i = 0; i < grammarOptions.length; i++ ) {
-        html += `<option>${grammarOptions[i]}</option>`
+function findAppliedInflections(token, inflections) {
+    var applied_inflections = new Set()
+    if (token in inflections) {
+        tk_infl = inflections[token]
+        for (let i = 0; i < tk_infl.length; i ++ ) {
+            applied_inflections.add(tk_infl[i].fe_name)
+        }
     }
-    return html + "</select>"
+    return applied_inflections
+}
+
+function makeGrammarOptionsSelector(token, templateIndex) {
+    var html = `<select id="gramopt-select-${templateIndex}-${token}" class="selectpicker show-tick" multiple>`
+    var inflections = templates[templateIndex].inflections
+    var appliedInfls = findAppliedInflections(token, inflections)
+    for (let [fe_name, infl_obj] of Object.entries(grammarOptions)) {
+        // check if this inflection is already applied
+        if (appliedInfls.has(fe_name)) {
+            var selected = "selected"
+        }
+        else { var selected = "" }
+        html += `<option ${selected}>${fe_name}</option>`
+    }
+    return html + '</select>'
 }
 
 function makeSettingsTable(n) {
@@ -320,7 +310,7 @@ function makeSettingsTable(n) {
         }
 
         // grammar dropdown
-        var grop_html = makeGrammarOptionsSelector(token)
+        var grop_html = makeGrammarOptionsSelector(token, n)
         html += `<td class="align-middle">${grop_html}</td>`
 
         // add button to assign to variable
@@ -343,13 +333,40 @@ function makeSettingsTable(n) {
             let dd_id = `srdd-${n}-${token}`
             document.getElementById(dd_id).onchange = function (e) { changeTokenTemplate(token) }
         }
+
+        // add grammar options listeners
+        var gramOptSelect = document.getElementById(`gramopt-select-${n}-${token}`)
+        gramOptSelect.addEventListener('change', function(e) { changeGrammarOption(token) })
+
         // add variable assignment listener
         var assignBtn = document.getElementById(`assignvar-${n}-${token}`)
         assignBtn.addEventListener('click', function(e) { assignToVariable(token) })
+
         // Add remove listener
         var rmtokenbtn = document.getElementById(`rmtoken-${n}-${token}`)
         rmtokenbtn.addEventListener("click", function (e) { ignoreTokenTemplate(token) })
     }
+}
+
+function changeGrammarOption(token) {
+    // remove all currently applied inflections on the token
+    delete templates[currentEditIndex].inflections[token]
+
+    // add the currently selected inflections
+    var selected = document.getElementById(`gramopt-select-${currentEditIndex}-${token}`).selectedOptions
+    var inflections = Array.from(selected).map(x => x.value)
+    var newInflections = [];
+    for (i = 0; i < inflections.length; i ++ ) {
+        let infl = {}
+        let fe_name = inflections[i]
+        infl["fe_name"] = fe_name
+        infl["source"] = grammarOptions[fe_name]['source']
+        infl["func_name"] = grammarOptions[fe_name]['func_name']
+        newInflections.push(infl)
+    }
+    templates[currentEditIndex].inflections[token] = newInflections
+    makeTemplate(templates[currentEditIndex])
+    document.getElementById('edit-template').value = templates[currentEditIndex].template
 }
 
 function changeTokenTemplate(token) {

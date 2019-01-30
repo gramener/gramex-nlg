@@ -48,12 +48,18 @@ def join_words(x, sep=' '):
     return sep.join(re.findall(r'\w+', x, re.IGNORECASE))
 
 
-def ctxmenu(func, requires_templates=False):
-    """Decorator for adding callables to context menus for the webapp.
+class set_nlg_gramopt(object):
+    """Decorator for adding callables to grammar options of the webapp.
     """
-    func.ctxmenu = True
-    func.requires_templates = requires_templates
-    return func
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, func):
+        func.gramopt = True
+        for k, v in self.kwargs.items():
+            if not getattr(func, k, False):
+                setattr(func, k, v)
+        return func
 
 
 def get_phrase_matcher(df):

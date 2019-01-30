@@ -24,8 +24,7 @@ def render_template(handler):
     templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
     fh_args = json.loads(payload.get("args", {}))
-    for k, v in fh_args.items():
-        v = [x.lstrip('-') for x in v]
+    fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
         tmpl = Template(t).generate(df=df, args=fh_args, G=G)
@@ -56,15 +55,10 @@ def download_template(handler):
     return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")
 
 
-def get_ctxmenu(handler):
-    utils = []
-    for attrname in dir(U):
-        obj = getattr(U, attrname)
-        if callable(obj) and getattr(obj, 'ctxmenu', False):
-            utils.append('U.' + attrname)
-    grammars = []
+def get_gramopts(handler):
+    funcs = {}
     for attrname in dir(G):
         obj = getattr(G, attrname)
-        if callable(obj) and getattr(obj, 'ctxmenu', False):
-            utils.append('G.' + attrname)
-    return json.dumps(list(set(utils + grammars)))
+        if getattr(obj, 'gramopt', False):
+            funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
+    return funcs

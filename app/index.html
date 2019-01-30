@@ -73,7 +73,7 @@
                         <br>
                         <textarea id="edit-template" class="align-center"
                         name="templateditor"
-                        style="font-family:monospace"></textarea>
+                        style="font-family:monospace; font-size:10pt; width: 50em"></textarea>
                         <br>
                         <table class="table table-striped table-sm">
                             <thead>
@@ -112,7 +112,7 @@
         document.getElementById("edit-template").cols = 69;
         $.ajax({
             type: "GET",
-            url: "ctxmenu",
+            url: "get-gramopts",
             success: function (resp) { grammarOptions = resp }
         })
     </script>
