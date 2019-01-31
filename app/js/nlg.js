@@ -5,10 +5,13 @@ function escapeRegExp(string) {
 }
 
 function ignoreTokenTemplate(token) {
+    // Ignore all templating applied to a token and revert the template to use
+    // the literal token.
     var template = templates[currentEditIndex]
     var enabled_tmpl = getEnabledTemplate(template.tokenmap[token])
-    var escaped_tmpl = escapeRegExp(t_templatize(enabled_tmpl.tmpl))
-    var pattern = new RegExp(escaped_tmpl)
+    var escaped_tmpl = escapeRegExp(enabled_tmpl.tmpl)
+    var expr = `\\{\\{\\ [^\\{\\}]*${escaped_tmpl}[^\\{\\}]*\\ \\}\\}`
+    var pattern = new RegExp(expr)
     template.template = template.template.replace(pattern, token)
     
     // set editor to current template
@@ -26,10 +29,19 @@ function ignoreTokenTemplate(token) {
 }
 
 function addTokenTemplate(token) {
+    // Opposite of `ignoreTokenTemplate`
+    // Apply all templatization to the template and find it.
     var template = templates[currentEditIndex]
     var enabled_tmpl = getEnabledTemplate(template.tokenmap[token])
+    var tmplstr = enabled_tmpl.tmpl
+    if (token in template.inflections) {
+        var infls = template.inflections[token]
+        for (let i = 0; i < infls.length; i++ ) {
+            tmplstr = makeInflString(tmplstr, infls[i])
+        }
+    }
     var pattern = new RegExp(token)
-    template.template = template.template.replace(pattern, t_templatize(enabled_tmpl.tmpl))
+    template.template = template.template.replace(pattern, t_templatize(tmplstr))
 
     // set editor to current template
     document.getElementById('edit-template').value = template.template
