@@ -311,4 +311,13 @@ def templatize(text, args, df):
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
     inflections = find_inflections(clean_text, dfix, args, df)
-    return dfix, clean_text, inflections
+    _infl = {}
+    for token, funcs in inflections.items():
+        _infl[token] = []
+        for func in funcs:
+            _infl[token].append({
+                'source': func.source,
+                'fe_name': func.fe_name,
+                'func_name': func.__name__
+            })
+    return dfix, clean_text, _infl
