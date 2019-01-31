@@ -24,10 +24,10 @@ def render_template(handler):
     templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
     fh_args = json.loads(payload.get("args", {}))
-    fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
+    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
-        tmpl = Template(t).generate(df=df, args=fh_args, G=G)
+        tmpl = Template(t).generate(orgdf=df, fh_args=fh_args, G=G, U=U)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
 
@@ -42,17 +42,18 @@ def process_template(handler):
     for t in text:
         replacements, t, infl = templatize(t, args, df)
         resp.append({
-            "text": t, "tokenmap": replacements, 'inflections': infl})
+            "text": t, "tokenmap": replacements, 'inflections': infl,
+            "fh_args": args})
     return json.dumps(resp)
 
 
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))
+    fh_args = json.loads(parse.unquote(handler.args["args"][0]))
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
-    return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")
+    return t_template.generate(tmpl=template, fh_args=fh_args, G=G).decode("utf8")
 
 
 def get_gramopts(handler):

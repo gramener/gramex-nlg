@@ -8,6 +8,7 @@ Miscellaneous utilities.
 from random import choice
 import re
 
+from gramex.data import filter as grmfilter  # NOQA: F401
 import humanize  # NOQA: F401
 import numpy as np
 from spacy import load

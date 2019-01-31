@@ -54,28 +54,6 @@ function wrapSelection(pyfunc) {
     editor.value = currentText.replace(oldSelection, newSelection)
 }
 
-// function makeContextMenuHTML(payload) {
-//     var elem = document.getElementById("contextmenu");
-//     for (let i = 0; i < payload.length; i++) {
-//         var melem = document.createElement('menuitem');
-//         melem.label = payload[i];
-//         var mylistener = function () { wrapSelection(payload[i]) };
-//         melem.addEventListener('click', mylistener);
-//         elem.appendChild(melem);
-//     }
-
-//     // add Native JS listeners
-//     var melem = document.createElement('menuitem');
-//     melem.label = "Ignore"
-//     melem.addEventListener('click', ignoreTemplateSection)
-//     elem.appendChild(melem)
-
-//     var melem = document.createElement('menuitem');
-//     melem.label = "Assign to Variable"
-//     melem.addEventListener('click', assignToVariable)
-//     elem.appendChild(melem)
-// }
-
 
 function getCurrentTokenTemplate(editIndex, token) {
     // get the template currently assigned to the given token
@@ -133,8 +111,14 @@ function makeInflString(tmpl, infl) {
     return tmplstr
 }
 
+function addFHArgsSetter(sent, fh_args) {
+    var setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
+    setterLine += `{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n`
+    return setterLine + sent
 
-function makeTemplate(searchResult) {
+}
+
+function makeTemplate(searchResult, setFHArgs = true) {
     // make a template from the current searchResult object
     var sent = searchResult.text
     var inflections = searchResult.inflections
@@ -148,6 +132,9 @@ function makeTemplate(searchResult) {
             }
         }
         sent = sent.replace(token, t_templatize(tmplstr))
+    }
+    if (setFHArgs) {
+        sent = addFHArgsSetter(sent, searchResult.fh_args)
     }
     searchResult.template = sent
 }
@@ -225,6 +212,13 @@ function addCondition(event) {
         document.getElementById('edit-template').value = newTemplate
     }
     
+}
+
+function changeFHSetter(event) {
+    var elem = document.getElementById('fh-arg-setter')
+    var template = templates[currentEditIndex]
+    makeTemplate(template, elem.checked)
+    document.getElementById('edit-template').value = template.template
 }
 
 function editTemplate(n) {
