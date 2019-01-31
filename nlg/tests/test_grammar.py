@@ -34,7 +34,9 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(G.singular("bacteria"), "bacterium")
         # self.assertEqual(G.singular("geese"), "goose")
 
-    def test_pluralize_by_seq(self):
-        self.assertEqual(G.pluralize_by_seq("language", [1, 2]), "languages")
-        self.assertEqual(G.pluralize_by_seq("languages", [1]), "language")
-        self.assertEqual(G.pluralize_by_seq("language", []), "language")
+    def test_pluralize_by(self):
+        self.assertEqual(G.pluralize_by("language", [1, 2]), "languages")
+        self.assertEqual(G.pluralize_by("languages", [1]), "language")
+        self.assertEqual(G.pluralize_by("language", []), "language")
+        self.assertEqual(G.pluralize_by("language", 1), "language")
+        self.assertEqual(G.pluralize_by("language", 2), "languages")

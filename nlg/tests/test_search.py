@@ -138,10 +138,13 @@ class TestSearch(unittest.TestCase):
             actual = actual.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         self.assertEqual(*map(cleaner, (ideal, actual)))
-        self.assertDictEqual(inflections,
-                             {'actor': {'G': 'singular'},
-                              'actress': {'G': 'singular'},
-                              'voted': {'G': ('lemmatizer', 'VERB')}})
+        self.assertDictEqual(
+            inflections,
+            {
+                'actor': [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'}],
+                'actress': [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}],
+                'voted': [{'source': 'G', 'fe_name': 'Lemmatize', 'func_name': 'lemmatize'}]}
+        )
 
     def test_search_sort(self):
 
