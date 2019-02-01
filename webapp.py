@@ -43,7 +43,7 @@ def process_template(handler):
         replacements, t, infl = templatize(t, args, df)
         resp.append({
             "text": t, "tokenmap": replacements, 'inflections': infl,
-            "fh_args": args})
+            "fh_args": args, "setFHArgs": True})
     return json.dumps(resp)
 
 
@@ -54,6 +54,10 @@ def download_template(handler):
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
     return t_template.generate(tmpl=template, fh_args=fh_args, G=G).decode("utf8")
+
+
+def download_config(handler):
+    return json.dumps(json.loads(parse.unquote(handler.args['config'][0])), indent=4)
 
 
 def get_gramopts(handler):

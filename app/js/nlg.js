@@ -130,7 +130,7 @@ function addFHArgsSetter(sent, fh_args) {
 
 }
 
-function makeTemplate(searchResult, setFHArgs = true) {
+function makeTemplate(searchResult) {
     // make a template from the current searchResult object
     var sent = searchResult.text
     var inflections = searchResult.inflections
@@ -145,7 +145,10 @@ function makeTemplate(searchResult, setFHArgs = true) {
         }
         sent = sent.replace(token, t_templatize(tmplstr))
     }
-    if (setFHArgs) {
+    if (searchResult.condition) {
+        sent = `{% if ${searchResult.condition} %}\n\t` + sent + "\n{% end %}"
+    }
+    if (searchResult.setFHArgs) {
         sent = addFHArgsSetter(sent, searchResult.fh_args)
     }
     searchResult.template = sent
@@ -176,6 +179,27 @@ function gramexTemplatize(payload) {
     renderPreview(null)
     // registerTemplateOptions(payload)
     document.getElementById("textbox").value = "";
+}
+
+function downloadConfig() {
+    url = "config-download?config=" + encodeURIComponent(JSON.stringify(templates))
+    $.ajax({
+        url: url,
+        responseType: 'blob',
+        type: "GET",
+        headers: {'X-CSRFToken': false},
+        success: function() { window.location = url }
+    })
+}
+
+function uploadConfig(e) {
+    var reader = new FileReader()
+    reader.onload = function () {
+        templates = JSON.parse(reader.result)
+        renderPreview(null)
+        }
+    var elem = document.getElementById('config-upload')
+    reader.readAsText(elem.files[0])
 }
 
 function downloadNarrative() {
@@ -214,22 +238,20 @@ function getSettingsBtn(n) {
 }
 
 function addCondition(event) {
-    // Propmt for adding a condition to a template.
     var condition = document.getElementById('condition-editor').value
     if (condition) {
-        templates[currentEditIndex].condition = condition
-        var currentTemplate = templates[currentEditIndex].template
-        var newTemplate = `{% if ${condition} %}\n\t` + currentTemplate + '\n{% end %}'
-        templates[currentEditIndex].template = newTemplate
-        document.getElementById('edit-template').value = newTemplate
+        var template = templates[currentEditIndex]
+        template.condition = condition
+        makeTemplate(template)
+        document.getElementById('edit-template').value = template.template
     }
     
 }
 
 function changeFHSetter(event) {
-    var elem = document.getElementById('fh-arg-setter')
-    var template = templates[currentEditIndex]
-    makeTemplate(template, elem.checked)
+    template = templates[currentEditIndex]
+    template.setFHArgs = document.getElementById('fh-arg-setter').checked
+    makeTemplate(template)
     document.getElementById('edit-template').value = template.template
 }
 
@@ -241,6 +263,9 @@ function editTemplate(n) {
     currentCondition = templates[n].condition
     if (currentCondition) {
         document.getElementById("condition-editor").value = currentCondition
+    }
+    else {
+        document.getElementById("condition-editor").value = ""
     }
     makeSettingsTable(n)
 }
