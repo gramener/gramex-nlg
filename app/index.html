@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Natural Language Generation</title>
+<title>Natural Language Generation</title>
 </head>
 
 <body>
@@ -59,6 +59,11 @@
     <button id="download-config-btn" type="button" title="Download Config" class="btn btn-success">
         <i class="fa fa-download"></i>
     </button>
+    <!--
+    <button id="clear-tmpls" title="Clear Narrative" type="button" class="btn btn-danger">
+        <i class="fa fa-trash"></i>
+    </button>
+    -->
     <div class="modal fade" id="template-settings" role="dialog">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -78,7 +83,7 @@
                             </button>
                         </div>
                         <div class="custom-control custom-switch">
-                            <input type="checkbox" class="custom-control-input" id="fh-arg-setter" checked>
+                            <input type="checkbox" class="custom-control-input" id="fh-arg-setter">
                             <label class="custom-control-label" for="fh-arg-setter">Set current data</label>
                             </div>
                         <br>
@@ -122,6 +127,7 @@
         document.getElementById("save-template").addEventListener("click", saveTemplate);
         document.getElementById("condition-btn").addEventListener("click", addCondition);
         document.getElementById("fh-arg-setter").addEventListener("change", changeFHSetter)
+        // document.getElementById("clear-tmpls").addEventListener('click', clearNarrative);
         document.getElementById("textbox").cols = 119;
         document.getElementById("edit-template").cols = 69;
         document.getElementById("edit-template").rows = 10;

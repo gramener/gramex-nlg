@@ -7,6 +7,7 @@ Module for gramex exposure. This shouldn't be imported anywhere, only for use
 with gramex.
 """
 import json
+import os.path as op
 from urllib import parse
 
 import pandas as pd
@@ -18,6 +19,12 @@ from nlg import templatize
 from nlg import utils as U
 
 
+def _watchfile_loader(event):
+    if op.isfile(event.src_path):
+        global orgdf
+        orgdf = pd.read_csv(event.src_path)
+
+
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
     payload = dict(payload)
@@ -27,7 +34,7 @@ def render_template(handler):
     # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
-        tmpl = Template(t).generate(orgdf=df, fh_args=fh_args, G=G, U=U)
+        tmpl = Template(t).generate(orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
 
@@ -43,7 +50,7 @@ def process_template(handler):
         replacements, t, infl = templatize(t, args, df)
         resp.append({
             "text": t, "tokenmap": replacements, 'inflections': infl,
-            "fh_args": args, "setFHArgs": True})
+            "fh_args": args, "setFHArgs": False})
     return json.dumps(resp)
 
 

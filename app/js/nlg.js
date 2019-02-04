@@ -192,10 +192,28 @@ function downloadConfig() {
     })
 }
 
+// function saveLocalConfig(event) {
+//     localStorage.setItem('templates', JSON.stringify(templates))
+// }
+
+// function loadLocalConfig(event) {
+//     if ("templates" in localStorage) {
+//         templates = JSON.parse(localStorage.getItem('templates'))
+//     }
+//     renderPreview(event)
+// }
+
+// function clearNarrative(event) {
+//     templates = []
+//     delete localStorage['templates']
+//     renderPreview(null)
+// }
+
 function uploadConfig(e) {
     var reader = new FileReader()
     reader.onload = function () {
         templates = JSON.parse(reader.result)
+        args = null;
         renderPreview(null)
         }
     var elem = document.getElementById('config-upload')

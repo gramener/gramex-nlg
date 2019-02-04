@@ -231,5 +231,7 @@ def find_inflections(text, search, fh_args, df):
         if rendered != token:
             x = nlp(rendered)[0]
             y = text[[c.text for c in text].index(token)]
-            inflections[token] = [_token_inflections(x, y)]
+            infl = _token_inflections(x, y)
+            if infl:
+                inflections[token] = [infl]
     return inflections
