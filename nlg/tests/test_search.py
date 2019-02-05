@@ -94,7 +94,7 @@ class TestSearch(unittest.TestCase):
             search.search_args(ents, args),
             {
                 "voted": {
-                    "tmpl": "args['_sort'][0]",
+                    "tmpl": "fh_args['_sort'][0]",
                     "type": "token",
                     "location": "fh_args"
                 }
@@ -107,7 +107,7 @@ class TestSearch(unittest.TestCase):
         ents = utils.ner(doc)
         self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
                              {'rating': {
-                                 "tmpl": "args['_sort'][0]",
+                                 "tmpl": "fh_args['_sort'][0]",
                                  "location": "fh_args",
                                  "type": "token"}})
 
@@ -123,9 +123,9 @@ class TestSearch(unittest.TestCase):
         Ingrid Bergman at a rating of 0.29614.
         """
         ideal = """
-        {{ df['name'].iloc[0] }} is the top {{ args['_sort'][0] }}
+        {{ df['name'].iloc[0] }} is the top {{ fh_args['_sort'][0] }}
         {{ df['category'].iloc[-4] }}, followed by {{ df['name'].iloc[1] }}.
-        The least {{ args['_sort'][0] }} {{ df['category'].iloc[-1] }} is
+        The least {{ fh_args['_sort'][0] }} {{ df['category'].iloc[-1] }} is
         {{ df['name'].iloc[-1] }}, trailing at only {{ df['votes'].iloc[-1] }}
         {{ df.columns[-1] }}, followed by {{ df['name'].iloc[-2] }} at a {{ df.columns[2] }}
         of {{ df['rating'].iloc[-2] }}.
