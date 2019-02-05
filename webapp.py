@@ -18,10 +18,15 @@ from nlg import grammar as G
 from nlg import templatize
 from nlg import utils as U
 
+fpath = 'app/gramupload/file.csv'
+
+if op.isfile(fpath):
+    orgdf = pd.read_csv(fpath)
+
 
 def _watchfile_loader(event):
+    global orgdf
     if op.isfile(event.src_path):
-        global orgdf
         orgdf = pd.read_csv(event.src_path)
 
 
