@@ -207,8 +207,8 @@ def lemmatized_df_search(x, y, fmt_string="df.columns[{}]"):
     return search_res
 
 
-def search_args(entities, args, lemmatized=True, fmt="args['{}'][{}]",
-                argkeys=('_sort',)):
+def search_args(entities, args, lemmatized=True, fmt="fh_args['{}'][{}]",
+                argkeys=('_sort', '_by')):
     """
     Search formhandler arguments.
 

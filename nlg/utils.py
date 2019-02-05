@@ -8,6 +8,7 @@ Miscellaneous utilities.
 from random import choice
 import re
 
+from gramex.data import filter as grmfilter  # NOQA: F401
 import humanize  # NOQA: F401
 import numpy as np
 from spacy import load
@@ -26,13 +27,16 @@ NP_MATCHER.add("QUANT", None, [{"POS": "NUM", "OP": "+"}])
 NARRATIVE_TEMPLATE = """
 {% autoescape None %}
 from nlg import NLGTemplate as N
+from nlg import grammar as G
+from nlg import utils as U
 import pandas as pd
 
 df = None  # set your dataframe here.
 narrative = N(\"\"\"
               {{ tmpl }}
               \"\"\",
-              tornado_tmpl=True, df=df, args={{ args }})
+              tornado_tmpl=True, orgdf=df, fh_args={{ fh_args }},
+              G=G, U=U)
 print(narrative.render())
 """
 

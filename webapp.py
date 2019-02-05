@@ -7,6 +7,7 @@ Module for gramex exposure. This shouldn't be imported anywhere, only for use
 with gramex.
 """
 import json
+import os.path as op
 from urllib import parse
 
 import pandas as pd
@@ -17,6 +18,17 @@ from nlg import grammar as G
 from nlg import templatize
 from nlg import utils as U
 
+fpath = 'app/gramupload/file.csv'
+
+if op.isfile(fpath):
+    orgdf = pd.read_csv(fpath)
+
+
+def _watchfile_loader(event):
+    global orgdf
+    if op.isfile(event.src_path):
+        orgdf = pd.read_csv(event.src_path)
+
 
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
@@ -24,10 +36,10 @@ def render_template(handler):
     templates = json.loads(payload["template"])
     df = pd.read_json(payload["data"], orient="records")
     fh_args = json.loads(payload.get("args", {}))
-    fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
+    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
-        tmpl = Template(t).generate(df=df, args=fh_args, G=G)
+        tmpl = Template(t).generate(orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U)
         resp.append(tmpl.decode('utf8'))
     return json.dumps(resp)
 
@@ -42,17 +54,22 @@ def process_template(handler):
     for t in text:
         replacements, t, infl = templatize(t, args, df)
         resp.append({
-            "text": t, "tokenmap": replacements, 'inflections': infl})
+            "text": t, "tokenmap": replacements, 'inflections': infl,
+            "fh_args": args, "setFHArgs": False})
     return json.dumps(resp)
 
 
 def download_template(handler):
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
-    args = json.loads(parse.unquote(handler.args["args"][0]))
+    fh_args = json.loads(parse.unquote(handler.args["args"][0]))
     template = Narrative(tmpl, conditions).templatize()
     t_template = Template(U.NARRATIVE_TEMPLATE)
-    return t_template.generate(tmpl=template, args=args, G=G).decode("utf8")
+    return t_template.generate(tmpl=template, fh_args=fh_args, G=G).decode("utf8")
+
+
+def download_config(handler):
+    return json.dumps(json.loads(parse.unquote(handler.args['config'][0])), indent=4)
 
 
 def get_gramopts(handler):

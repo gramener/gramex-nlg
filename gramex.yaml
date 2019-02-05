@@ -2,6 +2,12 @@
 
 # Configurations for app: nlg
 # ----------------------------------------------------------------------------
+watch:
+    data-files:
+        paths:
+            - $YAMLPATH/app/gramupload/file.csv
+        on_modified: webapp._watchfile_loader
+
 url:
     nlg-landing-page-$*:
         pattern: /$YAMLURL/
@@ -72,6 +78,15 @@ url:
             headers:
                 Content-Type: application/octet-stream
                 Content-Disposition: attachment; filename="template.py"
+    config-download-$*:
+        pattern: /$YAMLURL/config-download
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.download_config
+            xsrf_cookies: false
+            headers:
+                Content-Type: application/octet-stream
+                Content-Disposition: attachment; filename="config.json"
 
 
 
