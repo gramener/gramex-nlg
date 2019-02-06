@@ -216,7 +216,7 @@ class Token {
     set varname(value) {
         this._varname = value
         if (value) {
-            this.template = `{{ ${this._varname} }}`
+            this.template = this._varname
         }
     }
 
