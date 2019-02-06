@@ -228,7 +228,9 @@ class Token {
                 tmplstr = makeInflString(tmplstr, this.inflections[i])
             }
         }
-        this.template = t_templatize(tmplstr)
+        if (this.varname) {
+            this.template = tmplstr
+        } else { this.template = t_templatize(tmplstr) }
         return this.template
     }
 
