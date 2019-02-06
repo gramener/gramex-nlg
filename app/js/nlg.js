@@ -75,6 +75,7 @@ class Template {
     }
 
     ignoreTokenTemplate(token) {
+        token.is_ignored = true
         var enabled = token.enabledTemplate
         var escaped = escapeRegExp(enabled.tmpl)
         var expr = `\\{\\{\\ [^\\{\\}]*${escaped}[^\\{\\}]*\\ \\}\\}`
@@ -94,6 +95,7 @@ class Template {
     }
     
     addTokenTemplate(token) {
+        token.is_ignored = false
         var enabled_tmpl = token.enabledTemplate
         var tmplstr = enabled_tmpl.tmpl
         if (token.inflections) {
@@ -200,6 +202,7 @@ class Token {
         this.inflections = inflections
         this.varname = varname
         this.template = template
+        this.is_ignored = false
     }
 
     toJSON() {
@@ -221,6 +224,7 @@ class Token {
     }
 
     makeTemplate() {
+        if (this.is_ignored) { return this.text }
         var enabled = this.enabledTemplate
         var tmplstr = enabled.tmpl
         if (this.inflections) {
