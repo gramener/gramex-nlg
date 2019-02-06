@@ -1,15 +1,27 @@
 class Template {
-    constructor(text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false) {
+    constructor(
+        text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false, template = '',
+        previewHTML = '', grmerr = null
+        ) {
         this.text = text
         this.tokenmap = {}
         this.inflections = inflections
-        for (let [token, tokenlist] of Object.entries(tokenmap)) {
-            this.tokenmap[token] = new Token(this, token, tokenlist, this.inflections[token])
+        for (let [token, tkobj] of Object.entries(tokenmap)) {
+            if (Array.isArray(tkobj)) {
+                this.tokenmap[token] = new Token(this, token, tkobj, this.inflections[token])
+            }
+            else {
+                var newToken = new Token(this, token, tkobj.tokenlist, tkobj.inflections)
+                newToken.template = tkobj.template
+                this.tokenmap[token] = newToken
+            }
         }
         this.fh_args = fh_args
         this.setFHArgs = setFHArgs
         this.condition = condition
-        this.template = ""
+        this.template = template
+        this.previewHTML = previewHTML
+        this.grmerr = grmerr
     }
 
     makeTemplate() {
@@ -37,9 +49,15 @@ class Template {
         var highlighted = this.text
         for (let [tk, tkobj] of Object.entries(this.tokenmap)) {
             highlighted = highlighted.replace(tk,
-                `<span style=\"background-color:#c8f442\">
-                    ${tk}
-                </span>`);
+                `<span style=\"background-color:#c8f442\">${tk}</span>`);
+        }
+        if (this.grmerr) {
+            for (let i = 0; i < this.grmerr.length; i ++ ) {
+                var error = this.grmerr[i]
+                var span = this.text.slice(error.offset, error.offset + error.length)
+                var popover_body = makeGrammarErrorPopover(span, error)
+                highlighted = highlighted.replace(span, popover_body)
+            }
         }
         this.previewHTML = highlighted
     }
@@ -169,14 +187,27 @@ class Template {
     }
 }
 
+function makeGrammarErrorPopover(span, errobj) {
+    return `<span style="background-color:#ed7171" data-toggle="popover" data-trigger="hover"
+    title="${errobj.shortMessage}"
+    data-placement="top">${span}</span>`
+}
+
 class Token {
-    constructor(parent, text, tokenlist, inflections, varname = null) {
+    constructor(parent, text, tokenlist, inflections, varname = null, template = '') {
         this.parent = parent
         this.text = text
         this.tokenlist = tokenlist
         this.inflections = inflections
         this.varname = varname
-        this.template = ""
+        this.template = template
+    }
+
+    toJSON() {
+        return {
+            text: this.text, tokenlist: this.tokenlist, inflections: this.inflections,
+            varname: this.varname, template: this.template
+        }
     }
 
     get varname() {
@@ -303,7 +334,9 @@ function addToNarrative() {
 function addToTemplates(payload) {
     var payload = payload[0]
     var template = new Template(
-        payload.text, payload.tokenmap, payload.inflections, payload.fh_args, setFHArgs=payload.setFHArgs)
+        payload.text, payload.tokenmap, payload.inflections, payload.fh_args)
+    template.setFHArgs = payload.setFHArgs
+    template.grmerr = payload.grmerr
     template.makeTemplate()
     templates.push(template)
     renderPreview(null)
@@ -353,7 +386,8 @@ function refreshTemplates() {
 function updateTemplates(payload) {
     for (let i = 0; i < payload.length; i ++ ) {
         var tmpl = templates[i]
-        tmpl.text = payload[i]
+        tmpl.previewHTML = payload[i].text
+        tmpl.grmerr = payload[i].grmerr
         tmpl.highlight()
     }
     renderPreview(null)
@@ -417,7 +451,16 @@ function downloadConfig() {
 function uploadConfig(e) {
     var reader = new FileReader()
     reader.onload = function () {
-        templates = JSON.parse(reader.result)
+        var tmpllist = JSON.parse(reader.result)
+        templates = []
+        for (let i = 0; i < tmpllist.length; i ++ ) {
+            var tmpl = tmpllist[i]
+            var tmplobj = new Template(
+                tmpl.text, tmpl.tokenmap, tmpl.inflections,
+                tmpl._fh_args, tmpl._condition, tmpl.setFHArgs,
+                tmpl.template, tmpl.previewHTML)
+            templates.push(tmplobj)
+        }
         args = null;
         renderPreview(null)
         }

@@ -5,15 +5,18 @@
 """
 Miscellaneous utilities.
 """
+import os.path as op
 from random import choice
 import re
 
 from gramex.data import filter as grmfilter  # NOQA: F401
 import humanize  # NOQA: F401
 import numpy as np
+import requests
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
 from tornado.template import Template
+from configparser import ConfigParser
 
 nlp = load("en_core_web_sm")
 
@@ -39,6 +42,9 @@ narrative = N(\"\"\"
               G=G, U=U)
 print(narrative.render())
 """
+
+config = ConfigParser()
+config.read(op.join(op.dirname(__file__), "..", "config.ini"))
 
 
 def render_search_result(text, results, **kwargs):
@@ -171,3 +177,14 @@ def humanize_comparison(x, y, bit, lot):
     else:
         adj = ""
     return " ".join([adj, comparative])
+
+
+def check_grammar(text):
+    host = config.get('languagetool', 'hostname')
+    port = config.get('languagetool', 'port')
+    apiversion = config.get('languagetool', 'apiversion')
+    url = "{}:{}/{}/check?language=en-us&text={}"
+    resp = requests.get(url.format(host, port, apiversion, text))
+    if resp.status_code == 200:
+        return resp.json()['matches']
+    return []
