@@ -3,7 +3,7 @@ class Template {
         text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false, template = '',
         previewHTML = '', grmerr = null
         ) {
-        this.text = text
+        this.source_text = text
         this.tokenmap = {}
         this.inflections = inflections
         for (let [token, tkobj] of Object.entries(tokenmap)) {
@@ -25,7 +25,7 @@ class Template {
     }
 
     makeTemplate() {
-        var sent = this.text
+        var sent = this.source_text
         for (let [tk, tokenobj] of Object.entries(this.tokenmap)) {
             sent = sent.replace(tk, tokenobj.makeTemplate())
             if (tokenobj.varname) {
@@ -46,7 +46,9 @@ class Template {
     }
 
     highlight() {
-        var highlighted = this.text
+        if (this.rendered_text != null) {
+            var highlighted = this.rendered_text
+        } else { var highlighted = this.source_text }
         for (let [tk, tkobj] of Object.entries(this.tokenmap)) {
             highlighted = highlighted.replace(tk,
                 `<span style=\"background-color:#c8f442\">${tk}</span>`);
@@ -54,7 +56,7 @@ class Template {
         if (this.grmerr) {
             for (let i = 0; i < this.grmerr.length; i ++ ) {
                 var error = this.grmerr[i]
-                var span = this.text.slice(error.offset, error.offset + error.length)
+                var span = this.source_text.slice(error.offset, error.offset + error.length)
                 var popover_body = makeGrammarErrorPopover(span, error)
                 highlighted = highlighted.replace(span, popover_body)
             }
@@ -63,7 +65,6 @@ class Template {
     }
 
     assignToVariable(token) {
-        var token = this.tokenmap[token]
         if (!(token.varname)) {
             var varname = prompt('Enter variable name:')
             if (varname) {
@@ -114,8 +115,6 @@ class Template {
         var parent = this
         btn.addEventListener("click", function (e) { parent.ignoreTokenTemplate(token) })
     }
-
-    
 
     get condition() {
         return this._condition
@@ -178,7 +177,7 @@ class Template {
             // add variable assignment listener
             var assignBtn = document.getElementById(`assignvar-${currentEditIndex}-${token}`)
             var parent = this
-            assignBtn.addEventListener('click', function(e) { parent.assignToVariable(token) })
+            assignBtn.addEventListener('click', function(e) { parent.assignToVariable(tkobj) })
 
             // Add remove listener
             var rmtokenbtn = document.getElementById(`rmtoken-${currentEditIndex}-${token}`)
@@ -215,8 +214,8 @@ class Token {
     }
 
     set varname(value) {
+        this._varname = value
         if (value) {
-            this._varname = value
             this.template = `{{ ${this._varname} }}`
         }
     }
@@ -386,7 +385,7 @@ function refreshTemplates() {
 function updateTemplates(payload) {
     for (let i = 0; i < payload.length; i ++ ) {
         var tmpl = templates[i]
-        tmpl.previewHTML = payload[i].text
+        tmpl.rendered_text = payload[i].text
         tmpl.grmerr = payload[i].grmerr
         tmpl.highlight()
     }
@@ -404,12 +403,13 @@ function triggerTemplateSettings(sentid) {
     currentEditIndex = sentid
     editTemplate(currentEditIndex)
     $('#template-settings').modal({'show': true})
+    $('#condition-editor').focus()
 }
 
 function editTemplate(n) {
     currentEditIndex = n
     document.getElementById("edit-template").value = templates[n].template
-    document.getElementById("tmpl-setting-preview").textContent = templates[n].text
+    document.getElementById("tmpl-setting-preview").innerHTML = templates[n].previewHTML
     currentCondition = templates[n].condition
     if (currentCondition) {
         document.getElementById("condition-editor").value = currentCondition
@@ -487,7 +487,10 @@ function renderTemplate(text, success) {
 }
 
 function editAreaCallback(payload) {
-    document.getElementById("tmpl-setting-preview").textContent = payload
+    var template = templates[currentEditIndex]
+    template.rendered_text = payload[0].text
+    template.highlight()
+    document.getElementById("tmpl-setting-preview").innerHTML = template.previewHTML
 }
 
 function saveTemplate() {
@@ -498,6 +501,7 @@ function saveTemplate() {
     templates[currentEditIndex].text = pbox.textContent;
     templates[currentEditIndex].highlight()
     renderPreview(null);
+    document.getElementById('save-template').disabled = true
 }
 
 function addCondition(event) {
