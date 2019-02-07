@@ -29,6 +29,7 @@
         var currentEditIndex = null;
         var currentSpanId = null;
         var grammarOptions = []
+        var narrativeName = "";
         // setContextMenu();
         $('.formhandler').on('load', renderPreview);
         $('.formhandler').formhandler();
@@ -36,6 +37,8 @@
     <div class="d-flex">
         <p>Upload JSON config</p>
         <input type="file" id="config-upload" enctype="multipart/form-data" />
+        <input class="form-control mx-1 underline border-success"
+        id="narrative-name-editor" placeholder="Name the Narrative">
     </div>
     <form id="myform" enctype="multipart/form-data">
         <div>
@@ -53,12 +56,19 @@
     </form>
     <p id="template-preview" style="font-family:monospace"></p>
     <br>
-    <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
-        <i class="fa fa-download"></i>
-    </button>
-    <button id="download-config-btn" type="button" title="Download Config" class="btn btn-success">
-        <i class="fa fa-download"></i>
-    </button>
+    <div class="d-flex">
+        <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
+            <i class="fa fa-download"></i>
+        </button>
+        <div class="form-check">
+            <label class="form-check-label">
+            <input class="form-check-input" type="checkbox" id="download-data-cb" checked>Include Data
+            </label>
+        </div>
+        <button id="download-config-btn" type="button" title="Download Config" class="btn btn-success">
+            <i class="fa fa-download"></i>
+        </button>
+    </div>
     <!--
     <button id="clear-tmpls" title="Clear Narrative" type="button" class="btn btn-danger">
         <i class="fa fa-trash"></i>
@@ -70,6 +80,13 @@
                 <div class="modal-header"><h6>Template Settings:</h6></div>
                 <div id="tmpllist" class="modal-body">
                     <div>
+                        <div class="d-flex">
+                            <input class="form-control mx-1 underline border-success"
+                            id="tmpl-name-editor" placeholder="Name the template">
+                            <button id="tmpl-name-btn" type="button" class="btn btn-primary success">
+                                <i class="fa fa-check"></i>
+                            </button>
+                        </div>
                         <div class="d-flex">
                             <div class="text-middle h6 mr-2 p-2">
                                 <div class="align-center" id="tmpl-setting-preview"></div>
@@ -128,6 +145,7 @@
         saveBtn.addEventListener("click", saveTemplate);
         document.getElementById("edit-template").addEventListener('focus', function (e) {saveBtn.disabled = false})
         document.getElementById("condition-btn").addEventListener("click", addCondition);
+        document.getElementById("tmpl-name-btn").addEventListener("click", addName);
         document.getElementById("fh-arg-setter").addEventListener("change", changeFHSetter)
         // document.getElementById("clear-tmpls").addEventListener('click', clearNarrative);
         document.getElementById("textbox").cols = 119;
