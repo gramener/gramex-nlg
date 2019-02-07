@@ -41,6 +41,7 @@ def render_template(handler):
     for t in templates:
         rendered = Template(t).generate(
             orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U).decode('utf8')
+        rendered = rendered.replace('-', '')
         grmerr = U.check_grammar(rendered)
         resp.append({'text': rendered, 'grmerr': grmerr})
     return json.dumps(resp)
@@ -57,7 +58,7 @@ def process_template(handler):
     resp = []
     for t in text:
         grammar_errors = U.check_grammar(t)
-        replacements, t, infl = templatize(t, args, df)
+        replacements, t, infl = templatize(t, args.copy(), df)
         resp.append({
             "text": t, "tokenmap": replacements, 'inflections': infl,
             "fh_args": args, "setFHArgs": False, "grmerr": grammar_errors})

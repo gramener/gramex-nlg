@@ -56,7 +56,11 @@ class Template {
         if (this.grmerr) {
             for (let i = 0; i < this.grmerr.length; i ++ ) {
                 var error = this.grmerr[i]
-                var span = this.source_text.slice(error.offset, error.offset + error.length)
+                if (this.rendered_text != null) {
+                    var span = this.rendered_text.slice(error.offset, error.offset + error.length)
+                } else {
+                    var span = this.source_text.slice(error.offset, error.offset + error.length)
+                }
                 var popover_body = makeGrammarErrorPopover(span, error)
                 highlighted = highlighted.replace(span, popover_body)
             }
@@ -189,8 +193,9 @@ class Template {
 }
 
 function makeGrammarErrorPopover(span, errobj) {
+    var errmsg = errobj.message.replace(/"/g, '\'')
     return `<span style="background-color:#ed7171" data-toggle="popover" data-trigger="hover"
-    title="${errobj.shortMessage}"
+    title="${errmsg}"
     data-placement="top">${span}</span>`
 }
 
@@ -384,7 +389,7 @@ function refreshTemplates() {
         url: "render-template",
         data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                 "template": JSON.stringify(tmpls) },
-        success: function (payload) { updateTemplates(payload, templates) }
+        success: updateTemplates
     })
 }
 
@@ -528,7 +533,7 @@ function changeFHSetter(event) {
     document.getElementById('edit-template').value = template.template
 }
 
-t_templatize = function (x) {return `{{ ${x} }}`}
+function t_templatize(x) {return `{{ ${x} }}`}
 
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
