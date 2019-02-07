@@ -1,19 +1,31 @@
 class Template {
-    constructor(text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false) {
-        this.text = text
+    constructor(
+        text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false, template = '',
+        previewHTML = '', grmerr = null
+        ) {
+        this.source_text = text
         this.tokenmap = {}
         this.inflections = inflections
-        for (let [token, tokenlist] of Object.entries(tokenmap)) {
-            this.tokenmap[token] = new Token(this, token, tokenlist, this.inflections[token])
+        for (let [token, tkobj] of Object.entries(tokenmap)) {
+            if (Array.isArray(tkobj)) {
+                this.tokenmap[token] = new Token(this, token, tkobj, this.inflections[token])
+            }
+            else {
+                var newToken = new Token(this, token, tkobj.tokenlist, tkobj.inflections)
+                newToken.template = tkobj.template
+                this.tokenmap[token] = newToken
+            }
         }
         this.fh_args = fh_args
         this.setFHArgs = setFHArgs
         this.condition = condition
-        this.template = ""
+        this.template = template
+        this.previewHTML = previewHTML
+        this.grmerr = grmerr
     }
 
     makeTemplate() {
-        var sent = this.text
+        var sent = this.source_text
         for (let [tk, tokenobj] of Object.entries(this.tokenmap)) {
             sent = sent.replace(tk, tokenobj.makeTemplate())
             if (tokenobj.varname) {
@@ -34,18 +46,29 @@ class Template {
     }
 
     highlight() {
-        var highlighted = this.text
+        if (this.rendered_text != null) {
+            var highlighted = this.rendered_text
+        } else { var highlighted = this.source_text }
         for (let [tk, tkobj] of Object.entries(this.tokenmap)) {
             highlighted = highlighted.replace(tk,
-                `<span style=\"background-color:#c8f442\">
-                    ${tk}
-                </span>`);
+                `<span style=\"background-color:#c8f442\">${tk}</span>`);
+        }
+        if (this.grmerr) {
+            for (let i = 0; i < this.grmerr.length; i ++ ) {
+                var error = this.grmerr[i]
+                if (this.rendered_text != null) {
+                    var span = this.rendered_text.slice(error.offset, error.offset + error.length)
+                } else {
+                    var span = this.source_text.slice(error.offset, error.offset + error.length)
+                }
+                var popover_body = makeGrammarErrorPopover(span, error)
+                highlighted = highlighted.replace(span, popover_body)
+            }
         }
         this.previewHTML = highlighted
     }
 
     assignToVariable(token) {
-        var token = this.tokenmap[token]
         if (!(token.varname)) {
             var varname = prompt('Enter variable name:')
             if (varname) {
@@ -56,6 +79,7 @@ class Template {
     }
 
     ignoreTokenTemplate(token) {
+        token.is_ignored = true
         var enabled = token.enabledTemplate
         var escaped = escapeRegExp(enabled.tmpl)
         var expr = `\\{\\{\\ [^\\{\\}]*${escaped}[^\\{\\}]*\\ \\}\\}`
@@ -75,6 +99,7 @@ class Template {
     }
     
     addTokenTemplate(token) {
+        token.is_ignored = false
         var enabled_tmpl = token.enabledTemplate
         var tmplstr = enabled_tmpl.tmpl
         if (token.inflections) {
@@ -96,8 +121,6 @@ class Template {
         var parent = this
         btn.addEventListener("click", function (e) { parent.ignoreTokenTemplate(token) })
     }
-
-    
 
     get condition() {
         return this._condition
@@ -160,7 +183,7 @@ class Template {
             // add variable assignment listener
             var assignBtn = document.getElementById(`assignvar-${currentEditIndex}-${token}`)
             var parent = this
-            assignBtn.addEventListener('click', function(e) { parent.assignToVariable(token) })
+            assignBtn.addEventListener('click', function(e) { parent.assignToVariable(tkobj) })
 
             // Add remove listener
             var rmtokenbtn = document.getElementById(`rmtoken-${currentEditIndex}-${token}`)
@@ -169,14 +192,29 @@ class Template {
     }
 }
 
+function makeGrammarErrorPopover(span, errobj) {
+    var errmsg = errobj.message.replace(/"/g, '\'')
+    return `<span style="background-color:#ed7171" data-toggle="popover" data-trigger="hover"
+    title="${errmsg}"
+    data-placement="top">${span}</span>`
+}
+
 class Token {
-    constructor(parent, text, tokenlist, inflections, varname = null) {
+    constructor(parent, text, tokenlist, inflections, varname = null, template = '') {
         this.parent = parent
         this.text = text
         this.tokenlist = tokenlist
         this.inflections = inflections
         this.varname = varname
-        this.template = ""
+        this.template = template
+        this.is_ignored = false
+    }
+
+    toJSON() {
+        return {
+            text: this.text, tokenlist: this.tokenlist, inflections: this.inflections,
+            varname: this.varname, template: this.template
+        }
     }
 
     get varname() {
@@ -184,13 +222,14 @@ class Token {
     }
 
     set varname(value) {
+        this._varname = value
         if (value) {
-            this._varname = value
-            this.template = `{{ ${this._varname} }}`
+            this.template = this._varname
         }
     }
 
     makeTemplate() {
+        if (this.is_ignored) { return this.text }
         var enabled = this.enabledTemplate
         var tmplstr = enabled.tmpl
         if (this.inflections) {
@@ -198,7 +237,9 @@ class Token {
                 tmplstr = makeInflString(tmplstr, this.inflections[i])
             }
         }
-        this.template = t_templatize(tmplstr)
+        if (this.varname) {
+            this.template = tmplstr
+        } else { this.template = t_templatize(tmplstr) }
         return this.template
     }
 
@@ -303,7 +344,9 @@ function addToNarrative() {
 function addToTemplates(payload) {
     var payload = payload[0]
     var template = new Template(
-        payload.text, payload.tokenmap, payload.inflections, payload.fh_args, setFHArgs=payload.setFHArgs)
+        payload.text, payload.tokenmap, payload.inflections, payload.fh_args)
+    template.setFHArgs = payload.setFHArgs
+    template.grmerr = payload.grmerr
     template.makeTemplate()
     templates.push(template)
     renderPreview(null)
@@ -346,14 +389,15 @@ function refreshTemplates() {
         url: "render-template",
         data: { "args": JSON.stringify(args), "data": JSON.stringify(df),
                 "template": JSON.stringify(tmpls) },
-        success: function (payload) { updateTemplates(payload, templates) }
+        success: updateTemplates
     })
 }
 
 function updateTemplates(payload) {
     for (let i = 0; i < payload.length; i ++ ) {
         var tmpl = templates[i]
-        tmpl.text = payload[i]
+        tmpl.rendered_text = payload[i].text
+        tmpl.grmerr = payload[i].grmerr
         tmpl.highlight()
     }
     renderPreview(null)
@@ -370,12 +414,13 @@ function triggerTemplateSettings(sentid) {
     currentEditIndex = sentid
     editTemplate(currentEditIndex)
     $('#template-settings').modal({'show': true})
+    $('#condition-editor').focus()
 }
 
 function editTemplate(n) {
     currentEditIndex = n
     document.getElementById("edit-template").value = templates[n].template
-    document.getElementById("tmpl-setting-preview").textContent = templates[n].text
+    document.getElementById("tmpl-setting-preview").innerHTML = templates[n].previewHTML
     currentCondition = templates[n].condition
     if (currentCondition) {
         document.getElementById("condition-editor").value = currentCondition
@@ -417,7 +462,16 @@ function downloadConfig() {
 function uploadConfig(e) {
     var reader = new FileReader()
     reader.onload = function () {
-        templates = JSON.parse(reader.result)
+        var tmpllist = JSON.parse(reader.result)
+        templates = []
+        for (let i = 0; i < tmpllist.length; i ++ ) {
+            var tmpl = tmpllist[i]
+            var tmplobj = new Template(
+                tmpl.text, tmpl.tokenmap, tmpl.inflections,
+                tmpl._fh_args, tmpl._condition, tmpl.setFHArgs,
+                tmpl.template, tmpl.previewHTML)
+            templates.push(tmplobj)
+        }
         args = null;
         renderPreview(null)
         }
@@ -444,7 +498,10 @@ function renderTemplate(text, success) {
 }
 
 function editAreaCallback(payload) {
-    document.getElementById("tmpl-setting-preview").textContent = payload
+    var template = templates[currentEditIndex]
+    template.rendered_text = payload[0].text
+    template.highlight()
+    document.getElementById("tmpl-setting-preview").innerHTML = template.previewHTML
 }
 
 function saveTemplate() {
@@ -455,6 +512,7 @@ function saveTemplate() {
     templates[currentEditIndex].text = pbox.textContent;
     templates[currentEditIndex].highlight()
     renderPreview(null);
+    document.getElementById('save-template').disabled = true
 }
 
 function addCondition(event) {
@@ -475,7 +533,7 @@ function changeFHSetter(event) {
     document.getElementById('edit-template').value = template.template
 }
 
-t_templatize = function (x) {return `{{ ${x} }}`}
+function t_templatize(x) {return `{{ ${x} }}`}
 
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string

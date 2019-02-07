@@ -39,8 +39,11 @@ def render_template(handler):
     # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
-        tmpl = Template(t).generate(orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U)
-        resp.append(tmpl.decode('utf8'))
+        rendered = Template(t).generate(
+            orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U).decode('utf8')
+        rendered = rendered.replace('-', '')
+        grmerr = U.check_grammar(rendered)
+        resp.append({'text': rendered, 'grmerr': grmerr})
     return json.dumps(resp)
 
 
@@ -50,12 +53,15 @@ def process_template(handler):
     text = json.loads(payload["text"])
     df = pd.read_json(payload["data"], orient="records")
     args = json.loads(payload.get("args", {}))
+    if args is None:
+        args = {}
     resp = []
     for t in text:
-        replacements, t, infl = templatize(t, args, df)
+        grammar_errors = U.check_grammar(t)
+        replacements, t, infl = templatize(t, args.copy(), df)
         resp.append({
             "text": t, "tokenmap": replacements, 'inflections': infl,
-            "fh_args": args, "setFHArgs": False})
+            "fh_args": args, "setFHArgs": False, "grmerr": grammar_errors})
     return json.dumps(resp)
 
 
