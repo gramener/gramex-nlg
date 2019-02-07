@@ -18,7 +18,7 @@ from nlg import grammar as G
 from nlg import templatize
 from nlg import utils as U
 
-fpath = 'app/gramupload/file.csv'
+fpath = op.join(op.dirname(__file__), 'app/gramupload/file.csv')
 
 if op.isfile(fpath):
     orgdf = pd.read_csv(fpath)
