@@ -1,7 +1,32 @@
+<!DOCTYPE html>
 <html>
+    <head><meta charset="utf-8" />
+        <title>Select Dataset</title>
+    </head>
     <body>
+        <link rel="stylesheet" href="ui/bootstraptheme.css" /> <!-- Add bootstrap -->
+        <!-- Include JS dependencies  -->
+        <script src="ui/jquery/dist/jquery.min.js"></script>
+        <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+        <script src="ui/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
+        <script >
+        $.fn.selectpicker.Constructor.BootstrapVersion = '4'
+        </script>
+
+        <h4>Select Dataset:</h4>
+        <form action="pickfile" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
+            <select name="dataset" id="dataset-selector" class="selectpicker" data-style="btn-primary">
+                {% for filename in NLG_DATASETS %}
+                <option value="{{ filename }}">{{ filename }}</option>
+                {% end %}
+            </select>
+            <button type="submit">Continue</button>
+        </form>
+
+        <h4>Or upload file:</h4>
         <form action="upload" method="POST" enctype="multipart/form-data">
-            <input name="file" type="file">
+            <input id="fileupload" name="file" type="file">
             <button type="submit">Submit</button>
             <input type="hidden" name="save" value="file.csv">
             <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">

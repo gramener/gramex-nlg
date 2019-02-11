@@ -17,14 +17,29 @@ url:
             secret: RRSGD3qTUM4bMyqByEsi22Kn
             redirect:
                 query: next
-                header: Referrer
                 url: /$YAMLURL/
+    nlg-data-selector-$*:
+        pattern: /$YAMLURL/pickfile
+        handler: FunctionHandler
+        kwargs:
+            headers:
+                Cache-Control: no-store
+            xsrf_cookies: false
+            function: webapp.use_existing_file
+            redirect:
+                query: next
+                header: Referrer
+                url: /$YAMLURL/index
     nlg-landing-page-$*:
         pattern: /$YAMLURL/
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/grmform.html
-            auth: true
+            auth:
+                login_url: /$YAMLURL/login
+            transform:
+                "grmform.html":
+                    function: webapp.make_dataset_list
     nlg-uploadhandler-$*:
         pattern: /$YAMLURL/upload
         handler: UploadHandler
@@ -38,12 +53,15 @@ url:
                 query: next
                 header: Referrer
                 url: /$YAMLURL/index
+            transform:
+                function: webapp.copy_file_to_user_dir
     nlg-temporary-filehander-$*:
         pattern: /$YAMLURL/index
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/index.html
-            auth: true
+            auth:
+                login_url: /$YAMLURL/login
     nlg-static_files-$*:
         pattern: /$YAMLURL/nlg.js
         handler: FileHandler
