@@ -30,6 +30,7 @@
         var currentSpanId = null;
         var grammarOptions = []
         var narrativeName = "";
+        var dataset_name = "";
         // setContextMenu();
         $('.formhandler').on('load', renderPreview);
         $('.formhandler').formhandler();
@@ -65,8 +66,8 @@
             <input class="form-check-input" type="checkbox" id="download-data-cb" checked>Include Data
             </label>
         </div>
-        <button id="download-config-btn" type="button" title="Download Config" class="btn btn-success">
-            <i class="fa fa-download"></i>
+        <button id="download-config-btn" type="button" title="Save Config" class="btn btn-success">
+            <i class="fa fa-save"></i>
         </button>
     </div>
     <!--
@@ -134,10 +135,16 @@
             </div>
         </div>
     </div>
+    <div class="alert alert-success alert-dismissable collapse" role="alert">
+        <strong>Saved!</strong>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
     <!-- Template preview -->
     <script>
         document.getElementById("download-btn").addEventListener("click", downloadNarrative);
-        document.getElementById("download-config-btn").addEventListener("click", downloadConfig);
+        document.getElementById("download-config-btn").addEventListener("click", saveConfig);
         document.getElementById("config-upload").addEventListener("change", uploadConfig, false);
         document.getElementById("inspect").addEventListener("click", addToNarrative);
         document.getElementById("check-template").addEventListener("click", checkTemplate);

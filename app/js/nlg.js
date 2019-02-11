@@ -455,6 +455,24 @@ function downloadNarrative() {
     })
 }
 
+function saveConfig() {
+    var elem = document.getElementById('narrative-name-editor') 
+    if (!(elem.value)) {
+        alert('Please name the narrative.')
+        elem.focus()
+    } else {
+        var url = "save-config?config=" + encodeURIComponent(JSON.stringify(templates))
+            + "&name=" + encodeURIComponent(elem.value)
+            + "&dataset=" + encodeURIComponent(dataset_name)
+        $.ajax({
+            url: url,
+            type: "GET",
+            headers: {'X-CSRFToken': false},
+            success: function (e) { $('.alert-success').show() }
+        })
+    }
+}
+
 function downloadConfig() {
     url = "config-download?config=" + encodeURIComponent(JSON.stringify(templates))
         + "&name=" + encodeURIComponent(document.getElementById('narrative-name-editor').value)

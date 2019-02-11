@@ -108,6 +108,12 @@ url:
             headers:
                 Content-Type: application/octet-stream
                 Content-Disposition: attachment; filename="template.py"
+    save-config-$*:
+        pattern: /$YAMLURL/save-config
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.save_config
+            xsrf_cookies: false
     config-download-$*:
         pattern: /$YAMLURL/config-download
         handler: FunctionHandler
