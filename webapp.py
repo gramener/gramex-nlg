@@ -41,7 +41,7 @@ def _watchfile_loader(event):
 
 def copy_file_to_user_dir(meta, handler):
     for k, v in conf['url'].items():
-        if k.startswith('nlg-uploadhandler'):
+        if 'nlg-uploadhandler' in k:
             break
     src_dir = v['kwargs']['path']
     dest_dir = op.join(nlg_path, handler.current_user.email)
