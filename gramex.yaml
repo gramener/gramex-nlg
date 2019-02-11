@@ -9,11 +9,22 @@ watch:
         on_modified: webapp._watchfile_loader
 
 url:
+    nlg-login-$*:
+        pattern: /$YAMLURL/login
+        handler: GoogleAuth
+        kwargs:
+            key: 927738177604-a056ijlrivc6l27tjjuscsq8d16s8mu0.apps.googleusercontent.com
+            secret: RRSGD3qTUM4bMyqByEsi22Kn
+            redirect:
+                query: next
+                header: Referrer
+                url: /$YAMLURL/
     nlg-landing-page-$*:
         pattern: /$YAMLURL/
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/grmform.html
+            auth: true
     nlg-uploadhandler-$*:
         pattern: /$YAMLURL/upload
         handler: UploadHandler
@@ -32,6 +43,7 @@ url:
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/index.html
+            auth: true
     nlg-static_files-$*:
         pattern: /$YAMLURL/nlg.js
         handler: FileHandler
