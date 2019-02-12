@@ -138,7 +138,7 @@ def singular(word):
     return word
 
 
-@set_nlg_gramopt(source='G', fe_name="Pluralize by")
+# @set_nlg_gramopt(source='G', fe_name="Pluralize by")
 def pluralize_by(word, by):
     """Pluralize a word depending on another argument."""
     if hasattr(by, '__iter__'):
@@ -154,7 +154,7 @@ def pluralize_by(word, by):
     return word
 
 
-@set_nlg_gramopt(source='G', fe_name="Pluralize like")
+# @set_nlg_gramopt(source='G', fe_name="Pluralize like")
 def pluralize_like(x, y):
     if not is_plural_noun(y):
         return singular(x)
@@ -186,7 +186,7 @@ def upper(word):
     return word.upper()
 
 
-@set_nlg_gramopt(source="G", fe_name="Lemmatize")
+# @set_nlg_gramopt(source="G", fe_name="Lemmatize")
 def lemmatize(word, target_pos):
     return L(word, target_pos)
 
