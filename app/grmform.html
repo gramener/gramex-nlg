@@ -6,31 +6,39 @@
     <body>
         <link rel="stylesheet" href="ui/bootstraptheme.css" /> <!-- Add bootstrap -->
         <!-- Include JS dependencies  -->
+        <script src="ui/lodash/lodash.min.js"></script>
         <script src="ui/jquery/dist/jquery.min.js"></script>
         <script src="ui/popper.js/dist/umd/popper.min.js"></script>
         <script src="ui/bootstrap/dist/js/bootstrap.min.js"></script>
-        <script src="ui/bootstrap-select/dist/js/bootstrap-select.min.js"></script>
-        <script >
-        $.fn.selectpicker.Constructor.BootstrapVersion = '4'
-        </script>
+        <script src="ui/g1/dist/g1.min.js"></script>
 
-        <h4>Select Dataset:</h4>
-        <form action="pickfile" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
-            <select name="dataset" id="dataset-selector" class="selectpicker" data-style="btn-primary">
-                {% for filename in NLG_DATASETS %}
-                <option value="{{ filename }}">{{ filename }}</option>
-                {% end %}
-            </select>
-            <button type="submit">Continue</button>
-        </form>
-
-        <h4>Or upload file:</h4>
-        <form action="upload" method="POST" enctype="multipart/form-data">
-            <input id="fileupload" name="file" type="file">
+        <form id="nlg-init-form" action="initform" method="POST" enctype="multipart/form-data">
+            <div class="form-row">
+                <p>Select Dataset:</p>
+                <select name="dataset" id="dataset-select" class="selectpicker" form="nlg-init-form">
+                    {% for filename in NLG_DATASETS %}
+                    <option value="{{ filename }}">{{ filename }}</option>
+                    {% end %}
+                    <option value="None" selected>None</option>
+                </select>
+                <p>Select Narrative:</p>
+                <select name="narrative" id="narrative-select" class="selectpicker" form="nlg-init-form">
+                    {% for filename in NLG_NARRATIVES %}
+                    <option value="{{ filename }}">{{ filename }}</option>
+                    {% end %}
+                    <option value="None" selected>None</option>
+                </select>
+            </div>
+            <br>
+            <p>Or upload new:</p>
+            <div class="form-row">
+                <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
+                <p>Dataset:</p>
+                <input id="fileupload" name="data-file" type="file">
+                <p>Config:</p>
+                <input id="narrativeupload" name="config-file" type="file">
+            </div>
             <button type="submit">Submit</button>
-            <input type="hidden" name="save" value="file.csv">
-            <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
         </form>
     </body>
 </html>

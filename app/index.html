@@ -29,15 +29,13 @@
         var currentEditIndex = null;
         var currentSpanId = null;
         var grammarOptions = []
-        var narrativeName = "";
+        var narrative_name = "";
         var dataset_name = "";
         // setContextMenu();
         $('.formhandler').on('load', renderPreview);
         $('.formhandler').formhandler();
+        $(document).ready(setInitialConfig)
     </script>
-    <div class="d-flex">
-        <p>Upload JSON config</p>
-        <input type="file" id="config-upload" enctype="multipart/form-data" />
         <input class="form-control mx-1 underline border-success"
         id="narrative-name-editor" placeholder="Name the Narrative">
     </div>
@@ -69,12 +67,25 @@
         <button id="download-config-btn" type="button" title="Save Config" class="btn btn-success">
             <i class="fa fa-save"></i>
         </button>
+        <button id="share-narrative-btn" type="button" title="Share Narrative" class="btn btn-success">
+            <i class="fa fa-share"></i>
+        </button>
     </div>
     <!--
     <button id="clear-tmpls" title="Clear Narrative" type="button" class="btn btn-danger">
         <i class="fa fa-trash"></i>
     </button>
     -->
+    <div class="modal fade" id="share-modal" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <textarea id="share-url" style="font-family: monospace"></textarea>
+                <button id="copy-clipboard" title="Copy To Clipboard" type="button" class="btn btn-primary">
+                    <i class="fa fa-copy"></i>
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="template-settings" role="dialog">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -145,13 +156,15 @@
     <script>
         document.getElementById("download-btn").addEventListener("click", downloadNarrative);
         document.getElementById("download-config-btn").addEventListener("click", saveConfig);
-        document.getElementById("config-upload").addEventListener("change", uploadConfig, false);
+        // document.getElementById("config-upload").addEventListener("change", uploadConfig, false);
         document.getElementById("inspect").addEventListener("click", addToNarrative);
         document.getElementById("check-template").addEventListener("click", checkTemplate);
         var saveBtn = document.getElementById("save-template")
         saveBtn.addEventListener("click", saveTemplate);
         document.getElementById("edit-template").addEventListener('focus', function (e) {saveBtn.disabled = false})
         document.getElementById("condition-btn").addEventListener("click", addCondition);
+        document.getElementById("share-narrative-btn").addEventListener("click", shareNarrative);
+        document.getElementById("copy-clipboard").addEventListener("click", copyToClipboard);
         document.getElementById("tmpl-name-btn").addEventListener("click", addName);
         document.getElementById("fh-arg-setter").addEventListener("change", changeFHSetter)
         // document.getElementById("clear-tmpls").addEventListener('click', clearNarrative);

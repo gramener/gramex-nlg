@@ -19,13 +19,13 @@ url:
                 query: next
                 url: /$YAMLURL/
     nlg-data-selector-$*:
-        pattern: /$YAMLURL/pickfile
+        pattern: /$YAMLURL/initform
         handler: FunctionHandler
         kwargs:
             headers:
                 Cache-Control: no-store
             xsrf_cookies: false
-            function: webapp.use_existing_file
+            function: webapp.init_form
             redirect:
                 query: next
                 header: Referrer
@@ -39,7 +39,7 @@ url:
                 login_url: /$YAMLURL/login
             transform:
                 "grmform.html":
-                    function: webapp.make_dataset_list
+                    function: webapp.make_dataset_narrative_list
     nlg-uploadhandler-$*:
         pattern: /$YAMLURL/upload
         handler: UploadHandler
@@ -62,6 +62,11 @@ url:
             path: $YAMLPATH/app/index.html
             auth:
                 login_url: /$YAMLURL/login
+    nlg-config-filehandler-$*:
+        pattern: /$YAMLURL/initconf/(.*)
+        handler: FileHandler
+        kwargs:
+            path: $YAMLPATH/app/gramupload/
     nlg-static_files-$*:
         pattern: /$YAMLURL/nlg.js
         handler: FileHandler
@@ -123,11 +128,17 @@ url:
             headers:
                 Content-Type: application/octet-stream
                 Content-Disposition: attachment; filename="config.json"
-
-
-
-
-
+    edit-narrative-$*:
+        pattern: /$YAMLURL/edit-narrative
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.edit_narrative
+            auth:
+                login_url: /$YAMLURL/login
+            redirect:
+                query: next
+                header: Referrer
+                url: /$YAMLURL/index
 
 
 

@@ -461,8 +461,9 @@ function saveConfig() {
         alert('Please name the narrative.')
         elem.focus()
     } else {
+        narrative_name = elem.value
         var url = "save-config?config=" + encodeURIComponent(JSON.stringify(templates))
-            + "&name=" + encodeURIComponent(elem.value)
+            + "&name=" + encodeURIComponent(narrative_name)
             + "&dataset=" + encodeURIComponent(dataset_name)
         $.ajax({
             url: url,
@@ -486,6 +487,39 @@ function downloadConfig() {
         headers: {'X-CSRFToken': false},
         success: function() { window.location = url }
     })
+}
+
+function setInitialConfig() {
+    $.ajax({
+        url: "initconf/meta.json",
+        type: "GET",
+        success: function (e) {
+            dataset_name = e.dsid
+            narrative_name = e.nrid
+        },
+        error: function (e) { return false }
+    })
+    $.ajax({
+        url: "initconf/config.json",
+        type: "GET",
+        success: setConfig,
+        error: function (e) { return false }
+    })
+}
+
+function setConfig(configobj) {
+    templates = []
+    for (let i = 0; i < configobj.config.length; i ++ ) {
+        var tmpl = configobj.config[i]
+        var tmplobj = new Template(
+            tmpl.text, tmpl.tokenmap, tmpl.inflections,
+            tmpl._fh_args, tmpl._condition, tmpl.setFHArgs,
+            tmpl.template, tmpl.previewHTML, tmpl.grmerr, tmpl.name)
+        templates.push(tmplobj)
+    }
+    document.getElementById('narrative-name-editor').value = configobj.name
+    args = null;
+    renderPreview(null)
 }
 
 function uploadConfig(e) {
@@ -590,6 +624,25 @@ function addFHArgsSetter(sent, fh_args) {
     var setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
     setterLine += `{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n`
     return setterLine + sent
+
+}
+
+function getShareURL() {
+    var url = g1.url.parse(window.location.href)
+    return `${url.protocol}://${url.origin}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
+}
+
+function shareNarrative() {
+    saveConfig()
+    var elem = document.getElementById('share-url')
+    elem.value = getShareURL()
+    $('#share-modal').modal({'show': true})
+}
+
+function copyToClipboard() {
+    var elem = document.getElementById('share-url')
+    elem.select()
+    document.execCommand("copy")
 
 }
 
