@@ -29,6 +29,9 @@ nlg_path = op.join(grx_data_dir, 'nlg')
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
 
+if not op.isdir(op.dirname(fh_fpath)):
+    os.mkdir(op.dirname(fh_fpath))
+
 if op.isfile(fh_fpath):
     orgdf = pd.read_csv(fh_fpath)
 
@@ -54,7 +57,7 @@ def copy_file_to_user_dir(meta, handler):
 def get_dataset_files(handler):
     user_dir = op.join(nlg_path, handler.current_user.email)
     if op.isdir(user_dir):
-        return os.listdir(user_dir)
+        return [f for f in os.listdir(user_dir) if not f.endswith('.json')]
     return []
 
 
