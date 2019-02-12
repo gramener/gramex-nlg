@@ -133,8 +133,11 @@ def save_config(handler):
     payload = {}
     payload['config'] = json.loads(parse.unquote(handler.args['config'][0]))
     payload['name'] = parse.unquote(handler.args['name'][0])
+    nname = payload['name']
+    if not nname.endswith('.json'):
+        nname += '.json'
     payload['dataset'] = parse.unquote(handler.args['dataset'][0])
-    fpath = op.join(nlg_path, handler.current_user.email, payload['name'] + '.json')
+    fpath = op.join(nlg_path, handler.current_user.email, nname)
     with open(fpath, 'w') as fout:
         json.dump(payload, fout, indent=4)
 

@@ -462,12 +462,10 @@ function saveConfig() {
         elem.focus()
     } else {
         narrative_name = elem.value
-        var url = "save-config?config=" + encodeURIComponent(JSON.stringify(templates))
-            + "&name=" + encodeURIComponent(narrative_name)
-            + "&dataset=" + encodeURIComponent(dataset_name)
         $.ajax({
-            url: url,
-            type: "GET",
+            url: "save-config",
+            type: "POST",
+            data: {config: JSON.stringify(templates), name: narrative_name, dataset: dataset_name},
             headers: {'X-CSRFToken': false},
             success: function (e) { $('.alert-success').show() }
         })
@@ -629,7 +627,8 @@ function addFHArgsSetter(sent, fh_args) {
 
 function getShareURL() {
     var url = g1.url.parse(window.location.href)
-    return `${url.protocol}://${url.origin}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
+    var appname = url.relative.replace(/\/index.*/g, "")
+    return `${url.protocol}://${url.origin}${appname}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
 }
 
 function shareNarrative() {
