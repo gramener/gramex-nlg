@@ -216,8 +216,10 @@ def _token_inflections(x, y):
     elif is_plural_noun(y.text):
         if plural(x.text).lower() == y.text.lower():
             return plural
-    if x.pos_ != y.pos_:
-        return lemmatize
+    # Disable detecting inflections until they can be
+    # processed without intervention.
+    # if x.pos_ != y.pos_:
+    #     return lemmatize
     return False
 
 

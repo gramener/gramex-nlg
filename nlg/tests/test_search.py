@@ -142,8 +142,10 @@ class TestSearch(unittest.TestCase):
             inflections,
             {
                 'actor': [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'}],
-                'actress': [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}],
-                'voted': [{'source': 'G', 'fe_name': 'Lemmatize', 'func_name': 'lemmatize'}]}
+                'actress': [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}]
+            }
+                # Don't detect inflections until they can be processed without intervention
+                # 'voted': [{'source': 'G', 'fe_name': 'Lemmatize', 'func_name': 'lemmatize'}]}
         )
 
     def test_search_sort(self):
