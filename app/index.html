@@ -29,13 +29,15 @@
         var currentEditIndex = null;
         var currentSpanId = null;
         var grammarOptions = []
+        var narrative_name = "";
+        var dataset_name = "";
         // setContextMenu();
         $('.formhandler').on('load', renderPreview);
         $('.formhandler').formhandler();
+        $(document).ready(setInitialConfig)
     </script>
-    <div class="d-flex">
-        <p>Upload JSON config</p>
-        <input type="file" id="config-upload" enctype="multipart/form-data" />
+        <input class="form-control mx-1 underline border-success"
+        id="narrative-name-editor" placeholder="Name the Narrative">
     </div>
     <form id="myform" enctype="multipart/form-data">
         <div>
@@ -53,23 +55,50 @@
     </form>
     <p id="template-preview" style="font-family:monospace"></p>
     <br>
-    <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
-        <i class="fa fa-download"></i>
-    </button>
-    <button id="download-config-btn" type="button" title="Download Config" class="btn btn-success">
-        <i class="fa fa-download"></i>
-    </button>
+    <div class="d-flex">
+        <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
+            <i class="fa fa-download"></i>
+        </button>
+        <div class="form-check">
+            <label class="form-check-label">
+            <input class="form-check-input" type="checkbox" id="download-data-cb" checked>Include Data
+            </label>
+        </div>
+        <button id="download-config-btn" type="button" title="Save Config" class="btn btn-success">
+            <i class="fa fa-save"></i>
+        </button>
+        <button id="share-narrative-btn" type="button" title="Share Narrative" class="btn btn-success">
+            <i class="fa fa-share"></i>
+        </button>
+    </div>
     <!--
     <button id="clear-tmpls" title="Clear Narrative" type="button" class="btn btn-danger">
         <i class="fa fa-trash"></i>
     </button>
     -->
+    <div class="modal fade" id="share-modal" role="dialog">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <textarea id="share-url" style="font-family: monospace"></textarea>
+                <button id="copy-clipboard" title="Copy To Clipboard" type="button" class="btn btn-primary">
+                    <i class="fa fa-copy"></i>
+                </button>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="template-settings" role="dialog">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header"><h6>Template Settings:</h6></div>
                 <div id="tmpllist" class="modal-body">
                     <div>
+                        <div class="d-flex">
+                            <input class="form-control mx-1 underline border-success"
+                            id="tmpl-name-editor" placeholder="Name the template">
+                            <button id="tmpl-name-btn" type="button" class="btn btn-primary success">
+                                <i class="fa fa-check"></i>
+                            </button>
+                        </div>
                         <div class="d-flex">
                             <div class="text-middle h6 mr-2 p-2">
                                 <div class="align-center" id="tmpl-setting-preview"></div>
@@ -117,17 +146,26 @@
             </div>
         </div>
     </div>
+    <div class="alert alert-success alert-dismissable collapse" role="alert">
+        <strong>Saved!</strong>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
     <!-- Template preview -->
     <script>
         document.getElementById("download-btn").addEventListener("click", downloadNarrative);
-        document.getElementById("download-config-btn").addEventListener("click", downloadConfig);
-        document.getElementById("config-upload").addEventListener("change", uploadConfig, false);
+        document.getElementById("download-config-btn").addEventListener("click", saveConfig);
+        // document.getElementById("config-upload").addEventListener("change", uploadConfig, false);
         document.getElementById("inspect").addEventListener("click", addToNarrative);
         document.getElementById("check-template").addEventListener("click", checkTemplate);
         var saveBtn = document.getElementById("save-template")
         saveBtn.addEventListener("click", saveTemplate);
         document.getElementById("edit-template").addEventListener('focus', function (e) {saveBtn.disabled = false})
         document.getElementById("condition-btn").addEventListener("click", addCondition);
+        document.getElementById("share-narrative-btn").addEventListener("click", shareNarrative);
+        document.getElementById("copy-clipboard").addEventListener("click", copyToClipboard);
+        document.getElementById("tmpl-name-btn").addEventListener("click", addName);
         document.getElementById("fh-arg-setter").addEventListener("change", changeFHSetter)
         // document.getElementById("clear-tmpls").addEventListener('click', clearNarrative);
         document.getElementById("textbox").cols = 119;

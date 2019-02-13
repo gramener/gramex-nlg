@@ -150,5 +150,5 @@ docs/_build
 # Ignore swap files
 *.swp
 
-app/gramupload/.meta.db
+app/gramupload/
 .noseids

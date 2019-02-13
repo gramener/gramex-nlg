@@ -9,11 +9,37 @@ watch:
         on_modified: webapp._watchfile_loader
 
 url:
+    nlg-login-$*:
+        pattern: /$YAMLURL/login
+        handler: GoogleAuth
+        kwargs:
+            key: 927738177604-a056ijlrivc6l27tjjuscsq8d16s8mu0.apps.googleusercontent.com
+            secret: RRSGD3qTUM4bMyqByEsi22Kn
+            redirect:
+                query: next
+                url: /$YAMLURL/
+    nlg-data-selector-$*:
+        pattern: /$YAMLURL/initform
+        handler: FunctionHandler
+        kwargs:
+            headers:
+                Cache-Control: no-store
+            xsrf_cookies: false
+            function: webapp.init_form
+            redirect:
+                query: next
+                header: Referrer
+                url: /$YAMLURL/index
     nlg-landing-page-$*:
         pattern: /$YAMLURL/
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/grmform.html
+            auth:
+                login_url: /$YAMLURL/login
+            transform:
+                "grmform.html":
+                    function: webapp.make_dataset_narrative_list
     nlg-uploadhandler-$*:
         pattern: /$YAMLURL/upload
         handler: UploadHandler
@@ -27,11 +53,20 @@ url:
                 query: next
                 header: Referrer
                 url: /$YAMLURL/index
+            transform:
+                function: webapp.copy_file_to_user_dir
     nlg-temporary-filehander-$*:
         pattern: /$YAMLURL/index
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/index.html
+            auth:
+                login_url: /$YAMLURL/login
+    nlg-config-filehandler-$*:
+        pattern: /$YAMLURL/initconf/(.*)
+        handler: FileHandler
+        kwargs:
+            path: $YAMLPATH/app/gramupload/
     nlg-static_files-$*:
         pattern: /$YAMLURL/nlg.js
         handler: FileHandler
@@ -78,6 +113,12 @@ url:
             headers:
                 Content-Type: application/octet-stream
                 Content-Disposition: attachment; filename="template.py"
+    save-config-$*:
+        pattern: /$YAMLURL/save-config
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.save_config
+            xsrf_cookies: false
     config-download-$*:
         pattern: /$YAMLURL/config-download
         handler: FunctionHandler
@@ -87,11 +128,17 @@ url:
             headers:
                 Content-Type: application/octet-stream
                 Content-Disposition: attachment; filename="config.json"
-
-
-
-
-
+    edit-narrative-$*:
+        pattern: /$YAMLURL/edit-narrative
+        handler: FunctionHandler
+        kwargs:
+            function: webapp.edit_narrative
+            auth:
+                login_url: /$YAMLURL/login
+            redirect:
+                query: next
+                header: Referrer
+                url: /$YAMLURL/index
 
 
 

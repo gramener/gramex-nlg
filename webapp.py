@@ -7,9 +7,13 @@ Module for gramex exposure. This shouldn't be imported anywhere, only for use
 with gramex.
 """
 import json
+import os
 import os.path as op
+import shutil
 from urllib import parse
 
+from gramex.config import variables
+from gramex import conf
 import pandas as pd
 from tornado.template import Template
 
@@ -18,16 +22,59 @@ from nlg import grammar as G
 from nlg import templatize
 from nlg import utils as U
 
-fpath = 'app/gramupload/file.csv'
+local_data_dir = op.join(op.dirname(__file__), "app/gramupload")
+if not op.isdir(local_data_dir):
+    os.mkdir(local_data_dir)
 
-if op.isfile(fpath):
-    orgdf = pd.read_csv(fpath)
+fh_fpath = op.join(local_data_dir, 'file.csv')
+grx_data_dir = variables['GRAMEXDATA']
+nlg_path = op.join(grx_data_dir, 'nlg')
+
+if not op.isdir(nlg_path):
+    os.mkdir(nlg_path)
+
+if op.isfile(fh_fpath):
+    orgdf = pd.read_csv(fh_fpath)
 
 
 def _watchfile_loader(event):
     global orgdf
     if op.isfile(event.src_path):
         orgdf = pd.read_csv(event.src_path)
+
+
+def copy_file_to_user_dir(meta, handler):
+    for k, v in conf['url'].items():
+        if 'nlg-uploadhandler' in k:
+            break
+    src_dir = v['kwargs']['path']
+    dest_dir = op.join(nlg_path, handler.current_user.email)
+    if not op.isdir(dest_dir):
+        os.mkdir(dest_dir)
+    dest_path = op.join(dest_dir, meta.filename)
+    shutil.copy(op.join(src_dir, 'file.csv'), dest_path)
+
+
+def get_dataset_files(handler):
+    user_dir = op.join(nlg_path, handler.current_user.email)
+    if op.isdir(user_dir):
+        return [f for f in os.listdir(user_dir) if not f.endswith('.json')]
+    return []
+
+
+def get_narrative_config_files(handler):
+    user_dir = op.join(nlg_path, handler.current_user.email)
+    if op.isdir(user_dir):
+        return [f for f in os.listdir(user_dir) if f.endswith('.json')]
+    return []
+
+
+def make_dataset_narrative_list(content, handler):
+    t = Template(content)
+    return t.generate(
+        handler=handler,
+        NLG_DATASETS=get_dataset_files(handler),
+        NLG_NARRATIVES=get_narrative_config_files(handler)).decode('utf-8')
 
 
 def render_template(handler):
@@ -75,7 +122,24 @@ def download_template(handler):
 
 
 def download_config(handler):
-    return json.dumps(json.loads(parse.unquote(handler.args['config'][0])), indent=4)
+    payload = {}
+    payload['config'] = json.loads(parse.unquote(handler.args['config'][0]))
+    payload['data'] = json.loads(parse.unquote(handler.args.get('data', [None])[0]))
+    payload['name'] = parse.unquote(handler.args['name'][0])
+    return json.dumps(payload, indent=4)
+
+
+def save_config(handler):
+    payload = {}
+    payload['config'] = json.loads(parse.unquote(handler.args['config'][0]))
+    payload['name'] = parse.unquote(handler.args['name'][0])
+    nname = payload['name']
+    if not nname.endswith('.json'):
+        nname += '.json'
+    payload['dataset'] = parse.unquote(handler.args['dataset'][0])
+    fpath = op.join(nlg_path, handler.current_user.email, nname)
+    with open(fpath, 'w') as fout:
+        json.dump(payload, fout, indent=4)
 
 
 def get_gramopts(handler):
@@ -85,3 +149,55 @@ def get_gramopts(handler):
         if getattr(obj, 'gramopt', False):
             funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
     return funcs
+
+
+def use_existing_file(handler):
+    fname = handler.args['dataset'][0]
+    user_dir = op.join(nlg_path, handler.current_user.email)
+    shutil.copy(op.join(user_dir, fname), fh_fpath)
+
+
+def init_form(handler):
+    meta = {}
+    # prioritize files first
+    data_dir = op.join(nlg_path, handler.current_user.email)
+    if not op.isdir(data_dir):
+        os.makedirs(data_dir)
+
+    # handle dataset
+    data_file = handler.request.files.get('data-file', [{}])[0]
+    if data_file:
+        outpath = op.join(data_dir, data_file['filename'])
+        with open(outpath, 'wb') as fout:
+            fout.write(data_file['body'])
+    else:
+        dataset = handler.args['dataset'][0]
+        outpath = op.join(data_dir, dataset)
+    shutil.copy(outpath, fh_fpath)
+    meta['dsid'] = op.basename(outpath)
+
+    # handle config
+    config_name = handler.args.get('narrative', ['None'])[0]
+    if config_name != 'None':
+        config_path = op.join(data_dir, config_name)
+        shutil.copy(config_path, op.join(local_data_dir, 'config.json'))
+        meta['nrid'] = op.basename(config_path)
+
+    # write meta config
+    with open(op.join(local_data_dir, 'meta.json'), 'w') as fout:
+        json.dump(meta, fout, indent=4)
+
+
+def edit_narrative(handler):
+    user_dir = op.join(nlg_path, handler.current_user.email)
+
+    dataset_name = handler.args.get('dsid', [''])[0]
+    if dataset_name:
+        shutil.copy(op.join(user_dir, dataset_name), fh_fpath)
+
+    narrative_name = handler.args.get('nrid', [''])[0] + '.json'
+    if narrative_name:
+        shutil.copy(op.join(user_dir, narrative_name), op.join(local_data_dir, 'config.json'))
+
+    with open(op.join(local_data_dir, 'meta.json'), 'w') as fout:
+        json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)

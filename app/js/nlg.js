@@ -1,7 +1,7 @@
 class Template {
     constructor(
         text, tokenmap, inflections, fh_args, condition ='', setFHArgs = false, template = '',
-        previewHTML = '', grmerr = null
+        previewHTML = '', grmerr = null, name = ''
         ) {
         this.source_text = text
         this.tokenmap = {}
@@ -22,6 +22,7 @@ class Template {
         this.template = template
         this.previewHTML = previewHTML
         this.grmerr = grmerr
+        this.name = name
     }
 
     makeTemplate() {
@@ -428,6 +429,12 @@ function editTemplate(n) {
     else {
         document.getElementById("condition-editor").value = ""
     }
+    if (templates[n].name != null) {
+        document.getElementById("tmpl-name-editor").value = templates[n].name
+    }
+    else {
+        document.getElementById("tmpl-name-editor").value = ""
+    }
     templates[n].makeSettingsTable()
 }
 
@@ -448,8 +455,29 @@ function downloadNarrative() {
     })
 }
 
+function saveConfig() {
+    var elem = document.getElementById('narrative-name-editor') 
+    if (!(elem.value)) {
+        alert('Please name the narrative.')
+        elem.focus()
+    } else {
+        narrative_name = elem.value
+        $.ajax({
+            url: "save-config",
+            type: "POST",
+            data: {config: JSON.stringify(templates), name: narrative_name, dataset: dataset_name},
+            headers: {'X-CSRFToken': false},
+            success: function (e) { $('.alert-success').show() }
+        })
+    }
+}
+
 function downloadConfig() {
     url = "config-download?config=" + encodeURIComponent(JSON.stringify(templates))
+        + "&name=" + encodeURIComponent(document.getElementById('narrative-name-editor').value)
+    if (document.getElementById("download-data-cb").checked) {
+        url = url + "&data=" + encodeURIComponent(JSON.stringify(df))
+    }
     $.ajax({
         url: url,
         responseType: 'blob',
@@ -459,19 +487,53 @@ function downloadConfig() {
     })
 }
 
+function setInitialConfig() {
+    $.ajax({
+        url: "initconf/meta.json",
+        type: "GET",
+        success: function (e) {
+            dataset_name = e.dsid
+            narrative_name = e.nrid
+        },
+        error: function (e) { return false }
+    })
+    $.ajax({
+        url: "initconf/config.json",
+        type: "GET",
+        success: setConfig,
+        error: function (e) { return false }
+    })
+}
+
+function setConfig(configobj) {
+    templates = []
+    for (let i = 0; i < configobj.config.length; i ++ ) {
+        var tmpl = configobj.config[i]
+        var tmplobj = new Template(
+            tmpl.text, tmpl.tokenmap, tmpl.inflections,
+            tmpl._fh_args, tmpl._condition, tmpl.setFHArgs,
+            tmpl.template, tmpl.previewHTML, tmpl.grmerr, tmpl.name)
+        templates.push(tmplobj)
+    }
+    document.getElementById('narrative-name-editor').value = configobj.name
+    args = null;
+    renderPreview(null)
+}
+
 function uploadConfig(e) {
     var reader = new FileReader()
     reader.onload = function () {
-        var tmpllist = JSON.parse(reader.result)
+        var config = JSON.parse(reader.result)
         templates = []
-        for (let i = 0; i < tmpllist.length; i ++ ) {
-            var tmpl = tmpllist[i]
+        for (let i = 0; i < config.config.length; i ++ ) {
+            var tmpl = config.config[i]
             var tmplobj = new Template(
                 tmpl.text, tmpl.tokenmap, tmpl.inflections,
                 tmpl._fh_args, tmpl._condition, tmpl.setFHArgs,
-                tmpl.template, tmpl.previewHTML)
+                tmpl.template, tmpl.previewHTML, tmpl.grmerr, tmpl.name)
             templates.push(tmplobj)
         }
+        document.getElementById('narrative-name-editor').value = config.name
         args = null;
         renderPreview(null)
         }
@@ -526,6 +588,13 @@ function addCondition(event) {
     
 }
 
+function addName(event) {
+    var name = document.getElementById('tmpl-name-editor').value
+    if (name) {
+        templates[currentEditIndex].name = name
+    }
+}
+
 function changeFHSetter(event) {
     template = templates[currentEditIndex]
     template.setFHArgs = document.getElementById('fh-arg-setter').checked
@@ -553,6 +622,26 @@ function addFHArgsSetter(sent, fh_args) {
     var setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
     setterLine += `{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n`
     return setterLine + sent
+
+}
+
+function getShareURL() {
+    var url = g1.url.parse(window.location.href)
+    var appname = url.relative.replace(/\/index.*/g, "")
+    return `${url.protocol}://${url.origin}${appname}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
+}
+
+function shareNarrative() {
+    saveConfig()
+    var elem = document.getElementById('share-url')
+    elem.value = getShareURL()
+    $('#share-modal').modal({'show': true})
+}
+
+function copyToClipboard() {
+    var elem = document.getElementById('share-url')
+    elem.select()
+    document.execCommand("copy")
 
 }
 

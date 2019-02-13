@@ -5,6 +5,7 @@
 """
 Miscellaneous utilities.
 """
+import json
 import os.path as op
 from random import choice
 import re
@@ -16,7 +17,7 @@ import requests
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
 from tornado.template import Template
-from configparser import ConfigParser
+from configparser import ConfigParser, NoOptionError, NoSectionError
 
 nlp = load("en_core_web_sm")
 
@@ -188,3 +189,15 @@ def check_grammar(text):
     if resp.status_code == 200:
         return resp.json()['matches']
     return []
+
+
+def load_template(name, loc=None):
+    if loc is None:
+        try:
+            loc = config.get('templates', 'location')
+        except (NoOptionError, NoSectionError):
+            loc = '~/.nlg/templates'
+    tmpl_path = op.join(loc, name)
+    with open(tmpl_path, 'r') as fout:
+        template = json.load(fout)
+    return template
