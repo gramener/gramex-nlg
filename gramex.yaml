@@ -139,6 +139,11 @@ url:
                 query: next
                 header: Referrer
                 url: /$YAMLURL/index
+    render-live-template-$*:
+        pattern: /$YAMLURL/render-live-template
+        handler: FunctionHandler
+        kwargs: 
+            function: webapp.render_live_template
 
 
 

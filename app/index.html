@@ -36,6 +36,7 @@
         $('.formhandler').formhandler();
         $(document).ready(setInitialConfig)
     </script>
+    <div>
         <input class="form-control mx-1 underline border-success"
         id="narrative-name-editor" placeholder="Name the Narrative">
     </div>
@@ -79,10 +80,17 @@
     <div class="modal fade" id="share-modal" role="dialog">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <textarea id="share-url" style="font-family: monospace"></textarea>
-                <button id="copy-clipboard" title="Copy To Clipboard" type="button" class="btn btn-primary">
+                <p>Editor</p>
+                <textarea id="share-editor-url" style="font-family: monospace"></textarea>
+                <button id="copy-editor-url" title="Copy To Clipboard" type="button" class="btn btn-primary">
                     <i class="fa fa-copy"></i>
                 </button>
+                <p>Narrative</p>
+                <textarea id="share-narrative-url" style="font-family: monospace"></textarea>
+                <button id="copy-narrative-url" title="Copy To Clipboard" type="button" class="btn btn-primary">
+                    <i class="fa fa-copy"></i>
+                </button>
+            </div>
             </div>
         </div>
     </div>
@@ -164,7 +172,10 @@
         document.getElementById("edit-template").addEventListener('focus', function (e) {saveBtn.disabled = false})
         document.getElementById("condition-btn").addEventListener("click", addCondition);
         document.getElementById("share-narrative-btn").addEventListener("click", shareNarrative);
-        document.getElementById("copy-clipboard").addEventListener("click", copyToClipboard);
+        document.getElementById("copy-editor-url").addEventListener("click",
+            function (e) {copyToClipboard('share-editor-url')});
+        document.getElementById("copy-narrative-url").addEventListener("click",
+            function (e) {copyToClipboard('share-narrative-url')});
         document.getElementById("tmpl-name-btn").addEventListener("click", addName);
         document.getElementById("fh-arg-setter").addEventListener("change", changeFHSetter)
         // document.getElementById("clear-tmpls").addEventListener('click', clearNarrative);

@@ -625,21 +625,47 @@ function addFHArgsSetter(sent, fh_args) {
 
 }
 
-function getShareURL() {
+function getEditorURL() {
     var url = g1.url.parse(window.location.href)
     var appname = url.relative.replace(/\/index.*/g, "")
     return `${url.protocol}://${url.origin}${appname}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
 }
 
+function getNarrativeEmbedCode() {
+    let html = `
+    <div id="narrative-result"></div>
+    <script>
+        $('.formhandler').on('load',
+            function (e) {
+                $.ajax({
+                    url: "render-live-template",
+                    type: "POST",
+                    data: {
+                        data: JSON.stringify(e.formdata),
+                        nrid: "${narrative_name}"
+                    },
+                    success: function (pl) {
+                        document.getElementById("narrative-result").innerText = pl
+                    }
+                })
+            }
+        )
+    </script>
+    `
+    return html
+}
+
 function shareNarrative() {
     saveConfig()
-    var elem = document.getElementById('share-url')
-    elem.value = getShareURL()
+    var editor_url = document.getElementById('share-editor-url')
+    editor_url.value = getEditorURL()
+    var embed_code = document.getElementById('share-narrative-url')
+    embed_code.value = getNarrativeEmbedCode()
     $('#share-modal').modal({'show': true})
 }
 
-function copyToClipboard() {
-    var elem = document.getElementById('share-url')
+function copyToClipboard(elem_id) {
+    var elem = document.getElementById(elem_id)
     elem.select()
     document.execCommand("copy")
 
