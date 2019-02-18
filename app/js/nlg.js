@@ -642,10 +642,11 @@ function getNarrativeEmbedCode() {
                     type: "POST",
                     data: {
                         data: JSON.stringify(e.formdata),
-                        nrid: "${narrative_name}"
+                        nrid: "${narrative_name}",
+                        style: true
                     },
                     success: function (pl) {
-                        document.getElementById("narrative-result").innerText = pl
+                        document.getElementById("narrative-result").innerHTML = pl
                     }
                 })
             }

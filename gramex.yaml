@@ -145,8 +145,6 @@ url:
         kwargs: 
             function: webapp.render_live_template
 
-
-
 # Gramex init configurations for app: nlg
 # ----------------------------------------------------------------------------
 import:
