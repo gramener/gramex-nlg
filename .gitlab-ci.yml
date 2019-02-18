@@ -10,7 +10,7 @@ validate:
 deploy:
   stage: deploy
   script: deploy
-  only: [master]
+  only: [master, jd-rest-api-init]
   tags: [py3]
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/
