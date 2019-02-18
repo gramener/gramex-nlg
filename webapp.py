@@ -9,6 +9,7 @@ with gramex.
 import json
 import os
 import os.path as op
+import re
 import shutil
 from urllib import parse
 
@@ -77,12 +78,53 @@ def make_dataset_narrative_list(content, handler):
         NLG_NARRATIVES=get_narrative_config_files(handler)).decode('utf-8')
 
 
+def add_html_styling(template, style):
+    if not style:
+        return template
+    pattern = re.compile(r'\{\{[^\{\}]+\}\}')
+    if isinstance(style, dict):
+        # convert the style dict into a stylized HTML span
+        spanstyle = ";".join(['{}:{}'.format(k, v) for k, v in style.items()])
+    else:
+        spanstyle = "background-color:#c8f442"
+    for m in re.finditer(pattern, template):
+        token = m.group()
+        repl = f'<span style="{spanstyle}">{token}</span>'
+        template = re.sub(re.escape(token), repl, template, 1)
+    return f'<p>{template}</p>'
+
+
+def render_live_template(handler):
+    nrid = handler.args['nrid'][0]
+    if not nrid.endswith('.json'):
+        nrid += '.json'
+    data = json.loads(handler.args['data'][0])
+    df = pd.DataFrame.from_records(data)
+    nrpath = op.join(nlg_path, handler.current_user.email, nrid)
+    with open(nrpath, 'r') as fout:
+        templates = json.load(fout)
+    narratives = []
+    style = json.loads(handler.args['style'][0])
+    for t in templates['config']:
+        tmpl = add_html_styling(t['template'], style)
+        s = Template(tmpl).generate(df=df, fh_args=t.get('fh_args', {}))
+        rendered = s.decode('utf8')
+        narratives.append(rendered)
+    return '\n'.join(narratives)
+
+
 def render_template(handler):
     payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    payload = dict(payload)
-    templates = json.loads(payload["template"])
-    df = pd.read_json(payload["data"], orient="records")
-    fh_args = json.loads(payload.get("args", {}))
+    if not payload:
+        payload = json.loads(handler.request.body.decode("utf8"))
+        fh_args = payload['args']
+        templates = payload['template']
+        df = pd.DataFrame.from_records(payload['data'])
+    else:
+        payload = dict(payload)
+        fh_args = json.loads(payload.get("args", {}))
+        templates = json.loads(payload["template"])
+        df = pd.read_json(payload["data"], orient="records")
     # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
