@@ -15,6 +15,8 @@ install_requires = [
     'pandas',
     'tornado',
     'spacy',
+    'pytest',
+    'nose'
 ]
 
 setup(name='nlg',
@@ -22,9 +24,4 @@ setup(name='nlg',
       packages=find_packages(),
       install_requires=install_requires,
       test_suite='tests',
-      tests_require=[
-          'nose',
-          'coverage',
-          'pytest'
-      ]
       )

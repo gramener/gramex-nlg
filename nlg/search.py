@@ -29,6 +29,7 @@ SEARCH_PRIORITIES = [
 
 
 def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
+    """Sort a list of search results by `priorities`."""
     match_ix = [[p.items() <= item.items() for p in priorities] for item in items]
     min_match = [m.index(True) for m in match_ix]
     items[min_match.index(min(min_match))]['enabled'] = True
@@ -36,6 +37,7 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
 
 
 class dfsearchres(dict):
+    """A convenience wrapper around `dict` to collect search results."""
 
     def __setitem__(self, key, value):
         if key not in self:
@@ -49,6 +51,7 @@ class dfsearchres(dict):
             self[k] = v
 
     def clean(self):
+        """Sort the search results for each token by priority and un-overlap tokens."""
         for k, v in self.items():
             _sort_search_results(v)
         # unoverlap the keys

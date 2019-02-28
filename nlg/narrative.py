@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 
-"""The Narrative class."""
+"""WIP: The Narrative class."""
 
 
 class Narrative(object):
