@@ -3,13 +3,15 @@
 
 <head>
     <meta charset="utf-8" />
-<title>Natural Language Generation</title>
+    <title>GramexNLG Template Generator</title>
 </head>
 
 <body>
+    {% from webapp import read_current_config %}
+    {% set dsid = read_current_config(handler)['dsid'] %}
     <link rel="stylesheet" href="ui/bootstraptheme.css" /> <!-- Add bootstrap -->
     <link rel="stylesheet" href="ui/font-awesome/css/font-awesome.min.css">
-    <div class="formhandler" data-src="preview"></div> <!-- Insert component here -->
+    <div class="formhandler" data-src="preview/{{ handler.current_user.email }}/{{ dsid }}"></div>
     <!-- Include JS dependencies  -->
     <script src="ui/lodash/lodash.min.js"></script>
     <script src="ui/jquery/dist/jquery.min.js"></script>
@@ -60,11 +62,6 @@
         <button id="download-btn" type="button" title="Download Narrative" class="btn btn-primary">
             <i class="fa fa-download"></i>
         </button>
-        <div class="form-check">
-            <label class="form-check-label">
-            <input class="form-check-input" type="checkbox" id="download-data-cb" checked>Include Data
-            </label>
-        </div>
         <button id="download-config-btn" type="button" title="Save Config" class="btn btn-success">
             <i class="fa fa-save"></i>
         </button>

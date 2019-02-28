@@ -489,20 +489,22 @@ function downloadConfig() {
 
 function setInitialConfig() {
     $.ajax({
-        url: "initconf/meta.json",
+        // url: "initconf/meta.json",
+        url: "initconf",
         type: "GET",
         success: function (e) {
             dataset_name = e.dsid
             narrative_name = e.nrid
+            setConfig(e.config)
         },
         error: function (e) { return false }
     })
-    $.ajax({
-        url: "initconf/config.json",
-        type: "GET",
-        success: setConfig,
-        error: function (e) { return false }
-    })
+    // $.ajax({
+    //     url: "initconf/config.json",
+    //     type: "GET",
+    //     success: setConfig,
+    //     error: function (e) { return false }
+    // })
 }
 
 function setConfig(configobj) {

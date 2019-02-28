@@ -30,18 +30,18 @@ NP_MATCHER.add("QUANT", None, [{"POS": "NUM", "OP": "+"}])
 
 NARRATIVE_TEMPLATE = """
 {% autoescape None %}
-from nlg import NLGTemplate as N
 from nlg import grammar as G
 from nlg import utils as U
+from tornado.template import Template as T
 import pandas as pd
 
 df = None  # set your dataframe here.
-narrative = N(\"\"\"
+narrative = T(\"\"\"
               {{ tmpl }}
-              \"\"\",
+              \"\"\").generate(
               tornado_tmpl=True, orgdf=df, fh_args={{ fh_args }},
               G=G, U=U)
-print(narrative.render())
+print(narrative)
 """
 
 config = ConfigParser()
@@ -185,10 +185,15 @@ def check_grammar(text):
     port = config.get('languagetool', 'port')
     apiversion = config.get('languagetool', 'apiversion')
     url = "{}:{}/{}/check?language=en-us&text={}"
-    resp = requests.get(url.format(host, port, apiversion, text))
-    if resp.status_code == 200:
-        return resp.json()['matches']
-    return []
+    try:
+        resp = requests.get(url.format(host, port, apiversion, text))
+        if resp.status_code == 200:
+            resp = resp.json()['matches']
+        else:
+            resp = []
+    except requests.ConnectionError:
+        resp = []
+    return resp
 
 
 def load_template(name, loc=None):

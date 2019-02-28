@@ -4,7 +4,7 @@ validate:
       - python setup.py develop
       - python -m spacy download en
       - gramex license accept
-      - nosetests
+      - nosetests -sv --with-coverage --cover-package=nlg
 
 
 deploy:

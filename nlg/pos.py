@@ -3,7 +3,7 @@
 # vim:fenc=utf-8
 
 """
-Parts of speech usually referenced in templates.
+WIP: Parts of speech usually referenced in templates.
 """
 
 
