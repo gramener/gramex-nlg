@@ -7,17 +7,17 @@ Miscellaneous utilities.
 """
 import json
 import os.path as op
-from random import choice
 import re
+from configparser import ConfigParser, NoOptionError, NoSectionError
+from random import choice
 
-from gramex.data import filter as grmfilter  # NOQA: F401
-import humanize  # NOQA: F401
 import numpy as np
 import requests
 from spacy import load
 from spacy.matcher import Matcher, PhraseMatcher
 from tornado.template import Template
-from configparser import ConfigParser, NoOptionError, NoSectionError
+
+from gramex.data import filter as grmfilter  # NOQA: F401
 
 nlp = load("en_core_web_sm")
 
@@ -59,7 +59,7 @@ def join_words(x, sep=' '):
     return sep.join(re.findall(r'\w+', x, re.IGNORECASE))
 
 
-class set_nlg_gramopt(object):
+class set_nlg_gramopt(object):  # noqa: class to be used as a decorator
     """Decorator for adding callables to grammar options of the webapp.
     """
     def __init__(self, **kwargs):
@@ -187,7 +187,7 @@ def check_grammar(text):
     url = "{}:{}/{}/check?language=en-us&text={}"
     try:
         resp = requests.get(url.format(host, port, apiversion, text))
-        if resp.status_code == 200:
+        if resp.status_code == requests.codes.ok:
             resp = resp.json()['matches']
         else:
             resp = []
@@ -203,6 +203,49 @@ def load_template(name, loc=None):
         except (NoOptionError, NoSectionError):
             loc = '~/.nlg/templates'
     tmpl_path = op.join(loc, name)
-    with open(tmpl_path, 'r') as fout:
+    with open(tmpl_path, 'r') as fout:  # NOQA: No encoding for json
         template = json.load(fout)
     return template
+
+
+def add_html_styling(template, style):
+    """Add HTML styling spans to template elements.
+
+    Parameters
+    ----------
+    template : str
+        A tornado template
+    style : dict or bool
+        If False, no styling is added.
+        If True, a default bgcolor is added to template variables.
+        If dict, expected to contain HTML span styling elements.
+
+    Returns
+    -------
+    str
+        Modified template with each variabled stylized.
+
+    Example
+    -------
+    >>> t = 'Hello, {{ name }}!'
+    >>> add_html_styling(t, True)
+    'Hello, <span style="background-color:#c8f442">{{ name }}</span>!'
+    >>> add_html_styling(t, False)
+    'Hello, {{ name }}!'
+    >>> add_html_style(t, {'background-color': '#ffffff', 'font-family': 'monospace'})
+    'Hello, <span style="background-color:#c8f442;font-family:monospace">{{ name }}</span>!'
+    """
+
+    if not style:
+        return template
+    pattern = re.compile(r'\{\{[^\{\}]+\}\}')
+    if isinstance(style, dict):
+        # convert the style dict into a stylized HTML span
+        spanstyle = ";".join(['{}:{}'.format(k, v) for k, v in style.items()])
+    else:
+        spanstyle = "background-color:#c8f442"
+    for m in re.finditer(pattern, template):
+        token = m.group()
+        repl = f'<span style="{spanstyle}">{token}</span>'
+        template = re.sub(re.escape(token), repl, template, 1)
+    return f'<p>{template}</p>'

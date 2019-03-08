@@ -6,7 +6,6 @@
 Search tools.
 """
 
-import re
 from itertools import chain
 
 import numpy as np
@@ -36,12 +35,12 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
     return items
 
 
-class dfsearchres(dict):
+class DFSearchResults(dict):
     """A convenience wrapper around `dict` to collect search results."""
 
     def __setitem__(self, key, value):
         if key not in self:
-            super(dfsearchres, self).__setitem__(key, [value])
+            super(DFSearchResults, self).__setitem__(key, [value])
         elif self[key][0] != value:
             self[key].append(value)
 
@@ -69,7 +68,7 @@ class DFSearch(object):
         self.df = df
         # What do results contain?
         # A map of tokens to pandas slices
-        self.results = dfsearchres()
+        self.results = DFSearchResults()
         self.nlp = nlp
 
     def search(self, text, colname_fmt="df.columns[{}]",
@@ -237,9 +236,8 @@ def search_args(entities, args, lemmatized=True, fmt="fh_args['{}'][{}]",
     search_res = {}
     ent_tokens = list(chain(*entities))
     for k, v in args.items():
-        # key = k.lstrip("?")
-        argtokens = list(chain(*[re.findall(r"\w+", f) for f in v]))
-        argtokens = list(chain(*[default_nlp(c) for c in argtokens]))
+        # argtokens = list(chain(*[re.findall(r"\w+", f) for f in v]))
+        argtokens = list(chain(*[default_nlp(c) for c in v]))
         for i, x in enumerate(argtokens):
             for y in ent_tokens:
                 if lemmatized:

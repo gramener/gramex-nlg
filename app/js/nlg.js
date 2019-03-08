@@ -39,7 +39,7 @@ class Template {
             sent = `{% if ${this.condition} %}\n\t` + sent + "\n{% end %}"
         }
         if (this.setFHArgs) {
-            sent = addFHArgsSetter(sent, this.fh_args)
+            sent = addFHArgsSetter(this)
         }
         this.template = sent
         this.highlight()
@@ -76,7 +76,7 @@ class Template {
                 token.varname = varname
             }
             this.makeTemplate()
-       }
+        }
     }
 
     ignoreTokenTemplate(token) {
@@ -93,12 +93,12 @@ class Template {
         btn.setAttribute("class", "btn btn-success round")
         btn.setAttribute("title", "Add Token")
         btn.innerHTML = '<i class="fa fa-plus-circle">'
-        
+
         // change the listener to adder
         var parent = this
         btn.addEventListener("click", function (e) { parent.addTokenTemplate(token) })
     }
-    
+
     addTokenTemplate(token) {
         token.is_ignored = false
         var enabled_tmpl = token.enabledTemplate
@@ -117,7 +117,7 @@ class Template {
         btn.setAttribute("class", "btn btn-danger round")
         btn.setAttribute("title", "Ignore Token")
         btn.innerHTML = '<i class="fa fa-times-circle">'
-        
+
         // change the listener to remover
         var parent = this
         btn.addEventListener("click", function (e) { parent.ignoreTokenTemplate(token) })
@@ -169,7 +169,7 @@ class Template {
                     </button></td></tr>`
         }
         document.getElementById('table-body').innerHTML = html
-        
+
         for (let [token, tkobj] of Object.entries(this.tokenmap)) {
             // add search result dropdown listeners
             if (tkobj.tokenlist.length > 1) {
@@ -190,6 +190,7 @@ class Template {
             var rmtokenbtn = document.getElementById(`rmtoken-${currentEditIndex}-${token}`)
             rmtokenbtn.addEventListener("click", function (e) { parent.ignoreTokenTemplate(tkobj) })
         }
+
     }
 }
 
@@ -283,7 +284,7 @@ class Token {
     }
 
     makeGrammarOptionsSelector(editIndex) {
-        var html = `<select id="gramopt-select-${editIndex}-${this.text}" class="selectpicker show-tick" multiple>`
+        var html = `<select id="gramopt-select-${editIndex}-${this.text}" class="select-multiple" multiple="multiple">`
         var appliedInfls = this.findAppliedInflections()
         for (let [fe_name, infl_obj] of Object.entries(grammarOptions)) {
             // check if this inflection is already applied
@@ -293,7 +294,7 @@ class Token {
             else { var selected = "" }
             html += `<option ${selected}>${fe_name}</option>`
         }
-        return html + '</select>' 
+        return html + '</select>'
     }
 
     changeGrammarOption() {
@@ -362,8 +363,8 @@ function renderPreview(fh) {
     }
     var innerHTML = "<p>\n";
     for (var i = 0; i < templates.length; i++) {
-        innerHTML += getRmButton(i) // + getConditionBtn(i) + getEditTemplateBtn(i)
-            + getSettingsBtn(i) + "\t" + templates[i].previewHTML + "</br>";
+        innerHTML += '<div class="pb-1">' + getRmButton(i) // + getConditionBtn(i) + getEditTemplateBtn(i)
+            + getSettingsBtn(i) + "\t" + templates[i].previewHTML + "</div>";
     }
     innerHTML += "</p>"
     document.getElementById("template-preview").innerHTML = innerHTML;
@@ -416,6 +417,7 @@ function triggerTemplateSettings(sentid) {
     editTemplate(currentEditIndex)
     $('#template-settings').modal({'show': true})
     $('#condition-editor').focus()
+    // $(function() { $('.select-multiple').select2() })
 }
 
 function editTemplate(n) {
@@ -456,7 +458,7 @@ function downloadNarrative() {
 }
 
 function saveConfig() {
-    var elem = document.getElementById('narrative-name-editor') 
+    var elem = document.getElementById('narrative-name-editor')
     if (!(elem.value)) {
         alert('Please name the narrative.')
         elem.focus()
@@ -495,7 +497,7 @@ function setInitialConfig() {
         success: function (e) {
             dataset_name = e.dsid
             narrative_name = e.nrid
-            setConfig(e.config)
+            if (e.config) { setConfig(e.config) }
         },
         error: function (e) { return false }
     })
@@ -545,10 +547,16 @@ function uploadConfig(e) {
 
 function checkTemplate() {
     // Render the template found in the template editor box against the df and args.
-    renderTemplate([document.getElementById("edit-template").value], editAreaCallback);
+    renderTemplate([document.getElementById("edit-template").value], editAreaCallback, showTraceback);
 }
 
-function renderTemplate(text, success) {
+function showTraceback(payload) {
+  let traceback = $($.parseHTML(payload.responseText)).filter('#traceback')[0]
+  document.getElementById('traceback').innerHTML = traceback.innerHTML
+    $('#tb-modal').modal({'show': true})
+}
+
+function renderTemplate(text, success, error) {
     // render an arbitrary template and do `success` on success.
     $.ajax({
         type: "POST",
@@ -557,7 +565,8 @@ function renderTemplate(text, success) {
             "args": JSON.stringify(args), "data": JSON.stringify(df),
             "template": JSON.stringify(text)
         },
-        success: success
+        success: success,
+        error: error
     })
 }
 
@@ -587,7 +596,7 @@ function addCondition(event) {
         template.makeTemplate()
         document.getElementById('edit-template').value = template.template
     }
-    
+
 }
 
 function addName(event) {
@@ -620,27 +629,30 @@ function makeInflString(tmpl, infl) {
     return tmplstr
 }
 
-function addFHArgsSetter(sent, fh_args) {
-    var setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
+function addFHArgsSetter(tmplobj) {
+    let currentSent = document.getElementById('edit-template').value
+    tmplobj.source_text = currentSent
+    let setterLine = `{% set fh_args = ${JSON.stringify(tmplobj.fh_args)} %}\n`
     setterLine += `{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n`
-    return setterLine + sent
+    return setterLine + currentSent
 
 }
 
 function getEditorURL() {
-    var url = g1.url.parse(window.location.href)
-    var appname = url.relative.replace(/\/index.*/g, "")
-    return `${url.protocol}://${url.origin}${appname}/edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
+    let url = g1.url.parse(window.location.href)
+    return `${url.protocol}://${url.origin}${url.directory}edit-narrative?dsid=${dataset_name}&nrid=${narrative_name}`
 }
 
 function getNarrativeEmbedCode() {
+    let url = g1.url.parse(window.location.href)
+    url = url + "render-live-template"
     let html = `
     <div id="narrative-result"></div>
     <script>
         $('.formhandler').on('load',
             function (e) {
                 $.ajax({
-                    url: "render-live-template",
+                    url: "${url}",
                     type: "POST",
                     data: {
                         data: JSON.stringify(e.formdata),
@@ -663,7 +675,7 @@ function shareNarrative() {
     var editor_url = document.getElementById('share-editor-url')
     editor_url.value = getEditorURL()
     var embed_code = document.getElementById('share-narrative-url')
-    embed_code.value = getNarrativeEmbedCode()
+    embed_code.innerText = getNarrativeEmbedCode()
     $('#share-modal').modal({'show': true})
 }
 
@@ -678,16 +690,17 @@ function copyToClipboard(elem_id) {
 function getRmButton(n) {
     // Get HTML for the delete template button.
     return `
-     <button id="rm-btn-${n}" title="Remove" type="button" class="btn btn-primary">
+    <button id="rm-btn-${n}" title="Remove" type="button" class="btn btn-danger btn-sm">
         <i class="fa fa-trash"></i>
-     </button>
-     `
+    </button>
+    `
 }
 
 function getSettingsBtn(n) {
     return `
-    <button id="settings-btn-${n}" title="Settings" type="button" class="btn btn-primary">
+    <button id="settings-btn-${n}" title="Settings" type="button" class="btn btn-primary btn-sm">
         <i class="fa fa-wrench"></i>
     </button>
     `
 }
+

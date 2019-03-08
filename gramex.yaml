@@ -2,12 +2,6 @@
 
 # Configurations for app: nlg
 # ----------------------------------------------------------------------------
-# watch:
-#     data-files:
-#         paths:
-#             - $YAMLPATH/app/gramupload/file.csv
-#         on_modified: webapp._watchfile_loader
-
 url:
     nlg-login-$*:
         pattern: /$YAMLURL/login
@@ -25,7 +19,7 @@ url:
             headers:
                 Cache-Control: no-store
             xsrf_cookies: false
-            function: webapp.init_form
+            function: web_app.init_form
             redirect:
                 url: /$YAMLURL/index
     nlg-landing-page-$*:
@@ -44,11 +38,11 @@ url:
             template: true
             auth:
                 login_url: /$YAMLURL/login
-    nlg-config-handler-$*:
+    nlg-config-filehandler-$*:
         pattern: /$YAMLURL/initconf
         handler: FunctionHandler
         kwargs:
-            function: webapp.get_init_config
+            function: web_app.get_init_config
             headers:
                 Content-Type: application/json
     nlg-static_files-$*:
@@ -62,13 +56,13 @@ url:
         kwargs:
             url: $GRAMEXDATA/nlg/{_0}/{_1}
             headers:
-                Cache-Control: no-store
+              Cache-Control: no-store
     textproc-$*:
         pattern: /$YAMLURL/textproc
         handler: FunctionHandler
         priority: 1000000
         kwargs:
-            function: webapp.process_template
+            function: web_app.process_template
             xsrf_cookies: false
             headers:
                 Content-Type: application/json
@@ -76,7 +70,7 @@ url:
         pattern: /$YAMLURL/render-template
         handler: FunctionHandler
         kwargs:
-            function: webapp.render_template
+            function: web_app.render_template
             xsrf_cookies: false
             headers:
                 Content-Type: application/json
@@ -84,7 +78,7 @@ url:
         pattern: /$YAMLURL/get-gramopts
         handler: FunctionHandler
         kwargs:
-            function: webapp.get_gramopts
+            function: web_app.get_gramopts
             xsrf_cookies: false
             headers:
                 Content-Type: application/json
@@ -92,7 +86,7 @@ url:
         pattern: /$YAMLURL/tmpl-download
         handler: FunctionHandler
         kwargs:
-            function: webapp.download_template
+            function: web_app.download_template
             xsrf_cookies: false
             headers:
                 Content-Type: application/octet-stream
@@ -101,13 +95,13 @@ url:
         pattern: /$YAMLURL/save-config
         handler: FunctionHandler
         kwargs:
-            function: webapp.save_config
+            function: web_app.save_config
             xsrf_cookies: false
     config-download-$*:
         pattern: /$YAMLURL/config-download
         handler: FunctionHandler
         kwargs:
-            function: webapp.download_config
+            function: web_app.download_config
             xsrf_cookies: false
             headers:
                 Content-Type: application/octet-stream
@@ -116,7 +110,7 @@ url:
         pattern: /$YAMLURL/edit-narrative
         handler: FunctionHandler
         kwargs:
-            function: webapp.edit_narrative
+            function: web_app.edit_narrative
             auth:
                 login_url: /$YAMLURL/login
             redirect:
@@ -126,8 +120,20 @@ url:
     render-live-template-$*:
         pattern: /$YAMLURL/render-live-template
         handler: FunctionHandler
-        kwargs: 
-            function: webapp.render_live_template
+        kwargs:
+            function: web_app.render_live_template
+    demo-superstore-sales-$*:
+        pattern: /$YAMLURL/demo-superstore-sales
+        handler: FileHandler
+        kwargs:
+            template: true
+            path: $YAMLPATH/app/demo-superstore-sales.html
+    demo-telco-churn-$*:
+        pattern: /$YAMLURL/demo-telco-churn
+        handler: FileHandler
+        kwargs:
+            template: true
+            path: $YAMLPATH/app/demo-telco-churn.html
 
 # Gramex init configurations for app: nlg
 # ----------------------------------------------------------------------------

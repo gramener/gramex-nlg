@@ -9,17 +9,13 @@ with gramex.
 import json
 import os
 import os.path as op
-import re
 from urllib import parse
 
-from gramex.config import variables
 import pandas as pd
 from tornado.template import Template
 
-from nlg import Narrative
-from nlg import grammar as G
-from nlg import templatize
-from nlg import utils as U
+from gramex.config import variables
+from nlg import Narrative, grammar, templatize, utils
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
 
@@ -28,6 +24,93 @@ nlg_path = op.join(grx_data_dir, 'nlg')
 
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
+
+
+def render_live_template(handler):
+    """Given a narrative ID and df records, render the template."""
+    orgdf = get_original_df(handler)
+    nrid = handler.args['nrid'][0]
+    if not nrid.endswith('.json'):
+        nrid += '.json'
+    data = json.loads(handler.args['data'][0])
+    df = pd.DataFrame.from_records(data)
+    nrpath = op.join(nlg_path, handler.current_user.email, nrid)
+    with open(nrpath, 'r') as fout:  # noqa: No encoding for json
+        templates = json.load(fout)
+    narratives = []
+    style = json.loads(handler.args['style'][0])
+    fh_args = json.loads(handler.get_argument('fh_args'))
+    for t in templates['config']:
+        tmpl = utils.add_html_styling(t['template'], style)
+        try:
+            s = Template(tmpl).generate(df=df, fh_args=fh_args,
+                                        G=grammar, U=utils, orgdf=orgdf)
+            rendered = s.decode('utf8').replace('\n', ' ')
+        except KeyError:
+            rendered = ''
+        narratives.append(rendered)
+    return '\n'.join(narratives)
+
+
+def get_original_df(handler):
+    """Get the original dataframe which was uploaded to the webapp."""
+    data_dir = op.join(nlg_path, handler.current_user.email)
+    with open(op.join(data_dir, 'meta.cfg'), 'r') as fout:  # noqa: No encoding for json
+        meta = json.load(fout)
+    dataset_path = op.join(data_dir, meta['dsid'])
+    return pd.read_csv(dataset_path, encoding='utf-8')
+
+
+def render_template(handler):
+    """Render a set of templates against a dataframe and formhandler actions on it."""
+    orgdf = get_original_df(handler)
+    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
+    if not payload:
+        payload = json.loads(handler.request.body.decode("utf8"))
+        fh_args = payload['args']
+        templates = payload['template']
+        df = pd.DataFrame.from_records(payload['data'])
+    else:
+        payload = dict(payload)
+        fh_args = json.loads(payload.get("args", {}))
+        templates = json.loads(payload["template"])
+        df = pd.read_json(payload["data"], orient="records")
+    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
+    resp = []
+    for t in templates:
+        rendered = Template(t).generate(
+            orgdf=orgdf, df=df, fh_args=fh_args, G=grammar, U=utils).decode('utf8')
+        rendered = rendered.replace('-', '')
+        grmerr = utils.check_grammar(rendered)
+        resp.append({'text': rendered, 'grmerr': grmerr})
+    return json.dumps(resp)
+
+
+def process_template(handler):
+    """Process English text in the context of a df and formhandler arguments
+    to templatize it."""
+    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
+    payload = dict(payload)
+    text = json.loads(payload["text"])
+    df = pd.read_json(payload["data"], orient="records")
+    args = json.loads(payload.get("args", {}))
+    if args is None:
+        args = {}
+    resp = []
+    for t in text:
+        grammar_errors = utils.check_grammar(t)
+        replacements, t, infl = templatize(t, args.copy(), df)
+        resp.append({
+            "text": t, "tokenmap": replacements, 'inflections': infl,
+            "fh_args": args, "setFHArgs": False, "grmerr": grammar_errors})
+    return json.dumps(resp)
+
+
+def read_current_config(handler):
+    meta_path = op.join(nlg_path, handler.current_user.email, 'meta.cfg')
+    with open(meta_path, 'r') as fout:  # noqa: No encoding for json
+        meta = json.load(fout)
+    return meta
 
 
 def get_dataset_files(handler):
@@ -70,140 +153,14 @@ def get_narrative_config_files(handler):
     return []
 
 
-def read_current_config(handler):
-    meta_path = op.join(nlg_path, handler.current_user.email, 'meta.cfg')
-    with open(meta_path, 'r') as fout:
-        meta = json.load(fout)
-    return meta
-
-
-def add_html_styling(template, style):
-    """Add HTML styling spans to template elements.
-
-    Parameters
-    ----------
-    template : str
-        A tornado template
-    style : dict or bool
-        If False, no styling is added.
-        If True, a default bgcolor is added to template variables.
-        If dict, expected to contain HTML span styling elements.
-
-    Returns
-    -------
-    str
-        Modified template with each variabled stylized.
-
-    Example
-    -------
-    >>> t = 'Hello, {{ name }}!'
-    >>> add_html_styling(t, True)
-    'Hello, <span style="background-color:#c8f442">{{ name }}</span>!'
-    >>> add_html_styling(t, False)
-    'Hello, {{ name }}!'
-    >>> add_html_style(t, {'background-color': '#ffffff', 'font-family': 'monospace'})
-    'Hello, <span style="background-color:#c8f442;font-family:monospace">{{ name }}</span>!'
-    """
-
-    if not style:
-        return template
-    pattern = re.compile(r'\{\{[^\{\}]+\}\}')
-    if isinstance(style, dict):
-        # convert the style dict into a stylized HTML span
-        spanstyle = ";".join(['{}:{}'.format(k, v) for k, v in style.items()])
-    else:
-        spanstyle = "background-color:#c8f442"
-    for m in re.finditer(pattern, template):
-        token = m.group()
-        repl = f'<span style="{spanstyle}">{token}</span>'
-        template = re.sub(re.escape(token), repl, template, 1)
-    return f'<p>{template}</p>'
-
-
-def render_live_template(handler):
-    """Given a narrative ID and df records, render the template."""
-    orgdf = get_original_df(handler)
-    nrid = handler.args['nrid'][0]
-    if not nrid.endswith('.json'):
-        nrid += '.json'
-    data = json.loads(handler.args['data'][0])
-    df = pd.DataFrame.from_records(data)
-    nrpath = op.join(nlg_path, handler.current_user.email, nrid)
-    with open(nrpath, 'r') as fout:
-        templates = json.load(fout)
-    narratives = []
-    style = json.loads(handler.args['style'][0])
-    for t in templates['config']:
-        tmpl = add_html_styling(t['template'], style)
-        s = Template(tmpl).generate(df=df, fh_args=t.get('fh_args', {}),
-                                    G=G, U=U, orgdf=orgdf)
-        rendered = s.decode('utf8')
-        narratives.append(rendered)
-    return '\n'.join(narratives)
-
-
-def get_original_df(handler):
-    """Get the original dataframe which was uploaded to the webapp."""
-    data_dir = op.join(nlg_path, handler.current_user.email)
-    with open(op.join(data_dir, 'meta.cfg'), 'r') as fout:
-        meta = json.load(fout)
-    dataset_path = op.join(data_dir, meta['dsid'])
-    return pd.read_csv(dataset_path)
-
-
-def render_template(handler):
-    """Render a set of templates against a dataframe and formhandler actions on it."""
-    orgdf = get_original_df(handler)
-    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    if not payload:
-        payload = json.loads(handler.request.body.decode("utf8"))
-        fh_args = payload['args']
-        templates = payload['template']
-        df = pd.DataFrame.from_records(payload['data'])
-    else:
-        payload = dict(payload)
-        fh_args = json.loads(payload.get("args", {}))
-        templates = json.loads(payload["template"])
-        df = pd.read_json(payload["data"], orient="records")
-    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
-    resp = []
-    for t in templates:
-        rendered = Template(t).generate(
-            orgdf=orgdf, df=df, fh_args=fh_args, G=G, U=U).decode('utf8')
-        rendered = rendered.replace('-', '')
-        grmerr = U.check_grammar(rendered)
-        resp.append({'text': rendered, 'grmerr': grmerr})
-    return json.dumps(resp)
-
-
-def process_template(handler):
-    """Process English text in the context of a df and formhandler arguments
-    to templatize it."""
-    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    payload = dict(payload)
-    text = json.loads(payload["text"])
-    df = pd.read_json(payload["data"], orient="records")
-    args = json.loads(payload.get("args", {}))
-    if args is None:
-        args = {}
-    resp = []
-    for t in text:
-        grammar_errors = U.check_grammar(t)
-        replacements, t, infl = templatize(t, args.copy(), df)
-        resp.append({
-            "text": t, "tokenmap": replacements, 'inflections': infl,
-            "fh_args": args, "setFHArgs": False, "grmerr": grammar_errors})
-    return json.dumps(resp)
-
-
 def download_template(handler):
     """Download the current narrative template."""
     tmpl = json.loads(parse.unquote(handler.args["tmpl"][0]))
     conditions = json.loads(parse.unquote(handler.args["condts"][0]))
     fh_args = json.loads(parse.unquote(handler.args["args"][0]))
     template = Narrative(tmpl, conditions).templatize()
-    t_template = Template(U.NARRATIVE_TEMPLATE)
-    return t_template.generate(tmpl=template, fh_args=fh_args, G=G).decode("utf8")
+    t_template = Template(utils.NARRATIVE_TEMPLATE)
+    return t_template.generate(tmpl=template, fh_args=fh_args, G=grammar).decode("utf8")
 
 
 def download_config(handler):
@@ -225,7 +182,7 @@ def save_config(handler):
         nname += '.json'
     payload['dataset'] = parse.unquote(handler.args['dataset'][0])
     fpath = op.join(nlg_path, handler.current_user.email, nname)
-    with open(fpath, 'w') as fout:
+    with open(fpath, 'w') as fout:  # noqa: No encoding for json
         json.dump(payload, fout, indent=4)
 
 
@@ -234,8 +191,8 @@ def get_gramopts(handler):
 
     Primarily used for creating the select box in the template settings dialog."""
     funcs = {}
-    for attrname in dir(G):
-        obj = getattr(G, attrname)
+    for attrname in dir(grammar):
+        obj = getattr(grammar, attrname)
         if getattr(obj, 'gramopt', False):
             funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
     return funcs
@@ -243,7 +200,6 @@ def get_gramopts(handler):
 
 def init_form(handler):
     """Process input from the landing page and write the current session config."""
-
     meta = {}
     # prioritize files first
     data_dir = op.join(nlg_path, handler.current_user.email)
@@ -271,7 +227,7 @@ def init_form(handler):
         meta['nrid'] = op.basename(config_path)
 
     # write meta config
-    with open(op.join(data_dir, 'meta.cfg'), 'w') as fout:
+    with open(op.join(data_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
         json.dump(meta, fout, indent=4)
 
 
@@ -280,7 +236,7 @@ def edit_narrative(handler):
     user_dir = op.join(nlg_path, handler.current_user.email)
     dataset_name = handler.args.get('dsid', [''])[0]
     narrative_name = handler.args.get('nrid', [''])[0] + '.json'
-    with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:
+    with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
         json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)
 
 
@@ -289,11 +245,11 @@ def get_init_config(handler):
     user_dir = op.join(nlg_path, handler.current_user.email)
     metapath = op.join(user_dir, 'meta.cfg')
     if op.isfile(metapath):
-        with open(metapath, 'r') as fout:
+        with open(metapath, 'r') as fout:  # NOQA: no encoding for JSON
             meta = json.load(fout)
         config_file = op.join(user_dir, meta.get('nrid', ''))
         if op.isfile(config_file):
-            with open(config_file, 'r') as fout:
+            with open(config_file, 'r') as fout:  # NOQA: no encoding for JSON
                 meta['config'] = json.load(fout)
         return meta
     return {}
