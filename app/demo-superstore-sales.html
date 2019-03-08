@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <title>nlg-demos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  {% set base = '.' %}
+  {% include template-navbar.html %}
+  <!-- TODO: Filter bars -->
+
+  <script src="ui/jquery/dist/jquery.min.js"></script>
+  <script src="ui/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="ui/lodash/lodash.min.js"></script>
+  <script src="ui/g1/dist/g1.min.js"></script>
+  <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+  <!-- Commonly used libraries:
+  <script src="ui/d3v5/dist/d3.min.js"></script>
+  <script src="ui/morphdom/dist/morphdom-umd.min.js"></script>
+  <script src="ui/moment/min/moment-with-locales.min.js"></script>
+  <script src="ui/daterangepicker/daterangepicker.js"></script>
+  <script src="ui/leaflet/dist/leaflet.js"></script>
+  <script src="ui/topojson/dist/topojson.min.js"></script>
+  -->
+  <div id="narrative-result"></div>
+  <div class="divider"></div>
+  <div class="formhandler" data-src="preview/{{ handler.current_user.email }}/Superstore_Sales.csv"></div>
+  <script>
+      $('.formhandler').on('load',
+          function (e) {
+              $.ajax({
+                  url: "render-live-template",
+                  type: "POST",
+                  data: {
+                      data: JSON.stringify(e.formdata),
+                      nrid: "superstore-sales",
+                      style: true,
+		      fh_args: JSON.stringify(g1.url.parse(g1.url.parse(window.location.href).hash).searchList)
+                  },
+                  success: function (pl) {
+                      document.getElementById("narrative-result").innerHTML = pl
+                  }
+              })
+          }
+      )
+      $('.formhandler').formhandler();
+  </script> 
+</body>
+
+</html>
