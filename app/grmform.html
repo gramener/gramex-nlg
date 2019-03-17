@@ -13,41 +13,57 @@
         <script src="ui/popper.js/dist/umd/popper.min.js"></script>
 
         <form id="nlg-init-form" action="initform" method="POST" enctype="multipart/form-data">
-            <div class="row">
-                <!-- <label for="dataset-select" class="col-sm-2 col-form-label">Select Dataset:</label> -->
-                <div class="col">
-                  <select name="dataset" id="dataset-select" class="form-control" form="nlg-init-form">
-                      {% for filename in NLG_DATASETS %}
-                      <option value="{{ filename }}">{{ filename }}</option>
-                      {% end %}
-                      <option value="" hidden selected>Select Dataset</option>
-                  </select>
-                </div>
-                <!-- <label for="narrative-select" class="col-sm-2 col-form-label">Select Narrative:</label> -->
-                <div class="col">
-                  <select name="narrative" id="narrative-select" class="form-control" form="nlg-init-form">
-                      {% for filename in NLG_NARRATIVES %}
-                      <option value="{{ filename }}">{{ filename }}</option>
-                      {% end %}
-                      <option value="" selected hidden>Select Narrative</option>
-                  </select>
-                </div>
+          <div class="row">
+              <!-- <label for="dataset-select" class="col-sm-2 col-form-label">Select Dataset:</label> -->
+              <div class="col">
+                <select name="dataset" id="dataset-select" class="form-control" form="nlg-init-form">
+                    {% for filename in NLG_DATASETS %}
+                    <option value="{{ filename }}">{{ filename }}</option>
+                    {% end %}
+                    <option value="" hidden selected>Select Dataset</option>
+                </select>
+              </div>
+              <!-- <label for="narrative-select" class="col-sm-2 col-form-label">Select Narrative:</label> -->
+              <div class="col">
+                <select name="narrative" id="narrative-select" class="form-control" form="nlg-init-form">
+                    {% for filename in NLG_NARRATIVES %}
+                    <option value="{{ filename }}">{{ filename }}</option>
+                    {% end %}
+                    <option value="" selected hidden>Select Narrative</option>
+                </select>
+              </div>
+          </div>
+          <div class="divider">Or Upload New</div>
+          <div class="row">
+              <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
+              <div class="col">
+                <label for="fileupload">Dataset:</label>
+                <input id="fileupload" name="data-file" type="file" class="form-control-file">
+              </div>
+              <div class="col">
+                <label for="narrativeupload">Config:</label>
+                <input id="narrativeupload" name="config-file" type="file" class="form-control-file">
+              </div>
+          </div>
+          <div class="row">
+            <div class="col">
+              <button type="submit" class="btn btn-primary">Submit</button>
             </div>
-            <div class="divider">Or Upload New</div>
-            <div class="row">
-                <input type="hidden" name="_xsrf" value="{{ handler.xsrf_token }}">
-                <div class="col">
-                  <label for="fileupload">Dataset:</label>
-                  <input id="fileupload" name="data-file" type="file" class="form-control-file">
-                </div>
-                <div class="col">
-                  <label for="narrativeupload">Config:</label>
-                  <input id="narrativeupload" name="config-file" type="file" class="form-control-file">
-                </div>
+            <div class="col">
+              <button type="submit" id="init-demo-btn" formaction="initdemo" class="btn btn-primary">See Demo</button>
             </div>
-            <br>
-            <button type="submit" class="btn btn-primary">Submit</button>
+          </div>
         </form>
+      <script>
+        var btn = document.getElementById('init-demo-btn')
+        var nr_selector = document.getElementById('narrative-select')
+        btn.disabled = nr_selector.value == ""
+        nr_selector.addEventListener('change',
+          function(e) {
+            btn.disabled = nr_selector.value == ""
+          }
+        )
+      </script>
     </body>
 </html>
 

@@ -10,6 +10,7 @@ import json
 import os
 import os.path as op
 from urllib import parse
+import shutil
 
 import pandas as pd
 from tornado.template import Template
@@ -43,9 +44,10 @@ def render_live_template(handler):
     for t in templates['config']:
         tmpl = utils.add_html_styling(t['template'], style)
         try:
-            s = Template(tmpl).generate(df=df, fh_args=fh_args,
-                                        G=grammar, U=utils, orgdf=orgdf)
+            s = Template(tmpl, whitespace="oneline").generate(
+                df=df, fh_args=fh_args, G=grammar, U=utils, orgdf=orgdf)
             rendered = s.decode('utf8').replace('\n', ' ')
+            rendered = rendered.lstrip().rstrip()
         except KeyError:
             rendered = ''
         narratives.append(rendered)
@@ -55,7 +57,10 @@ def render_live_template(handler):
 def get_original_df(handler):
     """Get the original dataframe which was uploaded to the webapp."""
     data_dir = op.join(nlg_path, handler.current_user.email)
-    with open(op.join(data_dir, 'meta.cfg'), 'r') as fout:  # noqa: No encoding for json
+    metapath = op.join(data_dir, 'meta.cfg')
+    if not op.isfile(metapath):
+        metapath = op.join(data_dir, 'demo.cfg')
+    with open(metapath, 'r') as fout:  # noqa: No encoding for json
         meta = json.load(fout)
     dataset_path = op.join(data_dir, meta['dsid'])
     return pd.read_csv(dataset_path, encoding='utf-8')
@@ -81,6 +86,7 @@ def render_template(handler):
         rendered = Template(t).generate(
             orgdf=orgdf, df=df, fh_args=fh_args, G=grammar, U=utils).decode('utf8')
         rendered = rendered.replace('-', '')
+        rendered = rendered.lstrip().rstrip()
         grmerr = utils.check_grammar(rendered)
         resp.append({'text': rendered, 'grmerr': grmerr})
     return json.dumps(resp)
@@ -111,6 +117,13 @@ def read_current_config(handler):
     with open(meta_path, 'r') as fout:  # noqa: No encoding for json
         meta = json.load(fout)
     return meta
+
+
+def read_demo_config(handler):
+    meta_path = op.join(nlg_path, handler.current_user.email, 'demo.cfg')
+    with open(meta_path, 'r') as fout:  # noqa: No encoding for json
+        meta = json.load(fout)
+    return meta['dsid'], meta['nrid']
 
 
 def get_dataset_files(handler):
@@ -198,6 +211,39 @@ def get_gramopts(handler):
     return funcs
 
 
+def init_demo(handler):
+    """Process input from the landing page and write the current demo config.
+
+    Parameters
+    ----------
+    handler : [type]
+        [description]
+
+    """
+    meta = {}
+    # prioritize the data file first
+    data_dir = op.join(nlg_path, handler.current_user.email)
+    if not op.isdir(data_dir):
+        os.makedirs(data_dir)
+
+    # handle dataset
+    data_file = handler.request.files.get('data-file', [{}])[0]
+    if data_file:
+        # TODO: Unix filenames may not be valid Windows filenames.
+        outpath = op.join(data_dir, data_file['filename'])
+        with open(outpath, 'wb') as fout:
+            fout.write(data_file['body'])
+    else:
+        dataset = handler.args['dataset'][0]
+        outpath = op.join(data_dir, dataset)
+    meta['dsid'] = op.basename(outpath)
+
+    meta['nrid'] = handler.get_argument('narrative')
+    # write meta config
+    with open(op.join(data_dir, 'demo.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
+        json.dump(meta, fout, indent=4)
+
+
 def init_form(handler):
     """Process input from the landing page and write the current session config."""
     meta = {}
@@ -253,3 +299,31 @@ def get_init_config(handler):
                 meta['config'] = json.load(fout)
         return meta
     return {}
+
+
+def share_to_email_account(handler):
+    target_user = handler.get_argument('email')
+    target_dir = op.join(nlg_path, target_user)
+    if not op.isdir(target_dir):
+        os.mkdir(target_dir)
+    src_user = handler.current_user.email
+    src_dir = op.join(nlg_path, src_user)
+
+    dsid = handler.get_argument('dsid')
+    src_dataset = op.join(src_dir, dsid)
+    target_dataset = op.join(target_dir, dsid)
+    shutil.copy(src_dataset, target_dataset)
+
+    nrid = handler.get_argument('nrid')
+    if not nrid.endswith('.json'):
+        nrid += '.json'
+    src_narrative = op.join(src_dir, nrid)
+    target_narrative = op.join(target_dir, nrid)
+    shutil.copy(src_narrative, target_narrative)
+
+
+def share_demo(handler):
+    dsid, nrid = handler.path_args
+    config_path = op.join(nlg_path, handler.current_user.email, 'demo.cfg')
+    with open(config_path, 'w') as fout:
+        json.dump({'nrid': nrid, 'dsid': dsid}, fout)

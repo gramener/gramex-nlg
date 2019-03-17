@@ -305,6 +305,7 @@ def search_df(tokens, df):
 
 def templatize(text, args, df):
     """Process a piece of text and templatize it according to a dataframe."""
+    df.fillna(value="", inplace=True)
     clean_text = utils.sanitize_text(text)
     args = utils.sanitize_fh_args(args)
     dfs = DFSearch(df)

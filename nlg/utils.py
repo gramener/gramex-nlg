@@ -8,6 +8,7 @@ Miscellaneous utilities.
 import json
 import os.path as op
 import re
+import calendar
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from random import choice
 
@@ -18,6 +19,8 @@ from spacy.matcher import Matcher, PhraseMatcher
 from tornado.template import Template
 
 from gramex.data import filter as grmfilter  # NOQA: F401
+
+calendar_month = lambda x: calendar.month_name[x]  # NOQA: E731
 
 nlp = load("en_core_web_sm")
 
@@ -249,3 +252,18 @@ def add_html_styling(template, style):
         repl = f'<span style="{spanstyle}">{token}</span>'
         template = re.sub(re.escape(token), repl, template, 1)
     return f'<p>{template}</p>'
+
+
+def is_large_diff(x, y, tol=0.33):
+    """
+    Check if two real numbers are significantly difference.
+
+    Parameters
+    ----------
+    x : int, float
+    y : int, float
+    tol : float, optional
+    The percentage of the sum of x and y which the smaller number has to occupy
+    to qualify as a significant difference.
+    """
+    return min(x, y) / (x + y) <= tol

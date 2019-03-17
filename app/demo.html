@@ -12,6 +12,8 @@
 <body>
   {% set base = '.' %}
   {% include template-navbar.html %}
+  {% from web_app import read_demo_config %}
+  {% set dsid, nrid = read_demo_config(handler) %}
   <!-- TODO: Filter bars -->
 
   <script src="ui/jquery/dist/jquery.min.js"></script>
@@ -27,30 +29,36 @@
   <script src="ui/leaflet/dist/leaflet.js"></script>
   <script src="ui/topojson/dist/topojson.min.js"></script>
   -->
-  <div id="narrative-result"></div>
+  <div class="card shadow">
+    <div class="card-body">
+      <div id="narrative-result" class="card-text"></div>
+    </div><!-- .card-body -->
+  </div><!-- .card -->
   <div class="divider"></div>
-  <div class="formhandler" data-src="preview/{{ handler.current_user.email }}/WA_Fn-UseC_-Telco-Customer-Churn.csv
-"></div>
+  <div class="formhandler" data-src="preview/{{ handler.current_user.email }}/{{ dsid }}"></div>
   <script>
-      $('.formhandler').on('load',
-          function (e) {
-              $.ajax({
-                  url: "render-live-template",
-                  type: "POST",
-                  data: {
-                      data: JSON.stringify(e.formdata),
-                      nrid: "churngroups",
-                      style: true,
-		      fh_args: JSON.stringify(g1.url.parse(g1.url.parse(window.location.href).hash).searchList)
-                  },
-                  success: function (pl) {
-                      document.getElementById("narrative-result").innerHTML = pl
-                  }
-              })
+    function get_fh_args() {
+      return JSON.stringify(g1.url.parse(g1.url.parse(window.location.href).hash).searchList)
+    }
+    $('.formhandler').on('load',
+      function (e) {
+        $.ajax({
+          url: "render-live-template",
+          type: "POST",
+          data: {
+              data: JSON.stringify(e.formdata),
+              nrid: "{{ nrid }}",
+              style: true,
+              fh_args: get_fh_args()
+          },
+          success: function (pl) {
+              document.getElementById("narrative-result").innerHTML = pl
           }
-      )
-      $('.formhandler').formhandler();
-  </script> 
+        })
+      }
+    )
+    $('.formhandler').formhandler();
+  </script>
 </body>
 
 </html>
