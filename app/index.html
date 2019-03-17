@@ -64,7 +64,7 @@
               Share
               <i class="fa fa-share"></i>
           </button>
-          <div class="alert alert-success alert-dismissable collapse" role="alert">
+          <div id="save-config-notifier" class="alert alert-success alert-dismissable collapse" role="alert">
             <strong>Saved!</strong>
             <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
@@ -99,26 +99,43 @@
     </button>
     -->
     <div class="modal fade" id="share-modal" role="dialog">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <textarea class="form-control" id="share-editor-url" style="font-family: monospace"></textarea>
-                <button id="copy-editor-url" title="Copy To Clipboard"
-                type="button" class="btn btn-primary">
-                    Copy Editor URL
-                    <i class="fa fa-copy"></i>
+      <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="form-group row">
+              <label class="col-sm-4 col-form-label" for="share-email">Share with Email</label>
+              <div class="col-sm-4">
+                <input class="form-control" id="share-email" placeholder="Email">
+              </div>
+              <div class="col-sm-4">
+                <button id="send-mail" type="button" class="btn btn-primary success">
+                    <i class="fa fa-paper-plane"></i>
                 </button>
-                <pre>
-                  <code class="language-html" id="share-narrative-url"
-                  style="font-family: monospace"></code>
-                </pre>
-                <button id="copy-narrative-url" title="Copy To Clipboard"
-                type="button" class="btn btn-primary">
-                    Copy Embed Code
-                    <i class="fa fa-copy"></i>
+              </div>
+            </div>
+            <div id="share-notifier" class="alert alert-success alert-dismissable collapse" role="alert">
+              <strong>Sent!</strong>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            </div>
+            <textarea class="form-control" id="share-editor-url" style="font-family: monospace"></textarea>
+            <button id="copy-editor-url" title="Copy To Clipboard"
+            type="button" class="btn btn-primary">
+                Copy Editor URL
+                <i class="fa fa-copy"></i>
+            </button>
+            <pre>
+              <code class="language-html" id="share-narrative-url"
+              style="font-family: monospace"></code>
+            </pre>
+            <button id="copy-narrative-url" title="Copy To Clipboard"
+            type="button" class="btn btn-primary">
+                Copy Embed Code
+                <i class="fa fa-copy"></i>
+            </button>
+          </div>
         </div>
+      </div>
     </div>
     <div class="modal fade" id="template-settings" role="dialog">
         <div class="modal-dialog modal-lg">
@@ -251,6 +268,21 @@
             url: "get-gramopts",
             success: function (resp) { grammarOptions = resp }
         })
+        document.getElementById('send-mail').addEventListener("click",
+          function (e) {
+            $.ajax({
+              url: "share",
+              data: {
+                dsid: dataset_name,
+                nrid: narrative_name,
+                email: document.getElementById('share-email').value
+              },
+              success: function(pl) {
+                $("#share-notifier").show()
+              }
+            })
+          }
+        );
     </script>
 </body>
 

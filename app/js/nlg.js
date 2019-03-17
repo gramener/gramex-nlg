@@ -462,6 +462,7 @@ function saveConfig() {
     if (!(elem.value)) {
         alert('Please name the narrative.')
         elem.focus()
+        return false
     } else {
         narrative_name = elem.value
         $.ajax({
@@ -469,8 +470,9 @@ function saveConfig() {
             type: "POST",
             data: {config: JSON.stringify(templates), name: narrative_name, dataset: dataset_name},
             headers: {'X-CSRFToken': false},
-            success: function (e) { $('.alert-success').show() }
+            success: function (e) { $('#save-config-notifier').show() }
         })
+        return true
     }
 }
 
@@ -633,7 +635,7 @@ function addFHArgsSetter(tmplobj) {
     let currentSent = document.getElementById('edit-template').value
     tmplobj.source_text = currentSent
     let setterLine = `{% set fh_args = ${JSON.stringify(tmplobj.fh_args)} %}\n`
-    setterLine += `{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n`
+    setterLine += `{% set df = U.grmfilter(df, fh_args.copy()) %}\n`
     return setterLine + currentSent
 
 }
@@ -649,34 +651,41 @@ function getNarrativeEmbedCode() {
     let html = `
     <div id="narrative-result"></div>
     <script>
-        $('.formhandler').on('load',
-            function (e) {
-                $.ajax({
-                    url: "${url}",
-                    type: "POST",
-                    data: {
-                        data: JSON.stringify(e.formdata),
-                        nrid: "${narrative_name}",
-                        style: true
-                    },
-                    success: function (pl) {
-                        document.getElementById("narrative-result").innerHTML = pl
-                    }
-                })
+      function get_fh_args() {
+        return JSON.stringify(g1.url.parse(g1.url.parse(window.location.href).hash).searchList)
+      }
+      $('.formhandler').on('load',
+        function (e) {
+          $.ajax({
+            url: "${url}",
+            type: "POST",
+            data: {
+                data: JSON.stringify(e.formdata),
+                nrid: "{{ nrid }}",
+                style: true
+                fh_args: get_fh_args()
+            },
+            success: function (pl) {
+                document.getElementById("narrative-result").innerHTML = pl
             }
-        )
+          })
+        }
+      )
+      $('.formhandler').formhandler();
     </script>
     `
     return html
 }
 
 function shareNarrative() {
-    saveConfig()
-    var editor_url = document.getElementById('share-editor-url')
-    editor_url.value = getEditorURL()
-    var embed_code = document.getElementById('share-narrative-url')
-    embed_code.innerText = getNarrativeEmbedCode()
-    $('#share-modal').modal({'show': true})
+    let saveResult = saveConfig()
+    if (saveResult) {
+      var editor_url = document.getElementById('share-editor-url')
+      editor_url.value = getEditorURL()
+      var embed_code = document.getElementById('share-narrative-url')
+      embed_code.innerText = getNarrativeEmbedCode()
+      $('#share-modal').modal({'show': true})
+    }
 }
 
 function copyToClipboard(elem_id) {

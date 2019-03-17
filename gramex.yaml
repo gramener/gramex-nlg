@@ -3,6 +3,11 @@
 # Configurations for app: nlg
 # ----------------------------------------------------------------------------
 url:
+    nlg-email-share:
+        pattern: /$YAMLURL/share
+        handler: FunctionHandler
+        kwargs:
+            function: web_app.share_to_email_account
     nlg-login-$*:
         pattern: /$YAMLURL/login
         handler: GoogleAuth
@@ -22,11 +27,29 @@ url:
             function: web_app.init_form
             redirect:
                 url: /$YAMLURL/index
+    nlg-demo-selector-$*:
+        pattern: /$YAMLURL/initdemo
+        handler: FunctionHandler
+        kwargs:
+            headers:
+                Cache-Control: no-store
+            xsrf_cookies: false
+            function: web_app.init_demo
+            redirect:
+                url: /$YAMLURL/demo
     nlg-landing-page-$*:
         pattern: /$YAMLURL/
         handler: FileHandler
         kwargs:
             path: $YAMLPATH/app/grmform.html
+            template: true
+            auth:
+                login_url: /$YAMLURL/login
+    nlg-demo-filehandler-$*:
+        pattern: /$YAMLURL/demo
+        handler: FileHandler
+        kwargs:
+            path: $YAMLPATH/app/demo.html
             template: true
             auth:
                 login_url: /$YAMLURL/login
@@ -122,18 +145,15 @@ url:
         handler: FunctionHandler
         kwargs:
             function: web_app.render_live_template
-    demo-superstore-sales-$*:
-        pattern: /$YAMLURL/demo-superstore-sales
-        handler: FileHandler
+    share-demo-$*:
+        pattern: /$YAMLURL/share-demo/(.*)/(.*)
+        handler: FunctionHandler
         kwargs:
-            template: true
-            path: $YAMLPATH/app/demo-superstore-sales.html
-    demo-telco-churn-$*:
-        pattern: /$YAMLURL/demo-telco-churn
-        handler: FileHandler
-        kwargs:
-            template: true
-            path: $YAMLPATH/app/demo-telco-churn.html
+            function: web_app.share_demo
+            auth:
+                login_url: /$YAMLURL/login
+            redirect:
+                url: /$YAMLURL/demo
 
 # Gramex init configurations for app: nlg
 # ----------------------------------------------------------------------------
