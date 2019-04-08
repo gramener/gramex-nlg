@@ -17,6 +17,7 @@ from nlg import utils
 from nlg.grammar import concatenate_items, find_inflections
 
 default_nlp = load("en_core_web_sm")
+matcher = utils.make_np_matcher(default_nlp)
 
 SEARCH_PRIORITIES = [
     {'type': 'ne'},  # A match which is an NE gets the higest priority
@@ -91,7 +92,7 @@ class DFSearch(object):
 
     def search_nes(self, text, colname_fmt="df.columns[{}]", cell_fmt="df['{}'].iloc[{}]"):
         self.doc = self.nlp(text)
-        self.ents = utils.ner(self.doc)
+        self.ents = utils.ner(self.doc, matcher)
         ents = [c.text for c in self.ents]
         for token, ix in self.search_columns(ents, literal=True).items():
             ix = utils.sanitize_indices(self.df.shape, ix, 1)
@@ -107,7 +108,7 @@ class DFSearch(object):
                 'tmpl': cell_fmt.format(self.df.columns[y], x), 'type': 'ne'}
 
     def search_table(self, text, **kwargs):
-        kwargs['array'] = self.df.copy()
+        kwargs['array'] = self.df.copy()  # ToDo: Is this necessary?
         return self._search_array(text, **kwargs)
 
     def search_columns(self, text, **kwargs):
