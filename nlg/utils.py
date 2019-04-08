@@ -1,40 +1,28 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 
 """
 Miscellaneous utilities.
 """
-import json
-import os.path as op
 import re
-import calendar
-from configparser import ConfigParser, NoOptionError, NoSectionError
-from random import choice
 
-import numpy as np
-import requests
-from spacy import load
-from spacy.matcher import Matcher, PhraseMatcher
+import six
 from tornado.template import Template
 
 from gramex.data import filter as grmfilter  # NOQA: F401
 
-calendar_month = lambda x: calendar.month_name[x]  # NOQA: E731
-
-nlp = load("en_core_web_sm")
-
-NP_MATCHER = Matcher(nlp.vocab)
-NP_MATCHER.add("NP1", None, [{"POS": "PROPN", "OP": "+"}])
-NP_MATCHER.add("NP2", None, [{"POS": "NOUN", "OP": "+"}])
-NP_MATCHER.add("NP3", None, [{"POS": "ADV", "OP": "+"}, {"POS": "VERB", "OP": "+"}])
-NP_MATCHER.add("NP4", None, [{"POS": "ADJ", "OP": "+"}, {"POS": "VERB", "OP": "+"}])
-NP_MATCHER.add("QUANT", None, [{"POS": "NUM", "OP": "+"}])
+NP_RULES = {
+    "NP1": [{"POS": "PROPN", "OP": "+"}],
+    "NP2": [{"POS": "NOUN", "OP": "+"}],
+    "NP3": [{"POS": "ADV", "OP": "+"}, {"POS": "VERB", "OP": "+"}],
+    "NP4": [{"POS": "ADJ", "OP": "+"}, {"POS": "VERB", "OP": "+"}],
+    "QUANT": [{"POS": "NUM", "OP": "+"}]
+}
 
 NARRATIVE_TEMPLATE = """
 {% autoescape None %}
 from nlg import grammar as G
-from nlg import utils as U
+from nlg import nlgutils as U
 from tornado.template import Template as T
 import pandas as pd
 
@@ -47,8 +35,59 @@ narrative = T(\"\"\"
 print(narrative)
 """
 
-config = ConfigParser()
-config.read(op.join(op.dirname(__file__), "..", "config.ini"))
+_spacy = {
+    'model': False,
+    'lemmatizer': False,
+    'matcher': False
+}
+
+
+def load_spacy_model():
+    """Load the spacy model when required."""
+    if not _spacy['model']:
+        from spacy import load
+        nlp = load("en_core_web_sm")
+        _spacy['model'] = nlp
+    else:
+        nlp = _spacy['model']
+    return nlp
+
+
+def get_lemmatizer():
+    if not _spacy['lemmatizer']:
+        from spacy.lang.en import LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES
+        from spacy.lemmatizer import Lemmatizer
+        lemmatizer = Lemmatizer(LEMMA_INDEX, LEMMA_EXC, LEMMA_RULES)
+        _spacy['lemmatizer'] = lemmatizer
+    else:
+        lemmatizer = _spacy['lemmatizer']
+    return lemmatizer
+
+
+def make_np_matcher(nlp, rules=NP_RULES):
+    """Make a rule based noun phrase matcher.
+
+    Parameters
+    ----------
+    nlp : `spacy.lang`
+        The spacy model to use.
+    rules : dict, optional
+        Mapping of rule IDS to spacy attribute patterns, such that each mapping
+        defines a noun phrase structure.
+
+    Returns
+    -------
+    `spacy.matcher.Matcher`
+    """
+    if not _spacy['matcher']:
+        from spacy.matcher import Matcher
+        matcher = Matcher(nlp.vocab)
+        for k, v in rules.items():
+            matcher.add(k, None, v)
+        _spacy['matcher'] = matcher
+    else:
+        matcher = _spacy['matcher']
+    return matcher
 
 
 def render_search_result(text, results, **kwargs):
@@ -76,16 +115,6 @@ class set_nlg_gramopt(object):  # noqa: class to be used as a decorator
         return func
 
 
-def get_phrase_matcher(df):
-    matcher = PhraseMatcher(nlp.vocab)
-    for col in df.columns[df.dtypes == np.dtype("O")]:
-        for val in df[col].unique():
-            matcher.add(val, None, nlp(val))
-        if str(col).isalpha():
-            matcher.add(col, None, nlp(col))
-    return matcher
-
-
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
     if "NUM" in [c.pos_ for c in x]:
@@ -97,7 +126,7 @@ def unoverlap(tokens):
     """From a set of tokens, remove all tokens that are contained within
     others."""
     textmap = {c.text: c for c in tokens}
-    text_tokens = textmap.keys()
+    text_tokens = six.viewkeys(textmap)
     newtokens = []
     for token in text_tokens:
         if not is_overlap(textmap[token], text_tokens - {token}):
@@ -105,13 +134,15 @@ def unoverlap(tokens):
     return [textmap[t] for t in newtokens]
 
 
-def ner(doc, matcher=NP_MATCHER, match_ids=False, remove_overlap=True):
+def ner(doc, matcher, match_ids=False, remove_overlap=True):
     """Find all NEs and other nouns in a spacy doc.
 
     Parameters
     ----------
     doc: spacy.tokens.doc.Doc
         The document in which to search for entities.
+    matcher: spacy.matcher.Matcher
+        The rule based matcher to use for finding noun phrases.
     match_ids: list, optional
         IDs from the spacy matcher to filter from the matches.
     remove_overlap: bool, optional
@@ -132,7 +163,7 @@ def ner(doc, matcher=NP_MATCHER, match_ids=False, remove_overlap=True):
         entities.update([doc[start:end] for _, start, end in matcher(doc)])
     else:
         for m_id, start, end in matcher(doc):
-            if NP_MATCHER.vocab.strings[m_id] in match_ids:
+            if matcher.vocab.strings[m_id] in match_ids:
                 entities.add(doc[start:end])
     if remove_overlap:
         entities = unoverlap(entities)
@@ -165,50 +196,6 @@ def sanitize_fh_args(args, func=join_words):
     for k, v in args.items():
         args[k] = [join_words(x) for x in v]
     return args
-
-
-def humanize_comparison(x, y, bit, lot):
-    if x == y:
-        return choice(["the same", "identical"])
-    if x < y:
-        comparative = choice(["higher", "more", "greater"])
-    else:
-        comparative = choice(["less", "lower"])
-    if lot(x, y):
-        adj = choice(["a lot", "much"])
-    elif bit(x, y):
-        adj = choice(["a little", "a bit"])
-    else:
-        adj = ""
-    return " ".join([adj, comparative])
-
-
-def check_grammar(text):
-    host = config.get('languagetool', 'hostname')
-    port = config.get('languagetool', 'port')
-    apiversion = config.get('languagetool', 'apiversion')
-    url = "{}:{}/{}/check?language=en-us&text={}"
-    try:
-        resp = requests.get(url.format(host, port, apiversion, text))
-        if resp.status_code == requests.codes.ok:
-            resp = resp.json()['matches']
-        else:
-            resp = []
-    except requests.ConnectionError:
-        resp = []
-    return resp
-
-
-def load_template(name, loc=None):
-    if loc is None:
-        try:
-            loc = config.get('templates', 'location')
-        except (NoOptionError, NoSectionError):
-            loc = '~/.nlg/templates'
-    tmpl_path = op.join(loc, name)
-    with open(tmpl_path, 'r') as fout:  # NOQA: No encoding for json
-        template = json.load(fout)
-    return template
 
 
 def add_html_styling(template, style):
@@ -249,21 +236,7 @@ def add_html_styling(template, style):
         spanstyle = "background-color:#c8f442"
     for m in re.finditer(pattern, template):
         token = m.group()
-        repl = f'<span style="{spanstyle}">{token}</span>'
+        repl = '<span style="{ss}">{token}</span>'.format(
+            ss=spanstyle, token=token)
         template = re.sub(re.escape(token), repl, template, 1)
-    return f'<p>{template}</p>'
-
-
-def is_large_diff(x, y, tol=0.33):
-    """
-    Check if two real numbers are significantly difference.
-
-    Parameters
-    ----------
-    x : int, float
-    y : int, float
-    tol : float, optional
-    The percentage of the sum of x and y which the smaller number has to occupy
-    to qualify as a significant difference.
-    """
-    return min(x, y) / (x + y) <= tol
+    return '<p>{template}</p>'.format(template=template)

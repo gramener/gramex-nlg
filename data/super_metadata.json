@@ -1,7 +1,0 @@
-{
-    "subject": {"column": "Party", "value": "BJP"},
-    "filters": [{"column": "Voteshare", "filter": "==24%"}],
-    "verb": ["won", "scored", "achieved"],
-    "superlative": ["greatest", "largest", "highest", "most"],
-    "results": {"colname": "AC"}
-}

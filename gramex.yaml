@@ -3,157 +3,133 @@
 # Configurations for app: nlg
 # ----------------------------------------------------------------------------
 url:
-    nlg-email-share:
-        pattern: /$YAMLURL/share
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.share_to_email_account
-    nlg-login-$*:
-        pattern: /$YAMLURL/login
-        handler: GoogleAuth
-        kwargs:
-            key: 927738177604-a056ijlrivc6l27tjjuscsq8d16s8mu0.apps.googleusercontent.com
-            secret: RRSGD3qTUM4bMyqByEsi22Kn
-            redirect:
-                query: next
-                url: /$YAMLURL/
-    nlg-data-selector-$*:
-        pattern: /$YAMLURL/initform
-        handler: FunctionHandler
-        kwargs:
-            headers:
-                Cache-Control: no-store
-            xsrf_cookies: false
-            function: web_app.init_form
-            redirect:
-                url: /$YAMLURL/index
-    nlg-demo-selector-$*:
-        pattern: /$YAMLURL/initdemo
-        handler: FunctionHandler
-        kwargs:
-            headers:
-                Cache-Control: no-store
-            xsrf_cookies: false
-            function: web_app.init_demo
-            redirect:
-                url: /$YAMLURL/demo
-    nlg-landing-page-$*:
-        pattern: /$YAMLURL/
-        handler: FileHandler
-        kwargs:
-            path: $YAMLPATH/app/grmform.html
-            template: true
-            auth:
-                login_url: /$YAMLURL/login
-    nlg-demo-filehandler-$*:
-        pattern: /$YAMLURL/demo
-        handler: FileHandler
-        kwargs:
-            path: $YAMLPATH/app/demo.html
-            template: true
-            auth:
-                login_url: /$YAMLURL/login
-    nlg-temporary-filehander-$*:
-        pattern: /$YAMLURL/index
-        handler: FileHandler
-        kwargs:
-            path: $YAMLPATH/app/index.html
-            template: true
-            auth:
-                login_url: /$YAMLURL/login
-    nlg-config-filehandler-$*:
-        pattern: /$YAMLURL/initconf
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.get_init_config
-            headers:
-                Content-Type: application/json
-    nlg-static_files-$*:
-        pattern: /$YAMLURL/nlg.js
-        handler: FileHandler
-        kwargs:
-            path: $YAMLPATH/app/js/nlg.js
-    tablepreview-$*:
-        pattern: /$YAMLURL/preview/(.*)/(.*)
-        handler: FormHandler
-        kwargs:
-            url: $GRAMEXDATA/nlg/{_0}/{_1}
-            headers:
-              Cache-Control: no-store
-    textproc-$*:
-        pattern: /$YAMLURL/textproc
-        handler: FunctionHandler
-        priority: 1000000
-        kwargs:
-            function: web_app.process_template
-            xsrf_cookies: false
-            headers:
-                Content-Type: application/json
-    rendertmpl-$*:
-        pattern: /$YAMLURL/render-template
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.render_template
-            xsrf_cookies: false
-            headers:
-                Content-Type: application/json
-    nlg_gramopts-$*:
-        pattern: /$YAMLURL/get-gramopts
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.get_gramopts
-            xsrf_cookies: false
-            headers:
-                Content-Type: application/json
-    tmpl-download-$*:
-        pattern: /$YAMLURL/tmpl-download
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.download_template
-            xsrf_cookies: false
-            headers:
-                Content-Type: application/octet-stream
-                Content-Disposition: attachment; filename="template.py"
-    save-config-$*:
-        pattern: /$YAMLURL/save-config
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.save_config
-            xsrf_cookies: false
-    config-download-$*:
-        pattern: /$YAMLURL/config-download
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.download_config
-            xsrf_cookies: false
-            headers:
-                Content-Type: application/octet-stream
-                Content-Disposition: attachment; filename="config.json"
-    edit-narrative-$*:
-        pattern: /$YAMLURL/edit-narrative
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.edit_narrative
-            auth:
-                login_url: /$YAMLURL/login
-            redirect:
-                query: next
-                header: Referrer
-                url: /$YAMLURL/index
-    render-live-template-$*:
-        pattern: /$YAMLURL/render-live-template
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.render_live_template
-    share-demo-$*:
-        pattern: /$YAMLURL/share-demo/(.*)/(.*)
-        handler: FunctionHandler
-        kwargs:
-            function: web_app.share_demo
-            auth:
-                login_url: /$YAMLURL/login
-            redirect:
-                url: /$YAMLURL/demo
+  nlg-email-share:
+    pattern: /$YAMLURL/share
+    handler: FunctionHandler
+    kwargs:
+     function: web_app.share_to_email_account
+  nlg-login-$*:
+    pattern: /$YAMLURL/login
+    handler: GoogleAuth
+    kwargs:
+      key: 927738177604-a056ijlrivc6l27tjjuscsq8d16s8mu0.apps.googleusercontent.com
+      secret: RRSGD3qTUM4bMyqByEsi22Kn
+      redirect:
+        url: /$YAMLURL/
+  nlg-data-selector-$*:
+    pattern: /$YAMLURL/initform
+    handler: FunctionHandler
+    kwargs:
+      headers:
+        Cache-Control: no-store
+        xsrf_cookies: false
+      function: web_app.init_form
+      redirect:
+        url: /$YAMLURL/
+  nlg-demo-selector-$*:
+    pattern: /$YAMLURL/initdemo
+    handler: FunctionHandler
+    kwargs:
+      headers:
+        Cache-Control: no-store
+        xsrf_cookies: false
+      function: web_app.init_demo
+      redirect:
+        url: /$YAMLURL/demo
+  nlg-demo-filehandler-$*:
+    pattern: /$YAMLURL/demo
+    handler: FileHandler
+    kwargs:
+      path: $YAMLPATH/html/demo.html
+      template: true
+      auth:
+        login_url: /$YAMLURL/login
+  nlg-temporary-filehander-$*:
+    pattern: /$YAMLURL/
+    handler: FileHandler
+    kwargs:
+      path: $YAMLPATH/index.html
+      auth:
+        login_url: /$YAMLURL/login
+      transform:
+        "index.html":
+          function: template
+          kwargs:
+            nlg_base: ''
+  nlg-config-filehandler-$*:
+    pattern: /$YAMLURL/initconf
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.get_init_config
+      headers:
+        Content-Type: application/json
+  nlg-static_files-$*:
+    pattern: /$YAMLURL/nlg.js
+    handler: FileHandler
+    kwargs:
+      path: $YAMLPATH/js/nlg.js
+  tablepreview-$*:
+    pattern: /$YAMLURL/preview/(.*)/(.*)
+    handler: FormHandler
+    kwargs:
+      url: $GRAMEXDATA/nlg/{_0}/{_1}
+      headers:
+        Cache-Control: no-store
+  textproc-$*:
+    pattern: /$YAMLURL/textproc
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.process_template
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
+  rendertmpl-$*:
+    pattern: /$YAMLURL/render-template
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.render_template
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
+  nlg_gramopts-$*:
+    pattern: /$YAMLURL/get-gramopts
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.get_gramopts
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
+  save-config-$*:
+    pattern: /$YAMLURL/save-config
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.save_config
+      xsrf_cookies: false
+  edit-narrative-$*:
+    pattern: /$YAMLURL/edit-narrative
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.edit_narrative
+      auth:
+        login_url: /$YAMLURL/login
+      redirect:
+        query: next
+        header: Referrer
+        url: /$YAMLURL/index
+  render-live-template-$*:
+    pattern: /$YAMLURL/render-live-template
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.render_live_template
+  share-demo-$*:
+    pattern: /$YAMLURL/share-demo/(.*)/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: web_app.share_demo
+      auth:
+        login_url: /$YAMLURL/login
+      redirect:
+        url: /$YAMLURL/demo
 
 # Gramex init configurations for app: nlg
 # ----------------------------------------------------------------------------
@@ -169,19 +145,6 @@ import:
     YAMLURL: $YAMLURL/ui/
 
   # /admin/ as an admin page to manage users, get system info, etc.
-  admin:
-    path: $GRAMEXAPPS/admin2/gramex.yaml    # Note the "admin2" instead of "admin"
-    YAMLURL: /$YAMLURL/admin/               # URL to show the admin page at
-    ADMIN_KWARGS:
-      logo: https://gramener.com/uistatic/gramener.png
-      title: Admin
-      theme: '?primary=%2320186f&dark=%2320186f&font-family-base=roboto&body-bg=%23f8f8f8'
-      # authhandler: name-of-DBAuth-handler    -- required for user management
-    ADMIN_AUTH:
-      membership:
-        hd: gramener.com                    # Only @gramener.com Google Auth are admins
-
-
 handlers:
   BaseHandler:
     # Custom error pages for this application

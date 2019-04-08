@@ -13,6 +13,8 @@ import unittest
 import pandas as pd
 
 from nlg import search, utils
+nlp = utils.load_spacy_model()
+matcher = utils.make_np_matcher(nlp)
 
 
 class TestDFSearch(unittest.TestCase):
@@ -89,8 +91,8 @@ class TestSearch(unittest.TestCase):
     @unittest.skip("Temporary")
     def test_search_args(self):
         args = {"_sort": ["-votes"]}
-        doc = utils.nlp("James Stewart is the top voted actor.")
-        ents = utils.ner(doc)
+        doc = nlp("James Stewart is the top voted actor.")
+        ents = utils.ner(doc, matcher)
         self.assertDictEqual(
             search.search_args(ents, args),
             {
@@ -105,8 +107,8 @@ class TestSearch(unittest.TestCase):
     @unittest.skip("Temporary")
     def test_search_args_literal(self):
         args = {"_sort": ["-rating"]}
-        doc = utils.nlp("James Stewart has the highest rating.")
-        ents = utils.ner(doc)
+        doc = nlp("James Stewart has the highest rating.")
+        ents = utils.ner(doc, matcher)
         self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
                              {'rating': {
                                  "tmpl": "fh_args['_sort'][0]",
