@@ -12,6 +12,11 @@
   <link rel="stylesheet" href="ui/bootstraptheme.css{{ admin_kwargs.get('theme', '') }}">
   <link rel="stylesheet" href="ui/font-awesome/css/font-awesome.min.css">
   <script src="ui/popper.js/dist/umd/popper.min.js"></script>
+  <link rel="stylesheet" href="ui/tether-shepherd/dist/css/shepherd-theme-arrows.css">
+  <link rel="stylesheet" href="ui/tether-shepherd/dist/css/shepherd-theme-dark.css">
+  <script src="ui/tether-shepherd/dist/js/tether.js"></script>
+  <script src="ui/tether-shepherd/dist/js/shepherd.min.js"></script>
+
   <!--IDE HTML-->
   {% from web_app import read_current_config, get_user_dir, is_user_authenticated %}
   {% set dsid = read_current_config(handler).get('dsid') %}
@@ -38,8 +43,6 @@
       var grammarOptions = []
       var narrative_name = "";
       var dataset_name = "";
-      // setContextMenu();
-      $(document).ready(setInitialConfig)
   </script>
   <div class="form-inline">
     <div class="form-row align-items-center">
@@ -50,7 +53,7 @@
         <input class="form-control" id="narrative-name-editor" placeholder="Name the Narrative">
       </div>
       <div class="col-auto">
-        <button type="button" class="btn btn-primary round"
+        <button type="button" class="btn btn-primary round add-data-btn"
         data-toggle="modal" data-target=".grmform-modal">Add Data
           <i class="fa fa-plus"></i>
         </button>
@@ -58,7 +61,7 @@
     </div>
   </div>
   <!-- GRMFORM HTML -->
-  <div class="modal fade grmform-modal" tabindex="-1" role="dialog"
+  <div class="modal fade grmform-modal" tabindex="-1" role="dialog" id="data-modal"
   aria-labelledby="grmformModalLabel" aria-hidden="true">
     {% from web_app import get_dataset_files, get_narrative_config_files %}
     {% set NLG_DATASETS = get_dataset_files(handler) %}
@@ -72,8 +75,7 @@
           </button>
         </div>
         <div class="modal-body">
-          <form id="nlg-init-form" action="{{ nlg_base }}initform?next={{ handler.request.path }}"
-          method="POST" enctype="multipart/form-data">
+          <form id="nlg-init-form" method="POST" enctype="multipart/form-data">
             <div class="row">
               <div class="col">
                 <select name="dataset" id="dataset-select" class="form-control" form="nlg-init-form">
@@ -108,7 +110,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-          <button type="submit" form="nlg-init-form" class="btn btn-primary">Submit</button>
+          <button id="initform-btn" type="button" form="nlg-init-form" class="btn btn-primary">Submit</button>
         </div>
       </div>
     </div>
@@ -130,6 +132,11 @@
         class="btn btn-primary">
             Share
             <i class="fa fa-share"></i>
+        </button>
+        <button id="tour-btn" type="button" title="Tour"
+        class="btn btn-primary">
+            Take a Tour
+            <i class="fa fa-plane"></i>
         </button>
         <div class="alert alert-success alert-dismissable collapse" role="alert">
           <strong>Saved!</strong>
@@ -158,11 +165,7 @@
   {% if dsid %}
   {% from os.path import basename %}
   {% set user_dir = basename(get_user_dir(handler)) %}
-  <div class="formhandler" data-src="{{ nlg_base }}preview/{{ user_dir }}/{{ dsid }}"></div>
-  <script>
-    $('.formhandler').on('load', renderPreview);
-    $('.formhandler').formhandler();
-  </script>
+  <div id="fh-container"></div>
   {% end %}
   <!--
   <button id="clear-tmpls" title="Clear Narrative" type="button" class="btn btn-danger">
@@ -317,6 +320,27 @@
           url: nlg_base + "get-gramopts",
           success: function (resp) { grammarOptions = resp }
       })
+      $('#initform-btn').on('click', function(e) {
+        e.preventDefault()
+        $('.grmform-modal').modal('hide')
+
+        var fdata = new FormData();
+        fdata.append('data-file', $('#fileupload')[0].files[0])
+        fdata.append('config-file', $('#narrativeupload')[0].files[0])
+        fdata.append('dataset', $('#dataset-select').find(':selected').text()),
+        fdata.append('narrative', $('#narrative-select').find(':selected').text())
+        resetForm()
+        $.ajax({
+          url: nlg_base + 'initform',
+          type: "POST",
+          data: fdata,
+          processData: false,
+          contentType: false,
+          success: setInitialConfig
+        })
+      })
+      $('#tour-btn').on('click', start_tour)
+      $(document).ready(setInitialConfig)
   </script>
 </body>
 

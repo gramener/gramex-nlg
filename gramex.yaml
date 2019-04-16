@@ -24,8 +24,6 @@ url:
         Cache-Control: no-store
         xsrf_cookies: false
       function: web_app.init_form
-      redirect:
-        url: /$YAMLURL/
   nlg-demo-selector-$*:
     pattern: /$YAMLURL/initdemo
     handler: FunctionHandler
@@ -75,6 +73,12 @@ url:
       url: $GRAMEXDATA/nlg/{_0}/{_1}
       headers:
         Cache-Control: no-store
+  fh-filehandler-$*:
+    pattern: /$YAMLURL/fh-template-render
+    handler: FileHandler
+    kwargs:
+      path: $YAMLPATH/fh.html
+      template: true
   textproc-$*:
     pattern: /$YAMLURL/textproc
     handler: FunctionHandler
