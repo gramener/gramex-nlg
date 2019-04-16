@@ -1,4 +1,4 @@
-/* globals currentEditIndex, grammarOptions, templates, args, df, currentEventHandlers, nlg_base */
+/* globals currentEditIndex, grammarOptions, templates, args, df, currentEventHandlers, nlg_base, narrative_name, dataset_name */
 /* exported addToNarrative, downloadConfig, setInitialConfig, uploadConfig, checkTemplate, saveTemplate, addCondition, addName, changeFHSetter, shareNarrative, copyToClipboard */
 /* eslint-disable no-global-assign */
 var narrative_name, dataset_name
@@ -508,22 +508,33 @@ function downloadConfig() {
 
 function setInitialConfig() {
   $.ajax({
-    // url: 'initconf/meta.json',
     url: nlg_base + 'initconf',
     type: 'GET',
     success: function (e) {
       dataset_name = e.dsid
+      getFormHandler()
       narrative_name = e.nrid
-      if (e.config) { setConfig(e.config) }
+      if (e.config) {
+        setConfig(e.config)
+      } else {
+        templates = []
+        renderPreview(null)
+      }
     },
     error: function () { return false }
   })
-  // $.ajax({
-  //     url: 'initconf/config.json',
-  //     type: 'GET',
-  //     success: setConfig,
-  //     error: function (e) { return false }
-  // })
+}
+
+function getFormHandler() {
+  $.ajax({
+    url: nlg_base + `fh-template-render?nlg_base=${nlg_base}&dsid=${dataset_name}`,
+    type: "GET",
+    success: function (e) {
+      $('#fh-container').html(e)
+      $('.formhandler').formhandler()
+      $('.formhandler').on('load', renderPreview)
+    }
+  })
 }
 
 function setConfig(configobj) {
@@ -603,6 +614,7 @@ function saveTemplate() {
   templates[currentEditIndex].highlight()
   renderPreview(null)
   document.getElementById('save-template').disabled = true
+  $('.grmform-modal').modal('hide')
 }
 
 function addCondition() {
@@ -718,4 +730,127 @@ function getSettingsBtn(n) {
         <i class="fa fa-wrench"></i>
     </button>
     `
+}
+
+
+function start_tour() {
+  let tour = new Shepherd.Tour({defaults: {classes: 'shepherd-theme-dark'}})
+  let buttons = [
+    {
+      text: 'Exit',
+      classes: 'shepherd-button-secondary',
+      action: tour.cancel
+    },
+    {
+      text: 'Next',
+      classes: 'shepherd-button-secondary',
+      action: tour.next
+    }
+  ]
+
+  tour.addStep('tour1', {
+    title: 'Welcome to Gramex\'s NLG component!',
+    text: 'To begin, add some data by clicking here.',
+    attachTo: '.add-data-btn bottom',
+    buttons: buttons
+  })
+  tour.addStep('tour2', {
+    title: 'Add Data or Narratives',
+    text: 'Select a dataset, or upload a new one.',
+    attachTo: '#dataset-select left',
+    buttons: buttons
+  })
+  tour.addStep('tour3', {
+    title: 'Submit',
+    text: 'Click here to submit the data to the IDE.',
+    attachTo: '#initform-btn bottom',
+    buttons: buttons
+  })
+  tour.addStep('tour4', {
+    title: 'Enter text',
+    text: 'Type something about the data.',
+    attachTo: '#textbox top',
+    buttons: buttons
+  })
+  tour.addStep('tour5', {
+    title: 'Add to Narrative',
+    text: 'Add the text to your narrative by clicking here.',
+    attachTo: '#inspect bottom',
+    buttons: buttons
+  })
+  tour.addStep('tour6', {
+    title: 'Template settings',
+    text: `The NLG engine has now automatically created a template based on what you typed.
+           You can change the settings of the template by clicking here.`,
+    attachTo: '#settings-btn-0 bottom',
+    buttons: buttons
+  })
+  tour.addStep('tour7', {
+    title: 'Template Preview',
+    text: 'Preview the rendered template here',
+    attachTo: '#tmpl-setting-preview right',
+    buttons: buttons
+  })
+  tour.addStep('tour8', {
+    title: 'Name the template',
+    text: 'You can optionally name the template here.',
+    attachTo: '#tmpl-name-btn right',
+    buttons: buttons
+  })
+  tour.addStep('tour9', {
+    title: 'Make it conditional',
+    text: `Any Python expression which evaluates to a boolean may be used as a condition
+           on which the template will render.`,
+    attachTo: '#condition-btn right',
+    buttons: buttons
+  })
+  tour.addStep('tour10', {
+    title: 'Edit the template',
+    text: 'Edit the raw Tornado template here.',
+    attachTo: '#edit-template right',
+    buttons: buttons
+  })
+  tour.addStep('tour11', {
+    title: 'Run the template',
+    text: 'Run the revised template and see its preview.',
+    attachTo: '#check-template left',
+    buttons: buttons
+  })
+  tour.addStep('tour12', {
+    title: 'Save the template',
+    text: 'Save the revised template by clicking here.',
+    attachTo: '#save-template left',
+    buttons: buttons
+  })
+  tour.addStep('tour13', {
+    title: 'Multiple insights',
+    text: 'You can add multiple insights to your \'Narrative\' by following this cycle.',
+    buttons: buttons
+  })
+  tour.addStep('tour14', {
+    title: 'Naming the narrative.',
+    text: 'The collection of insights you just created is called a narrative. Give it a name.',
+    attachTo: '#narrative-name-editor right',
+    buttons: buttons
+  })
+  tour.addStep('tour15', {
+    title: 'Saving the narrative.',
+    text: `Save the narrative by clicking here. Next time you visit the NLG app,
+           this narrative will be available for selection from the "Add Data" link.`,
+    attachTo: '#save-config-btn left',
+    buttons: [{
+      text: 'Finish',
+      classes: 'shepherd-button-secondary',
+      action: tour.cancel
+    }]
+  })
+
+  tour.start()
+}
+
+function resetForm() {
+  $('#dataset-select').val(null)
+  $('#narrative-select').val(null)
+  $('#fileupload').val(null)
+  $('#narrativeupload').val(null)
 }

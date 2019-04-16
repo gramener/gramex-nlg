@@ -10,7 +10,7 @@ validate:
 deploy:
   stage: deploy
   script: deploy
-  only: [master, jd-backport-single-page]
+  only: [master, jd-nlg-tour]
   tags: [py3]
   variables:
     SERVER: ubuntu@uat.gramener.com       # Deploy to uat.gramener.com/app-name/

@@ -255,7 +255,7 @@ def init_form(handler):
     """Process input from the landing page and write the current session config."""
     meta = {}
     # prioritize files first
-    data_dir = op.join(nlg_path, handler.current_user.email)
+    data_dir = op.join(nlg_path, handler.current_user.id)
     if not op.isdir(data_dir):
         os.makedirs(data_dir)
 
@@ -267,8 +267,9 @@ def init_form(handler):
         with open(outpath, 'wb') as fout:
             fout.write(data_file['body'])
     else:
-        dataset = handler.args['dataset'][0]
-        outpath = op.join(data_dir, dataset)
+        dataset = handler.get_argument('dataset', '')
+        if dataset:
+            outpath = op.join(data_dir, dataset)
     meta['dsid'] = op.basename(outpath)
 
     # handle config
