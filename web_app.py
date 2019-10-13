@@ -5,25 +5,23 @@
 Module for gramex exposure. This shouldn't be imported anywhere, only for use
 with gramex.
 """
+import glob
 import json
 import os
 import os.path as op
-import shutil
-from six.moves.urllib import parse
 
 import pandas as pd
+from six.moves.urllib import parse
 from tornado.template import Template
 
-from gramex.config import variables
 from gramex.apps.nlg import grammar
-from gramex.apps.nlg import templatize
 from gramex.apps.nlg import nlgutils as utils
-
+from gramex.apps.nlg import templatize
+from gramex.config import variables
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
 
-grx_data_dir = variables['GRAMEXDATA']
-nlg_path = op.join(grx_data_dir, 'nlg')
+nlg_path = op.join(variables['GRAMEXDATA'], 'nlg')
 
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
@@ -32,18 +30,20 @@ if not op.isdir(nlg_path):
 def clean_anonymous_files():
     """Remove all files uploaded by anonymous users.
     This may be used at startup when deploying the app."""
+    import shutil
     anon_dir = op.join(nlg_path, 'anonymous')
     if op.isdir(anon_dir):
         shutil.rmtree(anon_dir)
 
 
 def is_user_authenticated(handler):
+    """Check if the current user is authenticated."""
     current_user = getattr(handler, 'current_user', False)
     return bool(current_user)
 
 
 def get_user_dir(handler):
-    if getattr(handler, 'current_user', False):
+    if is_user_authenticated(handler):
         dirpath = op.join(nlg_path, handler.current_user.id)
     else:
         dirpath = op.join(nlg_path, 'anonymous')
@@ -52,19 +52,18 @@ def get_user_dir(handler):
 
 def render_live_template(handler):
     """Given a narrative ID and df records, render the template."""
+    payload = json.loads(handler.request.body)
     orgdf = get_original_df(handler)
-    nrid = handler.args['nrid'][0]
+    nrid = payload['nrid']
     if not nrid.endswith('.json'):
         nrid += '.json'
-    data = json.loads(handler.args['data'][0])
-    df = pd.DataFrame.from_records(data)
+    df = pd.DataFrame.from_records(payload['data'])
     nrpath = op.join(nlg_path, handler.current_user.id, nrid)
     with open(nrpath, 'r') as fout:  # noqa: No encoding for json
         templates = json.load(fout)
     narratives = []
-    style = json.loads(handler.args['style'][0])
     for t in templates['config']:
-        tmpl = utils.add_html_styling(t['template'], style)
+        tmpl = utils.add_html_styling(t['template'], payload['style'])
         s = Template(tmpl).generate(df=df, fh_args=t.get('fh_args', {}),
                                     G=grammar, U=utils, orgdf=orgdf)
         rendered = s.decode('utf8')
@@ -84,17 +83,10 @@ def get_original_df(handler):
 def render_template(handler):
     """Render a set of templates against a dataframe and formhandler actions on it."""
     orgdf = get_original_df(handler)
-    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    if not payload:
-        payload = json.loads(handler.request.body.decode("utf8"))
-        fh_args = payload['args']
-        templates = payload['template']
-        df = pd.DataFrame.from_records(payload['data'])
-    else:
-        payload = dict(payload)
-        fh_args = json.loads(payload.get("args", {}))
-        templates = json.loads(payload["template"])
-        df = pd.read_json(payload["data"], orient="records")
+    payload = json.loads(handler.request.body.decode('utf8'))
+    fh_args = payload['args']
+    templates = payload['template']
+    df = pd.DataFrame.from_records(payload['data'])
     # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
     resp = []
     for t in templates:
@@ -106,24 +98,20 @@ def render_template(handler):
     return json.dumps(resp)
 
 
-def process_template(handler):
+def process_text(handler):
     """Process English text in the context of a df and formhandler arguments
     to templatize it."""
-    payload = parse.parse_qsl(handler.request.body.decode("utf8"))
-    payload = dict(payload)
-    text = json.loads(payload["text"])
-    df = pd.read_json(payload["data"], orient="records")
-    args = json.loads(payload.get("args", {}))
-    if args is None:
-        args = {}
+    payload = json.loads(handler.request.body.decode('utf8'))
+    df = pd.DataFrame.from_records(payload['data'])
+    args = payload.get('args', {}) or {}
     resp = []
-    for t in text:
+    for t in payload['text']:
         # grammar_errors = yield utils.check_grammar(t)
         replacements, t, infl = templatize(t, args.copy(), df)
         resp.append({
-            "text": t, "tokenmap": replacements, 'inflections': infl,
-            "fh_args": args, "setFHArgs": False,
-            # "grmerr": json.loads(grammar_errors.decode('utf8'))['matches']
+            'text': t, 'tokenmap': replacements, 'inflections': infl,
+            'fh_args': args
+            # 'grmerr': json.loads(grammar_errors.decode('utf8'))['matches']
         })
     return json.dumps(resp)
 
@@ -153,13 +141,8 @@ def get_dataset_files(handler):
     list
         List of filenames.
     """
-    files = []
-    if getattr(handler, 'current_user', None):
-        user_dir = op.join(nlg_path, handler.current_user.id)
-        if op.isdir(user_dir):
-            allfiles = os.listdir(user_dir)
-            files = [f for f in allfiles if op.splitext(f)[-1].lower() in DATAFILE_EXTS]
-    return files
+    files = glob.glob('{}/*'.format(get_user_dir(handler)))
+    return [f for f in files if op.splitext(f)[-1].lower() in DATAFILE_EXTS]
 
 
 def get_narrative_config_files(handler):
@@ -174,29 +157,16 @@ def get_narrative_config_files(handler):
     list
         List of narrative configurations.
     """
-    files = []
-    if getattr(handler, 'current_user', None):
-        user_dir = op.join(nlg_path, handler.current_user.id)
-        if op.isdir(user_dir):
-            files = [f for f in os.listdir(user_dir) if f.endswith('.json')]
-    return files
-
-
-def download_config(handler):
-    """Download the current narrative config as JSON."""
-    payload = {}
-    payload['config'] = json.loads(parse.unquote(handler.args['config'][0]))
-    payload['data'] = json.loads(parse.unquote(handler.args.get('data', [None])[0]))
-    payload['name'] = parse.unquote(handler.args['name'][0])
-    return json.dumps(payload, indent=4)
+    return glob.glob('{}/*.json'.format(get_user_dir(handler)))
 
 
 def save_config(handler):
     """Save the current narrative config.
     (to $GRAMEXDATA/{{ handler.current_user.id }})"""
     payload = {}
-    payload['config'] = json.loads(parse.unquote(handler.args['config'][0]))
-    payload['name'] = parse.unquote(handler.args['name'][0])
+    for k in ['config', 'name', 'dataset']:
+        payload[k] = parse.unquote(handler.args[k][0])
+    payload['config'] = json.loads(payload['config'])
     nname = payload['name']
     if not nname.endswith('.json'):
         nname += '.json'
@@ -218,17 +188,9 @@ def get_gramopts(handler):
     return funcs
 
 
-def init_demo(handler):
-    """Process input from the landing page and write the current demo config.
-
-    Parameters
-    ----------
-    handler : [type]
-        [description]
-
-    """
+def init_form(handler):
+    """Process input from the landing page and write the current session config."""
     meta = {}
-    # prioritize the data file first
     data_dir = get_user_dir(handler)
     if not op.isdir(data_dir):
         os.makedirs(data_dir)
@@ -243,39 +205,14 @@ def init_demo(handler):
     else:
         dataset = handler.args['dataset'][0]
         outpath = op.join(data_dir, dataset)
-    meta['dsid'] = op.basename(outpath)
-
-    meta['nrid'] = handler.get_argument('narrative')
-    # write meta config
-    with open(op.join(data_dir, 'demo.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
-        json.dump(meta, fout, indent=4)
-
-
-def init_form(handler):
-    """Process input from the landing page and write the current session config."""
-    meta = {}
-    # prioritize files first
-    data_dir = op.join(nlg_path, handler.current_user.id)
-    if not op.isdir(data_dir):
-        os.makedirs(data_dir)
-
-    # handle dataset
-    data_file = handler.request.files.get('data-file', [{}])[0]
-    if data_file:
-        # TODO: Unix filenames may not be valid Windows filenames.
-        outpath = op.join(data_dir, data_file['filename'])
-        with open(outpath, 'wb') as fout:
-            fout.write(data_file['body'])
-    else:
-        dataset = handler.get_argument('dataset', '')
-        if dataset:
-            outpath = op.join(data_dir, dataset)
+    # shutil.copy(outpath, fh_fpath)
     meta['dsid'] = op.basename(outpath)
 
     # handle config
     config_name = handler.get_argument('narrative', '')
     if config_name:
         config_path = op.join(data_dir, config_name)
+        # shutil.copy(config_path, op.join(local_data_dir, 'config.json'))
         meta['nrid'] = op.basename(config_path)
 
     # write meta config
@@ -305,31 +242,3 @@ def get_init_config(handler):
                 meta['config'] = json.load(fout)
         return meta
     return {}
-
-
-def share_to_email_account(handler):
-    target_user = handler.get_argument('email')
-    target_dir = op.join(nlg_path, target_user)
-    if not op.isdir(target_dir):
-        os.mkdir(target_dir)
-    src_user = handler.current_user.email
-    src_dir = op.join(nlg_path, src_user)
-
-    dsid = handler.get_argument('dsid')
-    src_dataset = op.join(src_dir, dsid)
-    target_dataset = op.join(target_dir, dsid)
-    shutil.copy(src_dataset, target_dataset)
-
-    nrid = handler.get_argument('nrid')
-    if not nrid.endswith('.json'):
-        nrid += '.json'
-    src_narrative = op.join(src_dir, nrid)
-    target_narrative = op.join(target_dir, nrid)
-    shutil.copy(src_narrative, target_narrative)
-
-
-def share_demo(handler):
-    dsid, nrid = handler.path_args
-    config_path = op.join(nlg_path, handler.current_user.email, 'demo.cfg')
-    with open(config_path, 'w') as fout:
-        json.dump({'nrid': nrid, 'dsid': dsid}, fout)
