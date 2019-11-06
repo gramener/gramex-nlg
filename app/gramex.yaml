@@ -28,7 +28,7 @@ url:
       headers:
         Cache-Control: no-store
       xsrf_cookies: false
-      function: web_app.init_form
+      function: nlg.app.init_form
       redirect:
         query: next
   tablepreview-$*:
@@ -47,14 +47,14 @@ url:
     pattern: /$YAMLURL/initconf
     handler: FunctionHandler
     kwargs:
-      function: web_app.get_init_config
+      function: nlg.app.get_init_config
       headers:
         Content-Type: application/json
   textproc-$*:
     pattern: /$YAMLURL/textproc
     handler: FunctionHandler
     kwargs:
-      function: web_app.process_text
+      function: nlg.app.process_text
       xsrf_cookies: false
       headers:
         Content-Type: application/json
@@ -62,7 +62,7 @@ url:
     pattern: /$YAMLURL/render-template
     handler: FunctionHandler
     kwargs:
-      function: web_app.render_template
+      function: nlg.app.render_template
       xsrf_cookies: false
       headers:
         Content-Type: application/json
@@ -70,7 +70,7 @@ url:
     pattern: /$YAMLURL/get-gramopts
     handler: FunctionHandler
     kwargs:
-      function: web_app.get_gramopts
+      function: nlg.app.get_gramopts
       xsrf_cookies: false
       headers:
         Content-Type: application/json
@@ -78,13 +78,13 @@ url:
     pattern: /$YAMLURL/save-config
     handler: FunctionHandler
     kwargs:
-      function: web_app.save_config
+      function: nlg.app.save_config
       auth: $NLG_AUTH
   edit-narrative-$*:
     pattern: /$YAMLURL/edit-narrative
     handler: FunctionHandler
     kwargs:
-      function: web_app.edit_narrative
+      function: nlg.app.edit_narrative
       auth: $NLG_AUTH
       redirect:
         url: /$YAMLURL/
@@ -93,4 +93,4 @@ url:
     handler: FunctionHandler
     kwargs:
       auth: $NLG_AUTH
-      function: web_app.render_live_template
+      function: nlg.app.render_live_template

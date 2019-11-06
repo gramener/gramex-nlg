@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/gramener/gramex-nlg.svg?branch=dev)](https://travis-ci.org/gramener/gramex-nlg)
+
 ---
 title: Natural Language Generation
 prefix: Natural Language Generation

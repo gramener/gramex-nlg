@@ -1,2 +1,2 @@
-pip install spacy
+pip install nlg
 python -m spacy download en_core_web_sm

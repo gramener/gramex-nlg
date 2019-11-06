@@ -1,0 +1,38 @@
+# Config file for automatic testing at travis-ci.org
+
+# Run in Python 3 only. Drop Python 2 testing
+language: python
+python: '3.7'
+
+# Cache modules for faster builds
+cache:
+  timeout: 1000
+  pip: true
+  npm: true
+  yarn: true
+  # Don't cache miniconda directory. It's slower. Fresh install takes ~200s.
+  # But caching takes ~150s (extraction) + ~190s (re-packing) = ~340s (slower).
+  # directories:
+  #   - $HOME/miniconda
+
+install:
+  # Install miniconda
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/miniconda.sh
+  - bash $HOME/miniconda.sh -b -u -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  # Install pip modules
+  - pip install flake8 pep8-naming flake8-gramex flake8-blind-except flake8-print flake8-debugger nose coverage
+  # Set up variables
+  - export BRANCH=$TRAVIS_BRANCH
+
+script:
+  - eclint check '**/*.html' '**/*.js' '**/*.css' '**/*.yaml' '**/*.md'
+  - eslint ./apps
+  - htmllint
+  - flake8
+  - bandit nlg --recursive --format csv || true
+  - pip install -e .
+  - gramex setup ./apps
+  - nosetests -sv --with-doctest --with-coverage --cover-package=nlg
