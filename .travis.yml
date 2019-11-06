@@ -4,6 +4,9 @@
 language: python
 python: '3.7'
 
+dist: xenial
+sudo: yes
+
 # Cache modules for faster builds
 cache:
   timeout: 1000
@@ -24,6 +27,9 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   # Install pip modules
   - pip install flake8 pep8-naming flake8-gramex flake8-blind-except flake8-print flake8-debugger nose coverage
+  - npm install -g yarn
+  - yarn global add eclint eslint eslint-plugin-html htmllint-cli
+  - yarn install
   # Set up variables
   - export BRANCH=$TRAVIS_BRANCH
 
@@ -34,5 +40,5 @@ script:
   - flake8
   - bandit nlg --recursive --format csv || true
   - pip install -e .
-  - gramex setup ./apps
-  - nosetests -sv --with-doctest --with-coverage --cover-package=nlg
+  - gramex setup ./app
+  - nosetests -sv --with-coverage --cover-package=nlg

@@ -1,4 +1,4 @@
-/* globals currentEditIndex, grammarOptions, templates, args, df, currentEventHandlers, nlg_base */
+/* globals currentEditIndex, grammarOptions, templates, args, df, currentEventHandlers, nlg_base, g1 */
 /* exported addToNarrative, setInitialConfig, checkTemplate, saveTemplate,
 addCondition, addName, shareNarrative, copyToClipboard,
 findAppliedInflections */
