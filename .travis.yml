@@ -28,7 +28,7 @@ install:
   # Install pip modules
   - pip install flake8 pep8-naming flake8-gramex flake8-blind-except flake8-print flake8-debugger nose coverage
   - npm install -g yarn
-  - yarn global add eclint eslint eslint-plugin-html htmllint-cli
+  - yarn global add eclint eslint eslint-plugin-html eslint-plugin-template htmllint-cli
   - yarn install
   # Set up variables
   - export BRANCH=$TRAVIS_BRANCH
