@@ -9,7 +9,7 @@ import random
 import re
 
 
-from nlg import grammar as G
+from nlg import grammar as G  # noqa: N812
 
 TEMPLATES = {
     "extreme": "{subject} {verb} the {adjective} {object}.",

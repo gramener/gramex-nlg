@@ -15,7 +15,7 @@ builtins.__NLG_SETUP__ = True
 # Setuptools config
 NAME = "nlg"
 DESCRIPTION = "Natural Language Generation framework for Python."
-with open('README.md') as f:
+with open('README.md', encoding='utf-8') as f:
     LONG_DESCRIPTION = f.read()
 MAINTAINER = 'Jaidev Deshpande'
 MAINTAINER_EMAIL = 'jaidev.deshpande@gramener.com'

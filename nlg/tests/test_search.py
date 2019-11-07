@@ -24,7 +24,7 @@ class TestDFSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        cls.df = pd.read_csv(fpath)
+        cls.df = pd.read_csv(fpath, encoding='utf-8')
         cls.dfs = search.DFSearch(cls.df)
 
     def test__search_array(self):
@@ -63,7 +63,7 @@ class TestDFSearch(unittest.TestCase):
 
     def test_search_df(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
+        df = pd.read_csv(fpath, encoding='utf-8')
         df.sort_values("votes", ascending=False, inplace=True)
         df.reset_index(inplace=True, drop=True)
         dfs = search.DFSearch(df)
@@ -120,7 +120,7 @@ class TestSearch(unittest.TestCase):
 
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
+        df = pd.read_csv(fpath, encoding='utf-8')
         df.sort_values("votes", ascending=False, inplace=True)
         df.reset_index(inplace=True, drop=True)
 
