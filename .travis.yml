@@ -35,7 +35,6 @@ install:
 
 script:
   - eclint check '**/*.html' '**/*.js' '**/*.css' '**/*.yaml' '**/*.md'
-  - eslint ./app
   - htmllint
   - flake8
   - bandit nlg --recursive --format csv || true
