@@ -6,13 +6,15 @@ Search tools.
 """
 
 from itertools import chain
+import json
 
 import numpy as np
 import pandas as pd
 import six
+from tornado.template import Template
 
 from nlg import utils
-from nlg.grammar import find_inflections
+from nlg import grammar
 
 SEARCH_PRIORITIES = [
     {'type': 'ne'},  # A match which is a named entity gets the higest priority
@@ -332,7 +334,7 @@ def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
     return search_res
 
 
-def templatize(text, args, df):
+def _search(text, args, df):
     """Construct a tornado template which regenerates some
     text from a dataframe and formhandler arguments.
 
@@ -359,13 +361,15 @@ def templatize(text, args, df):
     text = six.u(text)
     args = {six.u(k): [six.u(c) for c in v] for k, v in args.items()}
     utils.load_spacy_model()
+    df = utils.grmfilter(df, args.copy())
     clean_text = utils.sanitize_text(text)
     args = utils.sanitize_fh_args(args)
+    # Is this correct?
     dfs = DFSearch(df)
     dfix = dfs.search(clean_text)
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
-    inflections = find_inflections(clean_text, dfix, args, df)
+    inflections = grammar.find_inflections(clean_text, dfix, args, df)
     _infl = {}
     for token, funcs in inflections.items():
         _infl[token] = []
@@ -376,3 +380,79 @@ def templatize(text, args, df):
                 'func_name': func.__name__
             })
     return dfix, clean_text, _infl
+
+
+def _make_inflection_string(tmpl, infl):
+    source = infl['source']
+    func_name = infl['func_name']
+    if source == 'str':
+        tmpl += f'.{func_name}()'
+    else:
+        tmpl = f'{source}.{func_name}({tmpl})'
+    return tmpl
+
+
+t_templatize = lambda x: '{{ ' + x + ' }}'  # noqa: E731
+
+
+def templatize_token(token, results, inflection):
+    for r in results:
+        if r.get('enabled', False):
+            break
+    tmpl = r['tmpl']
+    if inflection:
+        for i in inflection:
+            tmpl = _make_inflection_string(tmpl, i)
+    return t_templatize(tmpl)
+
+
+def set_fh_args(text, fh_args):
+    fh_args = json.dumps(fh_args)
+    tmpl = f'{{% set fh_args = {fh_args}  %}}\n'
+    tmpl += f'{{% set df = U.grmfilter(orgdf, fh_args.copy()) %}}\n'
+    return tmpl + text
+
+
+def templatize(text, args, df):
+    """Construct a tornado template which regenerates some
+    text from a dataframe and formhandler arguments.
+
+    Parameters
+    ----------
+    text : str
+        Input text
+    args : dict
+        Formhandler arguments
+    df : pd.DataFrame
+        Source dataframe.
+
+    Returns
+    -------
+    str
+        Tornado template corresponding to the text and data.
+
+    Example
+    -------
+    >>> from gramex import data
+    >>> df = pd.read_csv('iris.csv')
+    >>> fh_args = {'_by': ['species']}
+    >>> df = data.filter(df, fh_args.copy())
+    >>> text = 'The iris dataset has 3 species - setosa, versicolor and virginica.'
+    >>> template = templatize(text, fh_args, df)
+    >>> print(template)
+    {% set fh_args = {"_by": ["species"]}  %}
+    {% set df = U.grmfilter(orgdf, fh_args.copy()) %}
+    The iris dataset has 3 {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
+{{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}.
+    """
+    dfix, clean_text, infl = _search(text, args, df)
+    sentence = text
+    for tk, tkobj in dfix.items():
+        inflection = infl.get(tk)
+        tk_tmpl = templatize_token(tk, tkobj, inflection)
+        sentence = sentence.replace(tk, tk_tmpl)
+    return set_fh_args(sentence, args)
+
+
+def render(df, template):
+    return Template(template).generate(orgdf=df, U=utils, G=grammar)

@@ -138,7 +138,7 @@ class TestSearch(unittest.TestCase):
         of {{ df['rating'].iloc[-2] }}.
         """
         args = {"_sort": ["-votes"]}
-        tokenmap, text, inflections = search.templatize(doc, args, df)
+        tokenmap, text, inflections = search._search(doc, args, df)
         actual = text
         for token, tmpls in tokenmap.items():
             tmpl = [t for t in tmpls if t.get('enabled', False)][0]
