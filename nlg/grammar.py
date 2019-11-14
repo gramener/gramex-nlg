@@ -82,7 +82,6 @@ def singular(word):
     str
         Singular of `word`.
     """
-
     if is_plural_noun(word):
         word = infl.singular_noun(word)
     return word
@@ -106,7 +105,6 @@ def pluralize_by(word, by):
     str
         Plural or singular of `word`.
     """
-
     if hasattr(by, '__iter__'):
         if len(by) > 1:
             word = plural(word)
@@ -137,7 +135,6 @@ def pluralize_like(x, y):
     str
         Plural of `x` if `y` is plural, else singular.
     """
-
     if not is_plural_noun(y):
         return singular(x)
     return plural(x)

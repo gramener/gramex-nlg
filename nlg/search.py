@@ -10,14 +10,13 @@ import json
 
 import numpy as np
 import pandas as pd
-import six
 from tornado.template import Template
 
 from nlg import utils
 from nlg import grammar
 
 SEARCH_PRIORITIES = [
-    {'type': 'ne'},  # A match which is a named entity gets the higest priority
+    {'type': 'ne'},  # A match which is a named entity gets the highest priority
     {'location': 'fh_args'},  # than one that is a formhandler arg
     {'location': 'colname'},  # than one that is a column name
     {'type': 'quant'},  # etc
@@ -45,7 +44,7 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
         Prioritized search results - for each {token: search_matches} pair, sort
         search_matches such that a higher priority search result is enabled.
     """
-    match_ix = [[six.viewitems(p) <= six.viewitems(item) for p in priorities] for item in items]
+    match_ix = [[p.items() <= item.items() for p in priorities] for item in items]
     min_match = [m.index(True) for m in match_ix]
     items[min_match.index(min(min_match))]['enabled'] = True
     return items
@@ -75,7 +74,7 @@ class DFSearchResults(dict):
         # unoverlap the keys
         to_remove = []
         for k in self:
-            if any([k in c for c in six.viewkeys(self) - {k}]):
+            if any([k in c for c in self.keys() - {k}]):
                 to_remove.append(k)
         for i in to_remove:
             del self[i]
@@ -236,19 +235,19 @@ class DFSearch(object):
             # Expect text to be a list of strings, no preprocessing on anything.
             if not isinstance(text, list):
                 raise TypeError('text is expected to be list of strs when literal=True.')
-            valid_types = {float, int, six.text_type}
+            valid_types = {float, int, str}
             if not set([type(c) for c in text]).issubset(valid_types):
                 raise TypeError('text can contain only strings or numbers when literal=True.')
             tokens = {c: str(c) for c in text}
         elif lemmatize:
             tokens = {c.lemma_: c.text for c in self.nlp(text)}
             if array.ndim == 1:
-                array = [c if isinstance(c, six.text_type) else six.u(c) for c in array]
+                array = [c if isinstance(c, str) else str(c) for c in array]
                 array = [self.nlp(c) for c in array]
                 array = pd.Series([token.lemma_ for doc in array for token in doc])
             else:
                 for col in array.columns[array.dtypes == np.dtype('O')]:
-                    s = [c if isinstance(c, six.text_type) else six.u(c) for c in array[col]]
+                    s = [c if isinstance(c, str) else str(c) for c in array[col]]
                     s = [self.nlp(c) for c in s]
                     try:
                         array[col] = [token.lemma_ for doc in s for token in doc]
@@ -282,7 +281,7 @@ class DFSearch(object):
 def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
                 argkeys=('_sort', '_by', '_c')):
     """
-    Search formhandler arguments, as parsed by g1, for a set of tokens.
+    Search formhandler arguments provided as URL query parameters.
 
     Parameters
     ----------
@@ -358,8 +357,6 @@ def _search(text, args, df):
         of search results, cleaned text and token inflections. The webapp uses
         these to construct a tornado template.
     """
-    text = six.u(text)
-    args = {six.u(k): [six.u(c) for c in v] for k, v in args.items()}
     utils.load_spacy_model()
     df = utils.grmfilter(df, args.copy())
     clean_text = utils.sanitize_text(text)

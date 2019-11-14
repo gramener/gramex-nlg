@@ -6,7 +6,6 @@ Miscellaneous utilities.
 """
 import re
 
-import six
 from tornado.template import Template
 
 from gramex.data import filter as grmfilter  # NOQA: F401
@@ -18,22 +17,6 @@ NP_RULES = {
     'NP4': [{'POS': 'ADJ', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}],
     'QUANT': [{'POS': 'NUM', 'OP': '+'}]
 }
-
-NARRATIVE_TEMPLATE = """
-{% autoescape None %}
-from nlg import grammar as G
-from nlg import nlgutils as U
-from tornado.template import Template as T
-import pandas as pd
-
-df = None  # set your dataframe here.
-narrative = T(\'\'\"
-              {{ tmpl }}
-              \'\'\").generate(
-              tornado_tmpl=True, orgdf=df, fh_args={{ fh_args }},
-              G=G, U=U)
-print(narrative)
-"""
 
 _spacy = {
     'model': False,
@@ -126,7 +109,7 @@ def unoverlap(tokens):
     """From a set of tokens, remove all tokens that are contained within
     others."""
     textmap = {c.text: c for c in tokens}
-    text_tokens = six.viewkeys(textmap)
+    text_tokens = textmap.keys()
     newtokens = []
     for token in text_tokens:
         if not is_overlap(textmap[token], text_tokens - {token}):
