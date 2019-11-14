@@ -1,16 +1,76 @@
----
-title: Natural Language Generation
-prefix: Natural Language Generation
-...
+[![Build Status](https://travis-ci.org/gramener/gramex-nlg.svg?branch=dev)](https://travis-ci.org/gramener/gramex-nlg)
 
-[TOC]
+# nlg
 
-From v1.54, Gramex includes a Natural Language Generation component. The NLG app
-is a smart template creator which:
+Natural Language Generation component for [Gramex](https://github.com/gramener/gramex).
+The NLG module is designed to work as a Python library, as well as a [Gramex application](https://learn.gramener.com/guide/apps/#gramex-apps).
+
+The library:
 
 1. Automatically creates tornado templates from English text in the context of a dataset.
 2. Allows for modification and generalization of these templates.
 3. Renders these templates as a unified narrative.
+
+## Installation
+
+The NLG library can be installed from PyPI as follows:
+
+```bash
+$ pip install nlg
+$ gramex setup ./app
+```
+
+or from source as follows:
+
+```bash
+$ git clone https://github.com/gramener/gramex-nlg.git
+$ cd gramex-nlg
+$ pip install -e .
+$ gramex setup ./app
+```
+
+## Usage
+
+### Using the Python library
+
+```python
+>>> import pandas as pd
+>>> from gramex import data
+
+>>> # load some data
+>>> df = pd.read_csv('iris.csv')
+
+>>> # specify a FormHandler operation - find the average sepal_width per species
+>>> fh_args = {'_by': ['species'], '_c': ['sepal_width|avg'], '_sort': ['sepal_width|avg']}
+
+>>> # Draw a sample
+>>> xdf = df.sample(frac=0.1, random_state=10)
+
+>>> # perform the FormHandler operation on the data
+>>> print(data.filter(xdf, fh_args.copy()))
+      species  sepal_width|avg
+2   virginica             2.70
+1  versicolor             2.92
+0      setosa             3.15
+
+>>> # Write something about the output
+>>> text = "The virginica species has the least average sepal_width."
+
+>>> # Generate a template
+>>> from nlg.search import templatize, render
+>>> tmpl = templatize(text, fh_args, xdf)
+>>> print(tmpl)
+{% set fh_args = {"_by": ["species"], "_c": ["sepal_width|avg"], "_sort": ["sepal_width|avg"]}  %}
+{% set df = U.grmfilter(orgdf, fh_args.copy()) %}
+The {{ df["species"].iloc[0] }} species has the least average {{ fh_args["_sort"][0].lower() }}.
+
+>>> # Render the same template with new data.
+>>> print(render(df, tmpl).decode('utf8'))
+The versicolor species has the least average sepal_width|avg.
+```
+
+
+### Using as a Gramex application
 
 To use it, add the following to your `gramex.yaml`:
 
@@ -19,18 +79,11 @@ import:
   nlg:
     path: $GRAMEXAPPS/nlg/gramex.yaml
     YAMLURL: $YAMLURL/nlg/
-    auth:
-      login_url: /$YAMLURL/login
 ```
 
-This configuration mounts the app at [nlg/](nlg/):
+This configuration mounts the app at `/nlg`.
 
-<div class="example">
-  <a class="example-demo" href="nlg/">NLG</a>
-  <a class="example-src" href="http://github.com/gramener/gramex/blob/master/gramex/apps/guide/nlg/gramex.yaml">Source</a>
-</div>
-
-## The NLG Component
+## The Gramex NLG Component
 
 The NLG component depends on two sources of information:
 

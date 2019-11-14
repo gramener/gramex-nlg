@@ -11,8 +11,10 @@ import re
 import unittest
 
 import pandas as pd
+from tornado.template import Template
 
 from nlg import search, utils
+
 nlp = utils.load_spacy_model()
 matcher = utils.make_np_matcher(nlp)
 
@@ -22,7 +24,7 @@ class TestDFSearch(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        cls.df = pd.read_csv(fpath)
+        cls.df = pd.read_csv(fpath, encoding='utf-8')
         cls.dfs = search.DFSearch(cls.df)
 
     def test__search_array(self):
@@ -44,7 +46,7 @@ class TestDFSearch(unittest.TestCase):
     def test_dfsearch_lemmatized(self):
         df = pd.DataFrame.from_dict(
             {
-                "partner": ["Lata", "Asha", "Rafi"],
+                "partner": ["Lata Mangeshkar", "Asha Bhosale", "Mohammad Rafi"],
                 "song": [20, 5, 15],
             }
         )
@@ -54,13 +56,14 @@ class TestDFSearch(unittest.TestCase):
             dfs.search(sent, lemmatize=True),
             {
                 'songs': [{"location": "colname", "type": "token", "tmpl": "df.columns[1]"}],
-                'Lata': [{'location': 'cell', 'tmpl': "df['partner'].iloc[0]", 'type': 'token'}],
+                'Lata Mangeshkar': [
+                    {'location': 'cell', 'tmpl': 'df["partner"].iloc[0]', 'type': 'ne'}],
             }
         )
 
     def test_search_df(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
+        df = pd.read_csv(fpath, encoding='utf-8')
         df.sort_values("votes", ascending=False, inplace=True)
         df.reset_index(inplace=True, drop=True)
         dfs = search.DFSearch(df)
@@ -69,10 +72,10 @@ class TestDFSearch(unittest.TestCase):
             dfs.search(sent),
             {
                 'Spencer Tracy': [
-                    {'location': 'cell', 'tmpl': "df['name'].iloc[0]", 'type': 'ne'}
+                    {'location': 'cell', 'tmpl': 'df["name"].iloc[0]', 'type': 'ne'}
                 ],
                 'voted': [{'location': 'colname', 'tmpl': 'df.columns[-1]', 'type': 'token'}],
-                'actor': [{'location': 'cell', 'tmpl': "df['category'].iloc[-4]", 'type': 'token'}]
+                'actor': [{'location': 'cell', 'tmpl': 'df["category"].iloc[-4]', 'type': 'token'}]
             }
         )
 
@@ -117,7 +120,7 @@ class TestSearch(unittest.TestCase):
 
     def test_templatize(self):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath)
+        df = pd.read_csv(fpath, encoding='utf-8')
         df.sort_values("votes", ascending=False, inplace=True)
         df.reset_index(inplace=True, drop=True)
 
@@ -135,13 +138,16 @@ class TestSearch(unittest.TestCase):
         of {{ df['rating'].iloc[-2] }}.
         """
         args = {"_sort": ["-votes"]}
-        tokenmap, text, inflections = search.templatize(doc, args, df)
+        tokenmap, text, inflections = search._search(doc, args, df)
         actual = text
         for token, tmpls in tokenmap.items():
             tmpl = [t for t in tmpls if t.get('enabled', False)][0]
             actual = actual.replace(token, '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
-        self.assertEqual(*map(cleaner, (ideal, actual)))
+        ideal, actual = map(cleaner, (ideal, actual))
+        ideal = Template(ideal).generate(df=df, fh_args=args)
+        actual = Template(actual).generate(df=df, fh_args=args)
+        self.assertEqual(ideal, actual)
         self.assertDictEqual(
             inflections,
             {

@@ -8,6 +8,7 @@ docs/modules.rst
 tests/**/*.test
 tests/**/gen.*
 testlib/**/gen.*
+.noseids
 
 # Ignore byte-compiled / optimised / DLL files
 *.py[cod]
@@ -20,7 +21,7 @@ testlib/**/gen.*
 *.sqlite3-journal
 
 # Cache folders used for testing
-.cache*
+.cache-*
 .pytest_cache
 
 # Ignore log files
@@ -122,7 +123,6 @@ pip-log.txt
 .coverage
 .tox
 nosetests.xml
-coverage.xml
 htmlcov
 cover
 
@@ -146,9 +146,3 @@ docs/_build
 
 # For Linux FUSE file system
 .fuse_hidden*
-
-# Ignore swap files
-*.swp
-
-app/gramupload/
-.noseids

@@ -4,7 +4,6 @@
 
 """Tests for nlg.utils"""
 
-import random
 import unittest
 from nlg import utils
 

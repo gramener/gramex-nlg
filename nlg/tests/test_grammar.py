@@ -6,7 +6,7 @@
 Tests for the nlg.grammar module.
 """
 import unittest
-import nlg.grammar as G
+import nlg.grammar as G  # noqa: N812
 
 
 class TestGrammar(unittest.TestCase):
