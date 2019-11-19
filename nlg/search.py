@@ -451,5 +451,39 @@ def templatize(text, args, df):
     return set_fh_args(sentence, args)
 
 
+def add_manual_template(input_template, manual_template=None):
+    """Append user defined template for any word in the original text.
+
+    Parameters
+    ----------
+    input_template : str
+        Input text
+    manual_template : dict
+        Doct to add with key=word in the text, valu=dataframe expression 
+
+
+    Returns
+    -------
+    str
+        Tornado template corresponding to the text and data.
+
+    Example
+    -------
+    input_template = "The iris dataset has 3 {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
+{{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}."
+    manual_template = {"3" :  "{{ "+ len(df["species"].unique()) + " }}" }
+
+    output_template = "The iris dataset has  "{{ "+ len(df["species"].unique()) + " }}"  {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
+{{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}."
+    
+    """
+    if manual_template is None:
+        return input_template
+
+    for key in manual_template:
+        replace_with = "{{ "+ manual_template[key][0]['tmpl'] + " }}"
+        text = text.replace(key,replace_with)
+    return text
+
 def render(df, template):
     return Template(template).generate(orgdf=df, U=utils, G=grammar)
