@@ -137,6 +137,8 @@ class DFSearch(object):
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'token'}
         self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
+        self.search_derived_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
+
         return self.results
 
     def search_nes(self, text, colname_fmt='df.columns[{}]', cell_fmt='df["{}"].iloc[{}]'):
@@ -194,6 +196,27 @@ class DFSearch(object):
             self.results[tk] = {
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'quant'}
+            
+    def search_derived_quant(self, quants, nround=2):
+        """Search the common derived dataframe parameters for a set of quantitative values.
+
+        Parameters
+        ----------
+        quants : list / array like
+            The values to search.
+        nround : int, optional
+            Numeric values in the dataframe are rounded to these many
+            significant digits before searching.
+        """
+        dfclean = utils.sanitize_df(self.df, nround)
+        quants = np.array(quants)
+        n_quant = quants.astype('float').round(2)
+
+        for num in quants:
+            if int(num) == len(dfclean):
+                self.results[num] = {
+                        'location': 'cell', 'tmpl': "len(df)" ,
+                        'type': 'quant'}
 
     def _search_array(self, text, array, literal=False,
                       case=False, lemmatize=True, nround=2):
