@@ -14,9 +14,9 @@ import pandas as pd
 from six.moves.urllib import parse
 from tornado.template import Template
 
-from gramex.apps.nlg import grammar
-from gramex.apps.nlg import nlgutils as utils
-from gramex.apps.nlg import templatize
+from nlg import grammar
+from nlg import utils
+from nlg.search import _search
 from gramex.config import variables
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
@@ -107,7 +107,7 @@ def process_text(handler):
     resp = []
     for t in payload['text']:
         # grammar_errors = yield utils.check_grammar(t)
-        replacements, t, infl = templatize(t, args.copy(), df)
+        replacements, t, infl = _search(t, args.copy(), df)
         resp.append({
             'text': t, 'tokenmap': replacements, 'inflections': infl,
             'fh_args': args

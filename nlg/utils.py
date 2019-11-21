@@ -4,6 +4,7 @@
 """
 Miscellaneous utilities.
 """
+import os.path as op
 import re
 
 from tornado.template import Template
@@ -23,6 +24,10 @@ _spacy = {
     'lemmatizer': False,
     'matcher': False
 }
+
+
+def _locate_app_config():
+    return op.join(op.dirname(__file__), 'app', 'gramex.yaml')
 
 
 def load_spacy_model():
