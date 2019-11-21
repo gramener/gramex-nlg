@@ -1,0 +1,3 @@
+# This is intended for installation of the Gramex app.
+# Do NOT use for anything.
+git+https://github.com/gramener/gramex-nlg@dev#egg=nlg

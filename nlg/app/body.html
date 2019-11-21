@@ -1,6 +1,6 @@
 {% set admin_kwargs = handler.kwargs.get('admin_kwargs', '') or {} %}
 <!--IDE HTML-->
-{% from nlg.app import read_current_config, get_user_dir, is_user_authenticated %}
+{% from nlg.webapp import read_current_config, get_user_dir, is_user_authenticated %}
 {% set dsid = read_current_config(handler).get('dsid') %}
 
 <div class="container-fluid pt-4">
@@ -23,7 +23,7 @@
 
   <!-- GRMFORM HTML -->
   <div class="modal fade grmform-modal" tabindex="-1" role="dialog" aria-labelledby="grmformModalLabel" aria-hidden="true">
-    {% from nlg.app import get_dataset_files, get_narrative_config_files %}
+    {% from nlg.webapp import get_dataset_files, get_narrative_config_files %}
     {% set NLG_DATASETS = get_dataset_files(handler) %}
     {% set NLG_NARRATIVES = get_narrative_config_files(handler) %}
     {% import os.path as op %}

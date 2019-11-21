@@ -17,7 +17,7 @@ The NLG library can be installed from PyPI as follows:
 
 ```bash
 $ pip install nlg
-$ gramex setup ./app
+$ gramex setup nlg/app
 ```
 
 or from source as follows:
@@ -70,24 +70,30 @@ The versicolor species has the least average sepal_width|avg.
 ```
 
 
-### Using as a Gramex application
+### Using the NLG IDE
 
-To use it, add the following to your `gramex.yaml`:
+The NLG module ships with an IDE. The IDE is a [Gramex application](https://learn.gramener.com/guide/apps/).
+
+To use it, install the NLG module as indicated above, and add the following to your `gramex.yaml`:
 
 ```yaml
+variables:
+  NLG_ROOT:
+    function: nlg.utils._locate_app_config()
+
 import:
   nlg:
-    path: $GRAMEXAPPS/nlg/gramex.yaml
+    path: $NLG_ROOT
     YAMLURL: $YAMLURL/nlg/
 ```
 
-This configuration mounts the app at `/nlg`.
+This configuration mounts the app at the `/nlg` resource.
 
-## The Gramex NLG Component
+## The Gramex NLG IDE
 
 The NLG component depends on two sources of information:
 
-1. A source dataset, which can be uploaded on the [NLG webapp](nlg/).
+1. A source dataset, which can be uploaded on to the IDE.
    A dataset is uniquely identified with its filename. Once
    uploaded, the file persists and is available for selection from the app.
    Any *file* that makes a valid URL for
@@ -96,7 +102,7 @@ The NLG component depends on two sources of information:
 2. A _narrative_, which is a collection of templates and rules around them.
    The narrative consists of the configuration which governs the rendered text.
    An existing narrative can be uploaded through the "Add Data" button, or can be
-   created through the [NLG IDE](nlg/). Once created, the narrative can be
+   created through the IDE. Once created, the narrative can be
    named and becomes available for selection from the "Add Data" modal.
 
 ## The NLG IDE
@@ -105,13 +111,13 @@ The primary purpose of the IDE is to create or edit narratives based on a
 dataset. Once a dataset has been selected, it is exposed in the IDE as a
 [FormHandler table](https://learn.gramener.com/guide/formhandler/#formhandler-tables).
 
-![](images/nlg-ide-input.png)
+![](doc/images/nlg-ide-input.png)
 
 Users can now type English text into the IDE and add it to the narrative. This
 automatically templatizes the text, and adds the template to the narrative. For
 example, typing "Humphrey Bogart is at the top of the list." does this:
 
-![](images/nlg-ide-toplist.png)
+![](doc/images/nlg-ide-toplist.gif)
 
 This means that the input statement has been templatized and added
 to the narrative. The part of the input text that was successfully templatized
@@ -120,7 +126,7 @@ the [Template Settings] modal.
 
 
 ## Template Settings
-![](images/nlg-template-settings.png)
+![](doc/images/nlg-template-settings.png)
 
 This dialog provides configuration options for all template attributes:
 
@@ -165,12 +171,3 @@ After a narrative has been named and saved, it be shared in two modes:
    IDE, with the current dataset and the current narrative set in the session.
 2. **Embed mode** - Copy an HTML snippet to embed into a page which contains a
    Formhandler table. The template will render live as the table changes.
-
-
-## Authenticating the NLG App
-
-Saving, sharing and rendering narratives from the NLG app requires authentication.
-Authentication can be set via the `$NLG_AUTH` YAML variable which can be any valid
-[auth](../auth/#authorization) configuration.
-
-When using the NLG app through the [admin](../admin) page, `$NLG_AUTH` defaults to `$ADMIN_AUTH`.
