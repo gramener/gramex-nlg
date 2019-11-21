@@ -17,7 +17,7 @@ The NLG library can be installed from PyPI as follows:
 
 ```bash
 $ pip install nlg
-$ gramex setup ./app
+$ gramex setup nlg/app
 ```
 
 or from source as follows:

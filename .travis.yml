@@ -39,5 +39,5 @@ script:
   - flake8
   - bandit nlg --recursive --format csv || true
   - pip install -e .
-  - gramex setup ./app
+  - gramex setup nlg/app
   - nosetests -sv --with-coverage --cover-package=nlg
