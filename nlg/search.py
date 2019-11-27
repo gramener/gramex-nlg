@@ -6,14 +6,14 @@ Search tools.
 """
 
 from itertools import chain
-import json
 
 import numpy as np
 import pandas as pd
 from tornado.template import Template
 
-from nlg import utils
 from nlg import grammar
+from nlg import narrative
+from nlg import utils
 
 SEARCH_PRIORITIES = [
     {'type': 'ne'},  # A match which is a named entity gets the highest priority
@@ -137,7 +137,7 @@ class DFSearch(object):
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'token'}
         self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
-        self.search_derived_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
+        # self.search_derived_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
 
         return self.results
 
@@ -196,7 +196,7 @@ class DFSearch(object):
             self.results[tk] = {
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'quant'}
-            
+
     def search_derived_quant(self, quants, nround=2):
         """Search the common derived dataframe parameters for a set of quantitative values.
 
@@ -210,13 +210,13 @@ class DFSearch(object):
         """
         dfclean = utils.sanitize_df(self.df, nround)
         quants = np.array(quants)
-        n_quant = quants.astype('float').round(2)
+        #  n_quant = quants.astype('float').round(2)
 
         for num in quants:
             if int(num) == len(dfclean):
                 self.results[num] = {
-                        'location': 'cell', 'tmpl': "len(df)" ,
-                        'type': 'quant'}
+                    'location': 'cell', 'tmpl': "len(df)",
+                    'type': 'quant'}
 
     def _search_array(self, text, array, literal=False,
                       case=False, lemmatize=True, nround=2):
@@ -426,13 +426,6 @@ def templatize_token(token, results, inflection):
     return t_templatize(tmpl)
 
 
-def set_fh_args(text, fh_args):
-    fh_args = json.dumps(fh_args)
-    tmpl = f'{{% set fh_args = {fh_args}  %}}\n'
-    tmpl += f'{{% set df = U.grmfilter(orgdf, fh_args.copy()) %}}\n'
-    return tmpl + text
-
-
 def templatize(text, args, df):
     """Construct a tornado template which regenerates some
     text from a dataframe and formhandler arguments.
@@ -466,12 +459,7 @@ def templatize(text, args, df):
 {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}.
     """
     dfix, clean_text, infl = _search(text, args, df)
-    sentence = text
-    for tk, tkobj in dfix.items():
-        inflection = infl.get(tk)
-        tk_tmpl = templatize_token(tk, tkobj, inflection)
-        sentence = sentence.replace(tk, tk_tmpl)
-    return set_fh_args(sentence, args)
+    return narrative.Template(clean_text, dfix, infl, args)
 
 
 def add_manual_template(input_template, manual_template=None):
@@ -482,7 +470,7 @@ def add_manual_template(input_template, manual_template=None):
     input_template : str
         Input text
     manual_template : dict
-        Doct to add with key=word in the text, valu=dataframe expression 
+        Doct to add with key=word in the text, valu=dataframe expression
 
 
     Returns
@@ -496,17 +484,19 @@ def add_manual_template(input_template, manual_template=None):
 {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}."
     manual_template = {"3" :  "{{ "+ len(df["species"].unique()) + " }}" }
 
-    output_template = "The iris dataset has  "{{ "+ len(df["species"].unique()) + " }}"  {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
-{{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}."
-    
+    output_template = "The iris dataset has  "{{ "+ len(df["species"].unique()) + \
+        " }}"  {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
+        {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}."
+
     """
     if manual_template is None:
         return input_template
 
     for key in manual_template:
-        replace_with = "{{ "+ manual_template[key][0]['tmpl'] + " }}"
-        text = text.replace(key,replace_with)
-    return text
+        replace_with = "{{ " + manual_template[key][0]['tmpl'] + " }}"
+        input_template = input_template.replace(key, replace_with)
+    return input_template
+
 
 def render(df, template):
     return Template(template).generate(orgdf=df, U=utils, G=grammar)

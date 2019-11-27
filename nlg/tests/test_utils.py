@@ -52,6 +52,19 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.sanitize_indices((3, 3), 1, 1), 1)
         self.assertEqual(utils.sanitize_indices((3, 3), 2, 1), -1)
 
+    def test_infer_quant(self):
+        text = 'Of the three species, setosa has the highest average sepal width.'
+        doc = nlp(text)
+        self.assertEqual(utils.infer_quant(doc[2]), 3)
+
+        text = 'Of the 3 species, setosa has the highest average sepal width.'
+        doc = nlp(text)
+        self.assertEqual(utils.infer_quant(doc[2]), 3)
+
+        text = 'The value of pi is 3.14.'
+        doc = nlp(text)
+        self.assertEqual(utils.infer_quant(doc[-2]), 3.14)  # noqa: E912
+
 
 if __name__ == "__main__":
     unittest.main()

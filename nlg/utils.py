@@ -18,7 +18,7 @@ NP_RULES = {
     'NP4': [{'POS': 'ADJ', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}],
     'QUANT': [{'POS': 'NUM', 'OP': '+'}]
 }
-
+QUANT_PATTERN = re.compile(r'(^\.d+|^d+\.?(d?)+)')
 _spacy = {
     'model': False,
     'lemmatizer': False,
@@ -228,3 +228,28 @@ def add_html_styling(template, style):
             ss=spanstyle, token=token)
         template = re.sub(re.escape(token), repl, template, 1)
     return '<p>{template}</p>'.format(template=template)
+
+
+def infer_quant(token):
+    """Infer the quantitative value from a token which has POS == 'NUM' or is like_num.
+
+    Parameters
+    ----------
+    token : `spacy.tokens.Token`
+        A spacy token representing a number / scalar. This can be anything with a POS attribute of
+        'NUM' or is like_nnum
+
+    Returns
+    -------
+    float or int
+
+    Example
+    -------
+    >>> doc = nlp('Aryabhatta invented the zero.')
+    >>> infer_quant(doc[-2])
+    0
+    """
+    if re.fullmatch(QUANT_PATTERN, token.shape_):
+        if "." in token.text:
+            return float(token.text)
+        return int(token.text)
