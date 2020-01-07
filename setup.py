@@ -46,6 +46,7 @@ setup(
     license=LICENSE,
     url=URL,
     download_url=DOWNLOAD_URL,
+    include_package_data=True,
     version=nlg.__version__,
     long_description=LONG_DESCRIPTION,
     packages=find_packages(),

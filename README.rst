@@ -23,7 +23,8 @@ The NLG library can be installed from PyPI as follows:
 .. code:: bash
 
     $ pip install nlg
-    $ gramex setup nlg/app
+    $ python -m spacy download en_core_web_sm
+    $ gramex setup ui
 
 or from source as follows:
 
@@ -94,9 +95,9 @@ following to your ``gramex.yaml``:
     import:
       nlg:
         path: $NLG_ROOT
-        YAMLURL: $YAMLURL/nlg/
+        YAMLURL: $YAMLURL/nlg
 
-This configuration mounts the app at the ``/nlg`` resource.
+This configuration mounts the app at the ``/nlg`` resource. Start gramex to access it.
 
 The Gramex NLG IDE
 ------------------
