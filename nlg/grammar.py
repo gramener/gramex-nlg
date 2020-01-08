@@ -183,29 +183,35 @@ def _token_inflections(x, y):
     Examples
     --------
     >>> _token_inflections('language', 'Language')
-    'upper'
+    ['upper']
     >>> _token_inflections('language', 'languages')
-    'plural'
+    ['plural']
     """
     if x.lemma_ != y.lemma_:
         return False
-    if len(x.text) == len(y.text):
-        for methname in ['capitalize', 'lower', 'swapcase', 'title', 'upper']:
-            func = lambda x: getattr(x, methname)()  # NOQA: E731
-            if func(x.text) == y.text:
-                return globals()[methname]
     # check if x and y are singulars or plurals of each other.
+    infls = []
     if is_singular_noun(y.text):
         if singular(x.text).lower() == y.text.lower():
-            return singular
+            infls.append(singular)
     elif is_plural_noun(y.text):
         if plural(x.text).lower() == y.text.lower():
-            return plural
+            infls.append(plural)
+    if infls:
+        num_change = infls[0]
+        x_hat = num_change(x.text)
+    else:
+        x_hat = x.text
+    if len(x_hat) == len(y.text):
+        for methname in ['capitalize', 'lower', 'swapcase', 'title', 'upper']:
+            func = lambda x: getattr(x, methname)()  # NOQA: E731
+            if func(x_hat) == y.text:
+                infls.append(globals()[methname])
     # Disable detecting inflections until they can be
     # processed without intervention.
     # if x.pos_ != y.pos_:
     #     return lemmatize
-    return False
+    return infls
 
 
 def find_inflections(text, search, fh_args, df):
@@ -242,5 +248,5 @@ def find_inflections(text, search, fh_args, df):
             y = text[[c.text for c in text].index(token)]
             infl = _token_inflections(x, y)
             if infl:
-                inflections[token] = [infl]
+                inflections[token] = infl
     return inflections

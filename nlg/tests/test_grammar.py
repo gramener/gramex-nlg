@@ -40,3 +40,10 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(G.pluralize_by("language", []), "language")
         self.assertEqual(G.pluralize_by("language", 1), "language")
         self.assertEqual(G.pluralize_by("language", 2), "languages")
+
+    def test__token_inflections(self):
+        nlp = G.load_spacy_model()
+        doc = nlp("Actors search for rejection, said Charlie Chaplin. He is one such actor.")
+        x, y = doc[0], doc[-2]
+        infls = G._token_inflections(x, y)
+        self.assertListEqual(infls, [G.singular, G.lower])
