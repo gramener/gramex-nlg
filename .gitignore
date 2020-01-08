@@ -147,3 +147,6 @@ docs/_build
 
 # For Linux FUSE file system
 .fuse_hidden*
+
+# IDE
+.vim
