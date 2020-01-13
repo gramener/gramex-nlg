@@ -97,7 +97,7 @@ following to your ``gramex.yaml``:
         path: $NLG_ROOT
         YAMLURL: $YAMLURL/nlg
 
-This configuration mounts the app at the ``/nlg`` resource. Start gramex to access it.
+This configuration mounts the app at the ``/nlg/`` resource. Start gramex to access it.
 
 The Gramex NLG IDE
 ------------------
