@@ -9,7 +9,7 @@ import re
 
 from tornado.template import Template
 
-from gramex.data import filter as grmfilter  # NOQA: F401
+from gramex.data import filter as gfilter  # NOQA: F401
 
 NP_RULES = {
     'NP1': [{'POS': 'PROPN', 'OP': '+'}],

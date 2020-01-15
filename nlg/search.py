@@ -6,6 +6,7 @@ Search tools.
 """
 
 from itertools import chain
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -50,11 +51,80 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
     return items
 
 
+# TODO: The following two functions are highly redundant, can be refactored.
+def _search_1d_array(text, array, literal=False, case=False, lemmatize=True,
+                     nround=False):
+    nlp = utils.load_spacy_model()
+    if case or nround:
+        raise NotImplementedError
+
+    if literal and lemmatize:
+        warnings.warn('Ignoring lemmatization.')
+
+    if not (literal or lemmatize):
+        warnings.warn(
+            'One of `literal` or `lemmatize` must be True. Falling back to lemmatize=True')
+        literal, lemmatize = False, True
+
+    if literal:  # ignore every other flag else
+        tokens = pd.Series([c.text for c in text], index=text)
+
+    elif lemmatize:
+        tokens = pd.Series([c.lemma_ for c in text], index=text)
+        array = array.map(nlp)
+        array = pd.Series([token.lemma_ for doc in array for token in doc])
+
+    mask = array.isin(tokens)
+    if not mask.any():
+        return {}
+    indices = {array[i]: i for i in mask.nonzero()[0]}
+    tk = tokens[tokens.isin(array)]
+    return {token: indices[s] for token, s in tk.items()}
+
+
+def _search_2d_array(text, array, literal=False, case=False, lemmatize=True, nround=False):
+    nlp = utils.load_spacy_model()
+    if nround or case:
+        raise NotImplementedError
+    array = array.astype(str)
+
+    if literal and lemmatize:
+        warnings.warn('Ignoring lemmatization.')
+
+    if not (literal or lemmatize):
+        warnings.warn(
+            'One of `literal` or `lemmatize` must be True. Falling back to lemmatize=True')
+        literal, lemmatize = False, True
+
+    if literal:
+        tokens = pd.Series([c.text for c in text], index=text)
+    elif lemmatize:
+        tokens = pd.Series([c.lemma_ for c in text], index=text)
+        for col in array.columns[array.dtypes == np.dtype('O')]:
+            s = [c if isinstance(c, str) else str(c) for c in array[col]]
+            s = [nlp(c) for c in s]
+            try:
+                array[col] = [token.lemma_ for doc in s for token in doc]
+            except ValueError:
+                warnings.warn('Cannot lemmatize multi-word cells.')
+                if not case:  # still need to respect the `case` param
+                    array[col] = array[col].str.lower()
+
+    mask = array.isin(tokens.values)
+    if not mask.any().any():
+        return {}
+    indices = {array.iloc[i, j]: (i, j) for i, j in zip(*mask.values.nonzero())}
+    tk = tokens[tokens.isin(array.values.ravel())]
+    return {token: indices[s] for token, s in tk.items()}
+
+
+# TODO: Can this be done with defaultdict?
 class DFSearchResults(dict):
     """A convenience wrapper around `dict` to collect search results.
 
     Different from `dict` in that values are always lists, and setting to
-    existing key appends to the list."""
+    existing key appends to the list.
+    """
 
     def __setitem__(self, key, value):
         if key not in self:
@@ -74,7 +144,8 @@ class DFSearchResults(dict):
         # unoverlap the keys
         to_remove = []
         for k in self:
-            if any([k in c for c in self.keys() - {k}]):
+            to_search = self.keys() - {k}
+            if any([getattr(k, "text", k) in getattr(c, "text", c) for c in to_search]):
                 to_remove.append(k)
         for i in to_remove:
             del self[i]
@@ -98,8 +169,7 @@ class DFSearch(object):
         self.results = DFSearchResults()
         if not nlp:
             nlp = utils.load_spacy_model()
-        self.nlp = nlp
-        self.matcher = kwargs.get('matcher', utils.make_np_matcher(self.nlp))
+        self.matcher = kwargs.get('matcher', utils.make_np_matcher(nlp))
 
     def search(self, text, colname_fmt='df.columns[{}]',
                cell_fmt='df["{}"].iloc[{}]', **kwargs):
@@ -108,7 +178,7 @@ class DFSearch(object):
 
         Parameters
         ----------
-        text : str
+        text : spacy.Doc
             The text to search.
         colname_fmt : str, optional
             String format to describe dataframe columns in the search results,
@@ -136,12 +206,12 @@ class DFSearch(object):
             self.results[token] = {
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'token'}
-        self.search_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
-        # self.search_derived_quant([c.text for c in self.doc if c.pos_ == 'NUM'])
+        self.search_quant([c.text for c in text if c.pos_ == 'NUM'])
+        # self.search_derived_quant([c.text for c in selfdoc if c.pos_ == 'NUM'])
 
         return self.results
 
-    def search_nes(self, text, colname_fmt='df.columns[{}]', cell_fmt='df["{}"].iloc[{}]'):
+    def search_nes(self, doc, colname_fmt='df.columns[{}]', cell_fmt='df["{}"].iloc[{}]'):
         """Find named entities in text, and search for them in the dataframe.
 
         Parameters
@@ -149,16 +219,14 @@ class DFSearch(object):
         text : str
             The text to search.
         """
-        self.doc = self.nlp(text)
-        self.ents = utils.ner(self.doc, self.matcher)
-        ents = [c.text for c in self.ents]
-        for token, ix in self.search_columns(ents, literal=True).items():
+        self.ents = utils.ner(doc, self.matcher)
+        for token, ix in self.search_columns(self.ents, literal=True).items():
             ix = utils.sanitize_indices(self.df.shape, ix, 1)
             self.results[token] = {
                 'location': 'colname',
                 'tmpl': colname_fmt.format(ix), 'type': 'ne'
             }
-        for token, (x, y) in self.search_table(ents, literal=True).items():
+        for token, (x, y) in self.search_table(self.ents, literal=True).items():
             x = utils.sanitize_indices(self.df.shape, x, 0)
             y = utils.sanitize_indices(self.df.shape, y, 1)
             self.results[token] = {
@@ -188,7 +256,7 @@ class DFSearch(object):
         """
         dfclean = utils.sanitize_df(self.df, nround)
         quants = np.array(quants)
-        n_quant = quants.astype('float').round(2)
+        n_quant = quants.astype('float').round(nround)
         for x, y in zip(*dfclean.isin(n_quant).values.nonzero()):
             x = utils.sanitize_indices(dfclean.shape, x, 0)
             y = utils.sanitize_indices(dfclean.shape, y, 1)
@@ -219,7 +287,7 @@ class DFSearch(object):
                     'type': 'quant'}
 
     def _search_array(self, text, array, literal=False,
-                      case=False, lemmatize=True, nround=2):
+                      case=False, lemmatize=True, nround=False):
         """Search for tokens in text within an array.
 
         Parameters
@@ -245,7 +313,7 @@ class DFSearch(object):
         Example
         -------
         >>> _search_array('3', np.arange(5))
-        {'3': [2]}
+        {'3': [3]}
         >>> df = pd.DataFrame(np.eye(3), columns='one punch man'.split())
         >>> _search_array('1', df.values)
         {'1': [(0, 0), (1, 1), (2, 2)]}
@@ -254,51 +322,9 @@ class DFSearch(object):
         >>> _search_array('1 2 buckle my shoe', df.index)
         {'1': [1], '2': [2]}
         """
-        if literal:
-            # Expect text to be a list of strings, no preprocessing on anything.
-            if not isinstance(text, list):
-                raise TypeError('text is expected to be list of strs when literal=True.')
-            valid_types = {float, int, str}
-            if not set([type(c) for c in text]).issubset(valid_types):
-                raise TypeError('text can contain only strings or numbers when literal=True.')
-            tokens = {c: str(c) for c in text}
-        elif lemmatize:
-            tokens = {c.lemma_: c.text for c in self.nlp(text)}
-            if array.ndim == 1:
-                array = [c if isinstance(c, str) else str(c) for c in array]
-                array = [self.nlp(c) for c in array]
-                array = pd.Series([token.lemma_ for doc in array for token in doc])
-            else:
-                for col in array.columns[array.dtypes == np.dtype('O')]:
-                    s = [c if isinstance(c, str) else str(c) for c in array[col]]
-                    s = [self.nlp(c) for c in s]
-                    try:
-                        array[col] = [token.lemma_ for doc in s for token in doc]
-                    except ValueError:
-                        # You cannot lemmatize columns that have multi-word values
-                        if not case:  # still need to respect the `case` param
-                            array[col] = array[col].str.lower()
-        else:
-            if not case:
-                tokens = {c.text.lower(): c.text for c in self.nlp(text)}
-                if array.ndim == 1:
-                    array = array.str.lower()
-                else:
-                    for col in array.columns[array.dtypes == np.dtype('O')]:
-                        array[col] = array[col].str.lower()
-            else:
-                tokens = {c.text: c.text for c in self.nlp(text)}
-        mask = array.isin(tokens.keys())
-        if mask.ndim == 1:
-            if mask.any():
-                ix = mask.nonzero()[0]
-                return {tokens[array[i]]: i for i in ix}
-            return {}
-        else:
-            if mask.any().any():
-                ix, iy = mask.values.nonzero()
-                return {tokens[array.iloc[x, y]]: (x, y) for x, y in zip(ix, iy)}
-        return {}
+        if array.ndim == 1:
+            return _search_1d_array(text, array, literal, case, lemmatize, nround)
+        return _search_2d_array(text, array, literal, case, lemmatize, nround)
 
 
 def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
@@ -367,7 +393,7 @@ def _search(text, args, df):
 
     Parameters
     ----------
-    text : str
+    text : spacy.Doc
         Input text
     args : dict
         Formhandler arguments
@@ -380,16 +406,17 @@ def _search(text, args, df):
         of search results, cleaned text and token inflections. The webapp uses
         these to construct a tornado template.
     """
-    utils.load_spacy_model()
-    df = utils.grmfilter(df, args.copy())
-    clean_text = utils.sanitize_text(text)
+    # utils.load_spacy_model()
+    df = utils.gfilter(df, args.copy())
+    # Do this only if needed:
+    # clean_text = utils.sanitize_text(text.text)
     args = utils.sanitize_fh_args(args)
     # Is this correct?
     dfs = DFSearch(df)
-    dfix = dfs.search(clean_text)
+    dfix = dfs.search(text)
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
-    inflections = grammar.find_inflections(clean_text, dfix, args, df)
+    inflections = grammar.find_inflections(text.text, dfix, args, df)
     _infl = {}
     for token, funcs in inflections.items():
         _infl[token] = []
@@ -399,7 +426,8 @@ def _search(text, args, df):
                 'fe_name': func.fe_name,
                 'func_name': func.__name__
             })
-    return dfix, clean_text, _infl
+    # FIXME: Why return text if it's unchanged?
+    return dfix, text, _infl
 
 
 def _make_inflection_string(tmpl, infl):
@@ -412,9 +440,6 @@ def _make_inflection_string(tmpl, infl):
     return tmpl
 
 
-t_templatize = lambda x: '{{ ' + x + ' }}'  # noqa: E731
-
-
 def templatize_token(token, results, inflection):
     for r in results:
         if r.get('enabled', False):
@@ -423,7 +448,7 @@ def templatize_token(token, results, inflection):
     if inflection:
         for i in inflection:
             tmpl = _make_inflection_string(tmpl, i)
-    return t_templatize(tmpl)
+    return narrative.t_templatize(tmpl)
 
 
 def templatize(text, args, df):
@@ -454,12 +479,12 @@ def templatize(text, args, df):
     >>> template = templatize(text, fh_args, df)
     >>> print(template)
     {% set fh_args = {"_by": ["species"]}  %}
-    {% set df = U.grmfilter(orgdf, fh_args.copy()) %}
+    {% set df = U.gfilter(orgdf, fh_args.copy()) %}
     The iris dataset has 3 {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
 {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}.
     """
     dfix, clean_text, infl = _search(text, args, df)
-    return narrative.Template(clean_text, dfix, infl, args)
+    return narrative.Nugget(clean_text, dfix, infl, args)
 
 
 def add_manual_template(input_template, manual_template=None):

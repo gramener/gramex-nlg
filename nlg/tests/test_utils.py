@@ -52,6 +52,7 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.sanitize_indices((3, 3), 1, 1), 1)
         self.assertEqual(utils.sanitize_indices((3, 3), 2, 1), -1)
 
+    @unittest.skip('WIP')
     def test_infer_quant(self):
         text = 'Of the three species, setosa has the highest average sepal width.'
         doc = nlp(text)

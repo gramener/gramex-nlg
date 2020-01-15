@@ -237,10 +237,11 @@ def find_inflections(text, search, fh_args, df):
         tmpl = [t['tmpl'] for t in tklist if t.get('enabled', False)][0]
         rendered = Template('{{{{ {} }}}}'.format(tmpl)).generate(
             df=df, fh_args=fh_args).decode('utf8')
-        if rendered != token:
+        if rendered != getattr(token, "text", token):
             x = nlp(rendered)[0]
-            y = text[[c.text for c in text].index(token)]
-            infl = _token_inflections(x, y)
+            if isinstance(token, str):
+                token = text[[c.text for c in text].index(token)]
+            infl = _token_inflections(x, token)
             if infl:
-                inflections[token] = [infl]
+                inflections[token.text] = [infl]
     return inflections
