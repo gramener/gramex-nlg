@@ -7,6 +7,7 @@ Miscellaneous utilities.
 import os.path as op
 import re
 
+from spacy.tokens import Token
 from tornado.template import Template
 
 from gramex.data import filter as gfilter  # NOQA: F401
@@ -105,19 +106,21 @@ class set_nlg_gramopt(object):  # noqa: class to be used as a decorator
 
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
-    if 'NUM' in [c.pos_ for c in x]:
+    if isinstance(x, Token):
+        if x.pos_ == "NUM":
+            return False
+    elif 'NUM' in [c.pos_ for c in x]:
         return False
-    return any([x.text in yy for yy in y])
+    return any([x.text in yy.text for yy in y])
 
 
 def unoverlap(tokens):
     """From a set of tokens, remove all tokens that are contained within
     others."""
-    textmap = {c.text: c for c in tokens}
-    text_tokens = textmap.keys()
+    textmap = {c: c for c in tokens}
     newtokens = []
-    for token in text_tokens:
-        if not is_overlap(textmap[token], text_tokens - {token}):
+    for token in tokens:
+        if not is_overlap(textmap[token], set(tokens) - {token}):
             newtokens.append(token)
     return [textmap[t] for t in newtokens]
 

@@ -145,7 +145,7 @@ class DFSearchResults(dict):
         to_remove = []
         for k in self:
             to_search = self.keys() - {k}
-            if any([getattr(k, "text", k) in getattr(c, "text", c) for c in to_search]):
+            if utils.is_overlap(k, to_search):
                 to_remove.append(k)
         for i in to_remove:
             del self[i]
@@ -206,7 +206,7 @@ class DFSearch(object):
             self.results[token] = {
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'token'}
-        self.search_quant([c.text for c in text if c.pos_ == 'NUM'])
+        self.search_quant([c for c in text if c.pos_ == 'NUM'])
         # self.search_derived_quant([c.text for c in selfdoc if c.pos_ == 'NUM'])
 
         return self.results
@@ -255,12 +255,13 @@ class DFSearch(object):
             significant digits before searching.
         """
         dfclean = utils.sanitize_df(self.df, nround)
+        qarray = np.array([c.text for c in quants])
         quants = np.array(quants)
-        n_quant = quants.astype('float').round(nround)
+        n_quant = qarray.astype('float').round(nround)
         for x, y in zip(*dfclean.isin(n_quant).values.nonzero()):
             x = utils.sanitize_indices(dfclean.shape, x, 0)
             y = utils.sanitize_indices(dfclean.shape, y, 1)
-            tk = quants[n_quant == dfclean.iloc[x, y]][0].item()
+            tk = quants[n_quant == dfclean.iloc[x, y]][0]
             self.results[tk] = {
                 'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
                 'type': 'quant'}
@@ -371,18 +372,18 @@ def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
             for y in ent_tokens:
                 if lemmatized:
                     if x.lemma_ == y.lemma_:
-                        search_res[y.text] = {
+                        search_res[y] = {
                             'type': 'token', 'tmpl': fmt.format(k, i),
                             'location': 'fh_args'}
                 else:
                     if x.text == y.text:
-                        search_res[y.text] = {
+                        search_res[y] = {
                             'type': 'token', 'tmpl': fmt.format(k, i),
                             'location': 'fh_args'}
     return search_res
 
 
-def _search(text, args, df):
+def _search(text, args, df, copy=False):
     """Construct a tornado template which regenerates some
     text from a dataframe and formhandler arguments.
 
@@ -407,6 +408,8 @@ def _search(text, args, df):
         these to construct a tornado template.
     """
     # utils.load_spacy_model()
+    if copy:
+        df = df.copy()
     df = utils.gfilter(df, args.copy())
     # Do this only if needed:
     # clean_text = utils.sanitize_text(text.text)

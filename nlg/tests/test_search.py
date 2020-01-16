@@ -148,7 +148,7 @@ class TestSearch(unittest.TestCase):
         doc = nlp("""
         Spencer Tracy is the top votes actor, followed by Cary Grant.
         The least votes actress is Bette Davis, trailing at only 14 votes, followed by
-        Ingrid Bergman at a rating of 0.29614.
+        Ingrid Bergman at a rating of 0.296140198.
         """)
         ideal = """
         {{ df['name'].iloc[0] }} is the top {{ fh_args['_sort'][0] }}
@@ -159,11 +159,11 @@ class TestSearch(unittest.TestCase):
         of {{ df['rating'].iloc[-2] }}.
         """
         args = {"_sort": ["-votes"]}
-        tokenmap, text, inflections = search._search(doc, args, df)
+        tokenmap, text, inflections = search._search(doc, args, df, copy=True)
         actual = text.text
         for token, tmpls in tokenmap.items():
             tmpl = [t for t in tmpls if t.get('enabled', False)][0]
-            actual = actual.replace(getattr(token, "text", token),
+            actual = actual.replace(token.text,
                                     '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         ideal, actual = map(cleaner, (ideal, actual))
@@ -173,8 +173,8 @@ class TestSearch(unittest.TestCase):
         self.assertDictEqual(
             inflections,
             {
-                'actor': [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'}],
-                'actress': [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}]
+                doc[7]: [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'}],
+                doc[18]: [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}]  # noqa
             }
             # Don't detect inflections until they can be processed without intervention
             # 'voted': [{'source': 'G', 'fe_name': 'Lemmatize', 'func_name': 'lemmatize'}]}

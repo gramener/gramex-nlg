@@ -239,9 +239,7 @@ def find_inflections(text, search, fh_args, df):
             df=df, fh_args=fh_args).decode('utf8')
         if rendered != getattr(token, "text", token):
             x = nlp(rendered)[0]
-            if isinstance(token, str):
-                token = text[[c.text for c in text].index(token)]
             infl = _token_inflections(x, token)
             if infl:
-                inflections[token.text] = [infl]
+                inflections[token] = [infl]
     return inflections
