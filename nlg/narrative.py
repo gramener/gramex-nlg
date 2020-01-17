@@ -2,41 +2,49 @@
 # -*- coding: utf-8 -*-
 # vim:fenc=utf-8
 
-"""WIP: The Narrative class."""
+"""The Narrative class."""
 import json
 import re
 
+from tornado.template import Template
+
+from nlg import utils, grammar
+
 t_templatize = lambda x: '{{ ' + x + ' }}'  # noqa: E731
+nlp = utils.load_spacy_model()
 
 
-class Token(object):
+class Variable(object):
     """Token"""
 
-    def __init__(self, token, templates=None, inflections=None, varname=None):
+    def __init__(self, token, sources=None, varname='', inflections=None):
         self._token = token
-        if templates is not None:
-            self.templates = templates
-        else:
-            self.templates = []
-        if inflections is not None:
-            self.inflections = inflections
-        else:
-            self.inflections = []
+        if sources is None:
+            sources = []
+        self.sources = sources
         self.varname = varname
+        if inflections is None:
+            inflections = []
+        self.inflections = inflections
 
     @property
-    def enabled_template(self):
-        for tmpl in self.templates:
+    def enabled_source(self):
+        for tmpl in self.sources:
             if tmpl.get('enabled', False):
                 return tmpl
 
-    def make_template(self):
-        tmplstr = self.enabled_template['tmpl']
-        if self.inflections:
-            for i in self.inflections:
-                tmplstr = self.add_inflection(tmplstr, i)
-        if self.varname:
+    @property
+    def template(self):
+        tmpl = self.enabled_source
+        tmplstr = tmpl['tmpl']
+
+        for i in self.inflections:
+            tmplstr = self.add_inflection(tmplstr, i)
+
+        varname = tmpl.get('varname', '')
+        if varname:
             return tmplstr
+
         return t_templatize(tmplstr)
 
     def add_inflection(self, tmplstr, infl):
@@ -45,44 +53,79 @@ class Token(object):
         if source == 'str':
             tmplstr += f'.{func}()'
         else:
-            tmplstr += f'{source}.{func}(tmplstr)'
+            tmplstr = f'{source}.{func}({tmplstr})'
         return tmplstr
 
 
-class Template(object):
-    def __init__(self, text, tokenmap, inflections, fh_args,
+class Nugget(object):
+    def __init__(self, text, tokenmap=None, inflections=None, fh_args=None,
                  condition=False, template="", name=""):
-        self.source_text = text
+        self.doc = text
         self.tokenmap = {}
-        for tk, tkobj in tokenmap.items():
-            token = Token(tk, **tkobj)
-            if not isinstance(tkobj, list):
-                token.template = tkobj['template']
-            self.tokenmap[tk] = token
-        self.fh_args = fh_args
-        self.inflections = inflections
-        self.template = template
+        if inflections is None:
+            inflections = {}
+        if tokenmap is not None:
+            for tk, tkobj in tokenmap.items():
+                token = Variable(tk, tkobj, inflections=inflections.get(tk))
+                if not isinstance(tkobj, list):
+                    token.template = tkobj['template']
+                self.tokenmap[tk] = token
+        if fh_args is not None:
+            self.fh_args = fh_args
+        else:
+            self.fh_args = {}
+        self._template = template
         self.condition = condition
         self.name = name
 
-    def make_template(self):
-        sent = self.source_text
+    @property
+    def variables(self):
+        return self.tokenmap
+
+    def get_variable(self, t):
+        for token in self.doc:
+            if token.text == t:
+                variable = self.tokenmap.get(token, False)
+                if variable:
+                    return variable
+
+    @property
+    def template(self):
+        sent = self.doc.text
         for tk, tkobj in self.tokenmap.items():
-            tmpl = tkobj.make_template()
-            sent = sent.replace(tk, tmpl)
+            tmpl = tkobj.template
+            sent = sent.replace(tk.text, tmpl)
             if tkobj.varname:
                 pattern = re.escape(tmpl)
                 sent = re.sub(pattern, t_templatize(tkobj.varname), sent)
-                sent = f'{{% set {tkobj.varname} = {tkobj.make_template()} %}}\n\t' + sent
+                sent = f'{{% set {tkobj.varname} = {tmpl} %}}\n' + sent
         if self.condition:
-            sent = f'{{% if {self.condition} %}}\n\t' + sent + '\n{% end %}'
+            sent = f'{{% if {self.condition} %}}\n' + sent + '\n{% end %}'
         return self.add_fh_args(sent)
 
+    def __repr__(self):
+        return self.template
+
+    def render(self, df, fh_args=None):
+        if fh_args is not None:
+            self.fh_args = fh_args
+        return Template(self.template, whitespace='oneline').generate(orgdf=df, U=utils, G=grammar)
+
     def add_fh_args(self, sent):
-        fh_args = json.dumps(self.fh_args)
-        tmpl = f'{{% set fh_args = {fh_args}  %}}\n'
-        tmpl += f'{{% set df = U.grmfilter(orgdf, fh_args.copy()) %}}\n'
-        return tmpl + sent
+        if self.fh_args:
+            fh_args = json.dumps(self.fh_args)
+            tmpl = f'{{% set fh_args = {fh_args}  %}}\n'
+            tmpl += f'{{% set df = U.gfilter(orgdf, fh_args.copy()) %}}\n'
+            return tmpl + sent
+        return sent
+
+    def set_variable(self, token, varname='', expr=''):
+        if not (varname or expr):
+            raise ValueError('One of `varname` or `expr` must be provided.')
+        if isinstance(token, int):
+            token = self.doc[token]
+        source = [{'tmpl': expr, 'type': 'user', 'enabled': True}]
+        self.tokenmap[token] = Variable(token, sources=source, varname=varname)
 
 
 class Narrative(object):

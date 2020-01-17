@@ -413,7 +413,7 @@ def _search(text, args, df, copy=False):
     df = utils.gfilter(df, args.copy())
     # Do this only if needed:
     # clean_text = utils.sanitize_text(text.text)
-    args = utils.sanitize_fh_args(args)
+    # args = utils.sanitize_fh_args(args)
     # Is this correct?
     dfs = DFSearch(df)
     dfix = dfs.search(text)

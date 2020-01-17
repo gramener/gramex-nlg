@@ -173,8 +173,11 @@ class TestSearch(unittest.TestCase):
         self.assertDictEqual(
             inflections,
             {
-                doc[7]: [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'}],
-                doc[18]: [{'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'}]  # noqa
+                doc[7]: [{'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'},
+                         {'fe_name': 'Lowercase', 'source': 'str', 'func_name': 'lower'}],
+                doc[18]: [  # noqa: E912
+                    {'fe_name': 'Singularize', 'source': 'G', 'func_name': 'singular'},
+                    {'fe_name': 'Lowercase', 'source': 'str', 'func_name': 'lower'}]
             }
             # Don't detect inflections until they can be processed without intervention
             # 'voted': [{'source': 'G', 'fe_name': 'Lemmatize', 'func_name': 'lemmatize'}]}
