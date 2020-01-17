@@ -71,6 +71,7 @@ tests/uploads
 # Sublime-text workspaces, etc
 *.sublime-*
 .vscode/
+.vim/
 
 # IPython Notebook checkpoints
 .ipynb_checkpoints

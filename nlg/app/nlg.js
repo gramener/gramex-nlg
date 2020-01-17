@@ -454,7 +454,7 @@ function makeInflString(tmpl, infl) {
 function addFHArgsSetter(sent, fh_args) {
   // Add formhandler arguments or URL filters to the template.
   let setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
-  setterLine += '{% set df = U.grmfilter(orgdf, fh_args.copy()) %}\n'
+  setterLine += '{% set df = U.gfilter(orgdf, fh_args.copy()) %}\n'
   return setterLine + sent
 }
 

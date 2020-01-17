@@ -4,6 +4,7 @@ from tornado.template import Template
 from nlg.utils import load_spacy_model, set_nlg_gramopt, get_lemmatizer
 
 infl = engine()
+nlp = load_spacy_model()
 
 
 def is_plural_noun(text):
@@ -188,30 +189,45 @@ def _token_inflections(x, y):
     ['plural']
     """
     if x.lemma_ != y.lemma_:
-        return False
+        return []
+
+    inflections = []
+
     # check if x and y are singulars or plurals of each other.
-    infls = []
-    if is_singular_noun(y.text):
-        if singular(x.text).lower() == y.text.lower():
-            infls.append(singular)
-    elif is_plural_noun(y.text):
-        if plural(x.text).lower() == y.text.lower():
-            infls.append(plural)
-    if infls:
-        num_change = infls[0]
-        x_hat = num_change(x.text)
-    else:
-        x_hat = x.text
-    if len(x_hat) == len(y.text):
-        for methname in ['capitalize', 'lower', 'swapcase', 'title', 'upper']:
-            func = lambda x: getattr(x, methname)()  # NOQA: E731
-            if func(x_hat) == y.text:
-                infls.append(globals()[methname])
+    number_infl = _number_inflection(x, y)
+    if number_infl:
+        inflections.append(number_infl)
+
+    shp_infl = _shape_inflection(x, y, prev=number_infl)
+    if shp_infl:
+        inflections.append(shp_infl)
+
     # Disable detecting inflections until they can be
     # processed without intervention.
     # if x.pos_ != y.pos_:
     #     return lemmatize
-    return infls
+    return inflections
+
+
+def _shape_inflection(x, y, prev=False):
+    if not prev:
+        prev = lambda x: x  # noqa: E731
+    if len(prev(x.text)) == len(y.text):
+        for methname in ['capitalize', 'lower', 'swapcase', 'title', 'upper']:
+            func = lambda x: getattr(x, methname)()  # NOQA: E731
+            if func(prev(x.text)) == y.text:
+                return globals()[methname]
+    return False
+
+
+def _number_inflection(x, y):
+    if is_singular_noun(y.text):
+        if singular(x.text).lower() == y.text.lower():
+            return singular
+    elif is_plural_noun(y.text):
+        if plural(x.text).lower() == y.text.lower():
+            return plural
+    return False
 
 
 def find_inflections(text, search, fh_args, df):
@@ -236,17 +252,14 @@ def find_inflections(text, search, fh_args, df):
         With keys as tokens found in the dataframe or FH args, and values as
         list of inflections applied on them to make them closer match tokens in `text`.
     """
-    nlp = load_spacy_model()
-    text = nlp(text)
     inflections = {}
     for token, tklist in search.items():
         tmpl = [t['tmpl'] for t in tklist if t.get('enabled', False)][0]
         rendered = Template('{{{{ {} }}}}'.format(tmpl)).generate(
             df=df, fh_args=fh_args).decode('utf8')
-        if rendered != token:
+        if rendered != token.text:
             x = nlp(rendered)[0]
-            y = text[[c.text for c in text].index(token)]
-            infl = _token_inflections(x, y)
+            infl = _token_inflections(x, token)
             if infl:
                 inflections[token] = infl
     return inflections

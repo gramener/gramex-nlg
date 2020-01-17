@@ -7,9 +7,15 @@ Miscellaneous utilities.
 import os.path as op
 import re
 
+import pandas as pd
+from spacy.tokens import Token
 from tornado.template import Template
 
-from gramex.data import filter as grmfilter  # NOQA: F401
+from gramex.data import filter as gfilter  # NOQA: F401
+from gramex.data import (
+    _filter_groupby_columns, _filter_select_columns, _filter_sort_columns, _filter_col,
+    _agg_sep
+)
 
 NP_RULES = {
     'NP1': [{'POS': 'PROPN', 'OP': '+'}],
@@ -18,7 +24,7 @@ NP_RULES = {
     'NP4': [{'POS': 'ADJ', 'OP': '+'}, {'POS': 'VERB', 'OP': '+'}],
     'QUANT': [{'POS': 'NUM', 'OP': '+'}]
 }
-
+QUANT_PATTERN = re.compile(r'(^\.d+|^d+\.?(d?)+)')
 _spacy = {
     'model': False,
     'lemmatizer': False,
@@ -105,19 +111,21 @@ class set_nlg_gramopt(object):  # noqa: class to be used as a decorator
 
 def is_overlap(x, y):
     """Whether the token x is contained within any span in the sequence y."""
-    if 'NUM' in [c.pos_ for c in x]:
+    if isinstance(x, Token):
+        if x.pos_ == "NUM":
+            return False
+    elif 'NUM' in [c.pos_ for c in x]:
         return False
-    return any([x.text in yy for yy in y])
+    return any([x.text in yy.text for yy in y])
 
 
 def unoverlap(tokens):
     """From a set of tokens, remove all tokens that are contained within
     others."""
-    textmap = {c.text: c for c in tokens}
-    text_tokens = textmap.keys()
+    textmap = {c: c for c in tokens}
     newtokens = []
-    for token in text_tokens:
-        if not is_overlap(textmap[token], text_tokens - {token}):
+    for token in tokens:
+        if not is_overlap(textmap[token], set(tokens) - {token}):
             newtokens.append(token)
     return [textmap[t] for t in newtokens]
 
@@ -180,10 +188,34 @@ def sanitize_df(df, d_round=2, **options):
     return df
 
 
-def sanitize_fh_args(args, func=join_words):
-    for k, v in args.items():
-        args[k] = [join_words(x) for x in v]
-    return args
+def sanitize_fh_args(args, df):
+    columns = df.columns
+    meta = {
+        'filters': [],      # Applied filters as [(col, op, val), ...]
+        'ignored': [],      # Ignored filters as [(col, vals), ...]
+        'sort': [],         # Sorted columns as [(col, asc), ...]
+        'offset': 0,        # Offset as integer
+        'limit': None,      # Limit as integer - None if not applied
+        'by': [],           # Group by columns as [col, ...]
+    }
+    res = {}
+    if '_by' in args:
+        res['_by'] = _filter_groupby_columns(args['_by'], columns, meta)
+        col_list = args.get('_c', False)
+        if not col_list:
+            col_list = [col + _agg_sep + 'sum' for col in columns # noqa
+                        if pd.api.types.is_numeric_dtype(df[col])]
+        res['_c'] = []
+        for c in col_list:
+            res['_c'].append(_filter_col(c, df.columns)[0])
+        columns = col_list
+    elif '_c' in args:
+        selected, _ = _filter_select_columns(args['_c'], columns, meta)
+        res['_c'] = [c[0] for c in selected]
+    if '_sort' in args:
+        sort, _ = _filter_sort_columns(args['_sort'], columns)
+        res['_sort'] = [c[0] for c in sort]
+    return res
 
 
 def add_html_styling(template, style):
@@ -228,3 +260,28 @@ def add_html_styling(template, style):
             ss=spanstyle, token=token)
         template = re.sub(re.escape(token), repl, template, 1)
     return '<p>{template}</p>'.format(template=template)
+
+
+def infer_quant(token):
+    """Infer the quantitative value from a token which has POS == 'NUM' or is like_num.
+
+    Parameters
+    ----------
+    token : `spacy.tokens.Token`
+        A spacy token representing a number / scalar. This can be anything with a POS attribute of
+        'NUM' or is like_nnum
+
+    Returns
+    -------
+    float or int
+
+    Example
+    -------
+    >>> doc = nlp('Aryabhatta invented the zero.')
+    >>> infer_quant(doc[-2])
+    0
+    """
+    if re.fullmatch(QUANT_PATTERN, token.shape_):
+        if "." in token.text:
+            return float(token.text)
+        return int(token.text)
