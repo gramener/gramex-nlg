@@ -25,7 +25,25 @@ def _check_unique_token(t, doc):
 
 
 class Variable(object):
-    """Token"""
+    """
+    NLG Variable
+
+    A variable is a piece of text which can change with the data or the operations performed on it.
+    Each variable has two defining components:
+
+       * a source text, as initially provided by the user, and
+       * one or more *formulae*, which compute the value of the variable for a
+         specific instance of the data.
+
+    The source text of a variable may be found in multiple places within a dataset, and as such,
+    a variable may have multiple formulae - one of which will have to be preferred by the user.
+    A variable may additionally have other attributes, like:
+
+       * a set of linguistic inflections which determine the form of the rendered variable text -
+         these are distinct from the formula itself, in that the formula creates the base form
+         of the text and inflections modify the base form.
+       * a *name* used to identify the variable within the template of the nugget
+    """
 
     def __init__(self, token, sources=None, varname='', inflections=None):
         self._token = token
@@ -38,6 +56,13 @@ class Variable(object):
         self.inflections = inflections
 
     def set_expr(self, expr):
+        """Change the formula or expression for the variable.
+
+        Parameters
+        ----------
+        expr : str
+            Python expression used to determine the value of the variable.
+        """
         tmpl = self.enabled_source
         tmpl['tmpl'] = expr
 
@@ -53,7 +78,7 @@ class Variable(object):
         tmplstr = tmpl['tmpl']
 
         for i in self.inflections:
-            tmplstr = self.add_inflection(tmplstr, i)
+            tmplstr = self._add_inflection(tmplstr, i)
 
         varname = tmpl.get('varname', '')
         if varname:
@@ -61,7 +86,7 @@ class Variable(object):
 
         return t_templatize(tmplstr)
 
-    def add_inflection(self, tmplstr, infl):
+    def _add_inflection(self, tmplstr, infl):
         func = infl['func_name']
         source = infl['source']
         if source == 'str':
@@ -75,6 +100,15 @@ class Variable(object):
 
 
 class Nugget(object):
+    """
+    Gramex-NLG Nugget
+
+    A nugget is ideally a single sentence which conveys an insight about the data.
+    It is created by searching the source dataframe and operations performed on it
+    for entities found in the input text.
+
+    Note: This class is not meant to be instantiated directly. Please use `nlg.templatize`.
+    """
     def __init__(self, text, tokenmap=None, inflections=None, fh_args=None,
                  condition=False, template="", name=""):
         self.doc = text
@@ -100,6 +134,29 @@ class Nugget(object):
         return self.tokenmap
 
     def get_var(self, t):
+        """Get a variable from the nugget.
+
+        Parameters
+        ----------
+        t : str or spacy.tokens.Token
+            The string, or token corresponding to the variable.
+            Using strings is discouraged, since the nugget may have
+            more than one variable which renders to the same string form.
+            Using spacy tokens is unambiguous.
+
+        Returns
+        -------
+        nlg.narrative.Variable
+
+        Example
+        -------
+        >>> from nlg import templatize
+        >>> df = pd.read_csv('actors.csv')
+        >>> text = nlp("Charlie Chaplin has 76 votes.")
+        >>> nugget = templatize(text, {}, df)
+        >>> nugget.get_var('Charlie Chaplin')
+        {{ df["name"].iloc[-1] }}
+        """
         if isinstance(t, Token):
             variable = self.tokenmap.get(t, False)
             if variable:
@@ -131,6 +188,33 @@ class Nugget(object):
         return self.template
 
     def render(self, df, fh_args=None, **kwargs):
+        """Render the template for the given set of arguments.
+
+        Parameters
+        ----------
+        df : pandas.DataFrame
+            The dataframe to use in the new rendering.
+
+        fh_args : dict
+            FormHandler arguments to use to transform the dataframe.
+
+        **kwargs : dict
+            Arguments passed to the `tornado.template.Template.generate` method.
+
+        Returns
+        -------
+        str
+            Rendered string.
+
+        Example
+        -------
+        >>> from nlg import templatize
+        >>> df = pd.read_csv('actors.csv')
+        >>> text = nlp("Humphrey Bogart is at the top of the list.")
+        >>> nugget = templatize(text, {}, df)
+        >>> nugget.render(df.iloc[1:])
+        b'Cary Grant is at the top of the list'
+        """
         if fh_args is not None:
             self.fh_args = fh_args
         else:
@@ -150,6 +234,31 @@ class Nugget(object):
         return sent
 
     def add_var(self, token, varname='', expr=''):
+        """Set a token within the source document as a variable.
+
+        Parameters
+        ----------
+        token : int or spacy.tokens.Token
+            If `token` is an integer, it is interpreted as the position of the token
+            in the source document.
+
+        varname : str, optional
+            Optional variable name used to refer to the variable within the Tornado template.
+
+        expr : str, optional
+            Python expression used to determine the value of the variable.
+            Note that if `expr` is not provided, it has to be passed at the time of rendering the
+            template. (See the `nlg.narrative.Nugget.render` method)
+
+        Example
+        -------
+        >>> from nlg import templatize
+        >>> df = pd.read_csv('actors.csv')
+        >>> fh_args = {'_sort': ['-rating']}
+        >>> text = nlp("James Stewart is the actor with the highest rating.")
+        >>> nugget = templatize(text, fh_args, df)
+        >>> nugget.add_var(-2, 'sort_col', 'fh_args["_sort"][0]')
+        """
         if not (varname or expr):
             raise ValueError('One of `varname` or `expr` must be provided.')
         if isinstance(token, int):

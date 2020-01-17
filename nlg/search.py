@@ -476,13 +476,13 @@ def templatize_token(token, results, inflection):
 
 
 def templatize(text, args, df):
-    """Construct a tornado template which regenerates some
-    text from a dataframe and formhandler arguments.
+    """Construct an NLG Nugget which templatizes the given text in
+    the context of a dataframe, and FormHandler operations on it.
 
     Parameters
     ----------
-    text : str
-        Input text
+    text : spacy.tokens.Doc
+        Input document
     args : dict
         Formhandler arguments
     df : pd.DataFrame
@@ -490,17 +490,19 @@ def templatize(text, args, df):
 
     Returns
     -------
-    str
-        Tornado template corresponding to the text and data.
+    nlg.narrative.Nugget
+        An NLG Nugget object containing the template for the input text.
 
     Example
     -------
     >>> from gramex import data
+    >>> from nlg.utils import load_spacy_model
     >>> df = pd.read_csv('iris.csv')
     >>> fh_args = {'_by': ['species']}
     >>> df = data.filter(df, fh_args.copy())
+    >>> nlp = load_spacy_model()
     >>> text = 'The iris dataset has 3 species - setosa, versicolor and virginica.'
-    >>> template = templatize(text, fh_args, df)
+    >>> nugget = templatize(text, fh_args, df)
     >>> print(template)
     {% set fh_args = {"_by": ["species"]}  %}
     {% set df = U.gfilter(orgdf, fh_args.copy()) %}
