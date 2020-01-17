@@ -73,7 +73,7 @@ class TestGrammar(unittest.TestCase):
                          encoding='utf8')
         fh_args = {'_sort': ['-rating']}
         df = utils.gfilter(df, fh_args.copy())
-        args = utils.sanitize_fh_args(fh_args)
+        args = utils.sanitize_fh_args(fh_args, df)
         dfs = DFSearch(df)
         dfix = dfs.search(text)
         dfix.update(search_args(dfs.ents, args))

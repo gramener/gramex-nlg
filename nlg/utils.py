@@ -7,10 +7,15 @@ Miscellaneous utilities.
 import os.path as op
 import re
 
+import pandas as pd
 from spacy.tokens import Token
 from tornado.template import Template
 
 from gramex.data import filter as gfilter  # NOQA: F401
+from gramex.data import (
+    _filter_groupby_columns, _filter_select_columns, _filter_sort_columns, _filter_col,
+    _agg_sep
+)
 
 NP_RULES = {
     'NP1': [{'POS': 'PROPN', 'OP': '+'}],
@@ -183,10 +188,34 @@ def sanitize_df(df, d_round=2, **options):
     return df
 
 
-def sanitize_fh_args(args, func=join_words):
-    for k, v in args.items():
-        args[k] = [join_words(x) for x in v]
-    return args
+def sanitize_fh_args(args, df):
+    columns = df.columns
+    meta = {
+        'filters': [],      # Applied filters as [(col, op, val), ...]
+        'ignored': [],      # Ignored filters as [(col, vals), ...]
+        'sort': [],         # Sorted columns as [(col, asc), ...]
+        'offset': 0,        # Offset as integer
+        'limit': None,      # Limit as integer - None if not applied
+        'by': [],           # Group by columns as [col, ...]
+    }
+    res = {}
+    if '_by' in args:
+        res['_by'] = _filter_groupby_columns(args['_by'], columns, meta)
+        col_list = args.get('_c', False)
+        if not col_list:
+            col_list = [col + _agg_sep + 'sum' for col in columns # noqa
+                        if pd.api.types.is_numeric_dtype(df[col])]
+        res['_c'] = []
+        for c in col_list:
+            res['_c'].append(_filter_col(c, df.columns)[0])
+        columns = col_list
+    elif '_c' in args:
+        selected, _ = _filter_select_columns(args['_c'], columns, meta)
+        res['_c'] = [c[0] for c in selected]
+    if '_sort' in args:
+        sort, _ = _filter_sort_columns(args['_sort'], columns)
+        res['_sort'] = [c[0] for c in sort]
+    return res
 
 
 def add_html_styling(template, style):

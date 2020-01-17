@@ -328,6 +328,41 @@ class DFSearch(object):
         return _search_2d_array(text, array, literal, case, lemmatize, nround)
 
 
+def _search_fh_args(entities, args, key, lemmatized):
+    colnames = args.get(key, False)
+    if not colnames:
+        return {}
+    nlp = utils.load_spacy_model()
+    argtokens = list(chain(*[nlp(c) for c in colnames]))
+    res = {}
+    for i, token in enumerate(argtokens):
+        for ent in entities:
+            if lemmatized and (token.lemma_ == ent.lemma_):
+                match = True
+            elif token.text == ent.text:
+                match = True
+            else:
+                match = False
+            if match:
+                res[ent] = {
+                    'type': 'token', 'tmpl': f"fh_args['{key}'][{i}]",
+                    'location': 'fh_args'
+                }
+    return res
+
+
+def _search_groupby(entities, args, lemmatized=True):
+    return _search_fh_args(entities, args, key='_by', lemmatized=lemmatized)
+
+
+def _search_sort(entities, args, lemmatized=True):
+    return _search_fh_args(entities, args, key='_sort', lemmatized=lemmatized)
+
+
+def _search_select(entities, args, lemmatized=True):
+    return _search_fh_args(entities, args, key='_c', lemmatized=lemmatized)
+
+
 def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
                 argkeys=('_sort', '_by', '_c')):
     """
@@ -360,26 +395,12 @@ def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
             'tmpl': 'fh_args['_by'][0]'  # The template that gets this token from fh_args
         }
     """
-    nlp = utils.load_spacy_model()
     args = {k: v for k, v in args.items() if k in argkeys}
     search_res = {}
-    ent_tokens = list(chain(*entities))
-    for k, v in args.items():
-        v = [t.lstrip('-') for t in v]
-        # argtokens = list(chain(*[re.findall(r'\w+', f) for f in v]))
-        argtokens = list(chain(*[nlp(c) for c in v]))
-        for i, x in enumerate(argtokens):
-            for y in ent_tokens:
-                if lemmatized:
-                    if x.lemma_ == y.lemma_:
-                        search_res[y] = {
-                            'type': 'token', 'tmpl': fmt.format(k, i),
-                            'location': 'fh_args'}
-                else:
-                    if x.text == y.text:
-                        search_res[y] = {
-                            'type': 'token', 'tmpl': fmt.format(k, i),
-                            'location': 'fh_args'}
+    entities = list(chain(*entities))
+    search_res.update(_search_groupby(entities, args, lemmatized=lemmatized))
+    search_res.update(_search_sort(entities, args, lemmatized=lemmatized))
+    search_res.update(_search_select(entities, args, lemmatized=lemmatized))
     return search_res
 
 
@@ -413,7 +434,7 @@ def _search(text, args, df, copy=False):
     df = utils.gfilter(df, args.copy())
     # Do this only if needed:
     # clean_text = utils.sanitize_text(text.text)
-    # args = utils.sanitize_fh_args(args)
+    args = utils.sanitize_fh_args(args, df)
     # Is this correct?
     dfs = DFSearch(df)
     dfix = dfs.search(text)

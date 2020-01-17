@@ -116,6 +116,8 @@ class Nugget(object):
             fh_args = json.dumps(self.fh_args)
             tmpl = f'{{% set fh_args = {fh_args}  %}}\n'
             tmpl += f'{{% set df = U.gfilter(orgdf, fh_args.copy()) %}}\n'
+            tmpl += f'{{% fh_args = U.sanitize_fh_args(fh_args) %}}\n'
+            tmpl += '{# Do not edit above this line. #}\n'
             return tmpl + sent
         return sent
 

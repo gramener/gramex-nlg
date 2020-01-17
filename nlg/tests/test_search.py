@@ -102,6 +102,12 @@ class TestDFSearch(unittest.TestCase):
 
 
 class TestSearch(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
+        cls.df = pd.read_csv(fpath, encoding='utf-8')
+
     def test_dfsearches(self):
         x = search.DFSearchResults()
         x['hello'] = 'world'
@@ -112,15 +118,15 @@ class TestSearch(unittest.TestCase):
         x['hello'] = 'underworld'
         self.assertDictEqual(x, {'hello': ['world', 'underworld']})
 
-    @unittest.skip("Temporary")
+    # @unittest.skip("Temporary")
     def test_search_args(self):
-        args = {"_sort": ["-votes"]}
+        args = utils.sanitize_fh_args({"_sort": ["-votes"]}, self.df)
         doc = nlp("James Stewart is the top voted actor.")
         ents = utils.ner(doc, matcher)
         self.assertDictEqual(
             search.search_args(ents, args),
             {
-                "voted": {
+                doc[-3]: {
                     "tmpl": "fh_args['_sort'][0]",
                     "type": "token",
                     "location": "fh_args"
@@ -128,13 +134,12 @@ class TestSearch(unittest.TestCase):
             }
         )
 
-    @unittest.skip("Temporary")
     def test_search_args_literal(self):
-        args = {"_sort": ["-rating"]}
+        args = utils.sanitize_fh_args({"_sort": ["-rating"]}, self.df)
         doc = nlp("James Stewart has the highest rating.")
         ents = utils.ner(doc, matcher)
         self.assertDictEqual(search.search_args(ents, args, lemmatized=False),
-                             {'rating': {
+                             {doc[-2]: {
                                  "tmpl": "fh_args['_sort'][0]",
                                  "location": "fh_args",
                                  "type": "token"}})
@@ -167,6 +172,7 @@ class TestSearch(unittest.TestCase):
                                     '{{{{ {} }}}}'.format(tmpl['tmpl']))
         cleaner = lambda x: re.sub(r"\s+", " ", x)  # NOQA: E731
         ideal, actual = map(cleaner, (ideal, actual))
+        args = utils.sanitize_fh_args(args, df)
         ideal = Template(ideal).generate(df=df, fh_args=args)
         actual = Template(actual).generate(df=df, fh_args=args)
         self.assertEqual(ideal, actual)

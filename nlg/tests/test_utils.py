@@ -4,12 +4,17 @@
 
 """Tests for nlg.utils"""
 
+import os
 import unittest
+
+import pandas as pd
+
 from nlg import utils
 
 
 nlp = utils.load_spacy_model()
 matcher = utils.make_np_matcher(nlp)
+op = os.path
 
 
 class TestUtils(unittest.TestCase):
@@ -21,8 +26,16 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(utils.join_words('-Office supplies'), 'Office supplies')
 
     def test_sanitize_args(self):
-        self.assertDictEqual(utils.sanitize_fh_args({'_sort': ['-Office supplies']}),
-                             {'_sort': ['Office supplies']})
+        args = {'_by': ['category'], '_c': ['votes|avg'], '_sort': ['-votes|avg']}
+        df = pd.read_csv(op.join(op.dirname(__file__), 'data', 'actors.csv'), encoding='utf8')
+        self.assertDictEqual(
+            utils.sanitize_fh_args(args, df),
+            {
+                '_by': ['category'],
+                '_c': ['votes'],
+                '_sort': ['votes|avg']
+            }
+        )
 
     @unittest.skip('NER is unstable.')
     def test_ner(self):
