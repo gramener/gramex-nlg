@@ -184,9 +184,9 @@ def _token_inflections(x, y):
     Examples
     --------
     >>> _token_inflections('language', 'Language')
-    'upper'
+    ['upper']
     >>> _token_inflections('language', 'languages')
-    'plural'
+    ['plural']
     """
     if x.lemma_ != y.lemma_:
         return []
