@@ -7,7 +7,7 @@ import json
 import re
 import warnings
 
-from spacy.tokens import Token
+from spacy.tokens import Token, Span
 from tornado.template import Template
 
 from nlg import utils, grammar
@@ -22,6 +22,34 @@ def _check_unique_token(t, doc):
             + " Using the first match." \
             + " Please use a `spacy.token.Token` instance for searching."
         warnings.warn(msg)
+
+
+class _VariableEncoder(json.JSONEncoder):
+    def default(self, obj):
+        payload = {}
+        token = obj._token
+        if isinstance(token, Token):
+            payload['index'] = token.i
+        elif isinstance(token, Span):
+            payload['index'] = token.start, token.end
+        payload['sources'] = obj.sources
+        payload['varname'] = obj.varname
+        payload['inflections'] = obj.inflections
+        return payload
+
+
+class _NuggetEncoder(json.JSONEncoder):
+    def default(self, obj):
+        payload = {}
+        payload['text'] = obj.doc.text
+        tokenmap = []
+        for _, variable in obj.tokenmap.items():
+            tokenmap.append(variable.to_json())
+        payload['tokenmap'] = tokenmap
+        payload['fh_args'] = obj.fh_args
+        payload['condition'] = obj.condition
+        payload['name'] = obj.name
+        return payload
 
 
 class Variable(object):
@@ -54,6 +82,10 @@ class Variable(object):
         if inflections is None:
             inflections = []
         self.inflections = inflections
+
+    def to_json(self):
+        """Serialize the variable to JSON."""
+        return json.dumps(self, cls=_VariableEncoder)
 
     def set_expr(self, expr):
         """Change the formula or expression for the variable.
@@ -117,9 +149,10 @@ class Nugget(object):
             inflections = {}
         if tokenmap is not None:
             for tk, tkobj in tokenmap.items():
-                token = Variable(tk, tkobj, inflections=inflections.get(tk))
-                if not isinstance(tkobj, list):
-                    token.template = tkobj['template']
+                if isinstance(tkobj, Variable):
+                    token = tkobj
+                elif isinstance(tkobj, list):
+                    token = Variable(tk, tkobj, inflections=inflections.get(tk))
                 self.tokenmap[tk] = token
         if fh_args is not None:
             self.fh_args = fh_args
@@ -128,6 +161,33 @@ class Nugget(object):
         self._template = template
         self.condition = condition
         self.name = name
+
+    def to_json(self):
+        """Serialze the nugget to JSON."""
+        return json.dumps(self, cls=_NuggetEncoder)
+
+    @classmethod
+    def from_json(cls, obj):
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+
+        text = obj.pop('text')
+        obj['text'] = nlp(text)
+
+        tokenlist = obj.pop('tokenmap')
+        tokenmap = {}
+        for tk in tokenlist:
+            tk = json.loads(tk)
+            index = tk.pop('index')
+            if isinstance(index, int):
+                token = obj['text'][index]
+            elif isinstance(index, list):
+                start, end = index
+                token = obj['text'][start:end]
+            tokenmap[token] = Variable(token, **tk)
+        obj['tokenmap'] = tokenmap
+
+        return cls(**obj)
 
     @property
     def variables(self):

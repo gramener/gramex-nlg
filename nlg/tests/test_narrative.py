@@ -6,12 +6,14 @@
 Tests for the nlg.narrative module.
 """
 
+import json
 import os
 import unittest
 
 import pandas as pd
 
 from nlg import templatize
+from nlg.narrative import Nugget
 from nlg.utils import load_spacy_model
 
 op = os.path
@@ -94,3 +96,43 @@ class TestNarrative(unittest.TestCase):
             var.set_expr(org_exp)
             if var_token in self.nugget.tokenmap:
                 del self.nugget.tokenmap[var_token]
+
+    def test_serialize(self):
+        pl = self.nugget.to_json()
+        pl = json.loads(pl)
+        self.assertEqual(pl['text'], self.text.text)
+        self.assertDictEqual(pl['fh_args'], {'_sort': ['-rating']})
+        tokenmap = [json.loads(t) for t in pl['tokenmap']]
+        ideal = [
+            {
+                'index': [0, 2],
+                'sources': [
+                    {
+                        'location': 'cell', 'tmpl': 'df["name"].iloc[0]', 'type': 'ne',
+                        'enabled': True
+                    }
+                ],
+                'varname': '', 'inflections': []
+            },
+            {
+                'index': 4,
+                'sources': [
+                    {
+                        'location': 'cell', 'tmpl': 'df["category"].iloc[-2]', 'type': 'token',
+                        'enabled': True
+                    }
+                ],
+                'varname': '',
+                'inflections': [
+                    {'source': 'G', 'fe_name': 'Singularize', 'func_name': 'singular'},
+                    {'source': 'str', 'fe_name': 'Lowercase', 'func_name': 'lower'}
+                ]
+            }
+        ]
+        self.assertListEqual(ideal, tokenmap)
+
+    def test_deserialize(self):
+        pl = self.nugget.to_json()
+        nugget = Nugget.from_json(pl)
+        actual = nugget.render(self.df).lstrip().decode('utf8')
+        self.assertEqual(actual, self.text.text)
