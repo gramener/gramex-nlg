@@ -87,89 +87,6 @@ function checkSelection(e) {
   }
 }
 
-// function makeGrammarErrorPopover(span, errobj) {
-//   // Parse the grammar error from LanguageTool and display it as a popover.
-//   var errmsg = errobj.message.replace(/"/g, '\'')
-//   return `<span style="background-color:#ed7171" data-toggle="popover" data-trigger="hover"
-//     title="${errmsg}"
-//     data-placement="top">${span}</span>`
-// }
-
-// class Token {
-//   // Class to hold a token contained within a template.
-//   // In a tornado template, a token is anything enclosed within double braces.
-//   constructor(parent, text, tokenlist, inflections, template = '') {
-//     this.parent = parent
-//     this.text = text
-//     this.tokenlist = tokenlist
-//     this.inflections = inflections
-//     this.template = template
-//   }
-//
-//   toJSON() {
-//     return {
-//       text: this.text, tokenlist: this.tokenlist, inflections: this.inflections,
-//       template: this.template
-//     }
-//   }
-//
-//   makeTemplate() {
-//     var enabled = this.enabledTemplate
-//     var tmplstr = enabled.tmpl
-//     if (this.inflections) {
-//       for (let i = 0; i < this.inflections.length; i++) {
-//         tmplstr = makeInflString(tmplstr, this.inflections[i])
-//       }
-//     }
-//     if (this.varname) {
-//       this.template = tmplstr
-//     } else { this.template = t_templatize(tmplstr) }
-//     return this.template
-//   }
-//
-//   get enabledTemplate() {
-//     for (let i = 0; i < this.tokenlist.length; i++) {
-//       if (this.tokenlist[i].enabled) {
-//         return this.tokenlist[i]
-//       }
-//     }
-//     return undefined
-//   }
-//
-//   changeGrammarOption() {
-//     // Change the applied inflections on the token.
-//     this.inflections = []
-//
-//     // add the currently selected inflections
-//     var inflections = $(`#gramopt-select-${currentTemplateIndex}-${this.text.replace(/\s/g, '_')}`).val()
-//     var newInflections = []
-//     for (let i = 0; i < inflections.length; i++) {
-//       let infl = {}
-//       let fe_name = inflections[i]
-//       infl['fe_name'] = inflections[i]
-//       infl['source'] = grammarOptions[fe_name]['source']
-//       infl['func_name'] = grammarOptions[fe_name]['func_name']
-//       newInflections.push(infl)
-//     }
-//     this.inflections = newInflections
-//     this.parent.makeTemplate()
-//   }
-//
-//   changeTokenTemplate() {
-//     // Re-generate the template for this token based on applied inflections, etc.
-//     var newTmpl = $(`#srdd-${currentTemplateIndex}-${this.text.replace(/\s/g, '_')}`).val()
-//     for (let i = 0; i < this.tokenlist.length; i++) {
-//       var tmplobj = this.tokenlist[i]
-//       if (tmplobj.tmpl == newTmpl) {
-//         tmplobj.enabled = true
-//       }
-//       else { tmplobj.enabled = false }
-//     }
-//     this.parent.makeTemplate()
-//   }
-// }
-
-
 function addToNarrative() {
   // Pick text from the input textarea, templatize, and add to the narrative.
   $.post(
@@ -178,9 +95,6 @@ function addToNarrative() {
       'args': args, 'data': df,
       'text': $('#textbox').val()
     }), (pl) => {
-      // var template = new Template(
-      //   payload.text, payload.tokenmap, payload.inflections, payload.fh_args)
-      // template.makeTemplate()
       pl = new Template(pl)
       templates.push(pl)
       renderPreview(null)
@@ -220,20 +134,11 @@ function refreshTemplate(n) {
 
 function refreshTemplates() {
   // Refresh the output of all templates in the current narrative.
-  $.post(`${nlg_base}/render-template`,
-    JSON.stringify({
-      'args': args, 'data': df,
-      'template': templates.map(x => x.template)
-    }), (e) => {
-      for (let i = 0; i < e.length; i++) {
-        var tmpl = templates[i]
-        tmpl.rendered_text = e[i].text
-        tmpl.grmerr = e[i].grmerr
-        tmpl.highlight()
-      }
-      renderPreview(null)
+  $.getJSON(`${nlg_base}/narratives`).done((e) => {
+    for (let i=0; i<e.length;i++) {
+      refreshTemplate(i)
     }
-  )
+  })
 }
 
 function deleteTemplate(n) {
@@ -253,68 +158,20 @@ function triggerTemplateSettings(sentid) {
 
 function editTemplate(n) {
   // Edit and update a template source.
-  // $('#edit-template').val(templates[n].template)
-  // $('#tmpl-setting-preview').html(templates[n].previewHTML(true))
-  // $('#condition-editor').val(templates[n].condition)
-  // $('#tmpl-name-editor').val(templates[n].name)
-  // templates[n].makeSettingsTable()
   $.get(`${nlg_base}/nuggetsettings/${n}`).done(
-     (e) => {
-       $('#tmpllist').html(e)
-     }
+    (e) => {
+      $('#tmpllist').html(e)
+    }
   )
 }
 
 
-function saveConfig() {
-  // Save the current narrative to $GRAMEXDATA/nlg/{{ handler.current_user.email }}/
-  var elem = $('#narrative-name-editor')
-  if (!(elem.val())) {
-    alert('Please name the narrative.')
-    elem.focus()
-    return false
-  } else {
-    narrative_name = elem.val()
-    $.ajax({
-      url: `${nlg_base}/save-config`,
-      type: 'POST',
-      data: { config: JSON.stringify(templates), name: narrative_name, dataset: dataset_name },
-      headers: { 'X-CSRFToken': false },
-      success: function () { $('.alert-success').show() },
-      error: function(httpObj) {
-        if (httpObj.status == 401) {
-          alert('Please login to save the narrative.')
-        }
-      }
-    })
-  }
-  return true
-}
-
 function setInitialConfig() {
   // At page ready, load the latest config for the authenticated user
   // and show it.
-  $.getJSON(`${nlg_base}/initconf`).done((e) => {
-    dataset_name = e.dsid
-    narrative_name = e.nrid
-    if (e.config) { setConfig(e.config) }
+  $.get(`${nlg_base}/initconf`).done((e) => {
+    refreshTemplates()
   })
-}
-
-function setConfig(configobj) {
-  // Set the config for a given (user, narrative_id) pair.
-  templates = []
-  for (let i = 0; i < configobj.config.length; i++) {
-    var tmpl = configobj.config[i]
-    var tmplobj = new Template(
-      tmpl.source_text, tmpl.tokenmap, tmpl.inflections,
-      tmpl._fh_args, tmpl._condition,
-      tmpl.template, tmpl.previewHTML(), tmpl.grmerr, tmpl.name)
-    templates.push(tmplobj)
-  }
-  $('#narrative-name-editor').val(configobj.name)
-  args = null
-  renderPreview(null)
 }
 
 function checkTemplate() {
@@ -372,33 +229,6 @@ function addName() {
     templates[currentTemplateIndex].name = name
   }
 }
-
-/* eslint-disable no-unused-vars */
-function t_templatize(x) { return '{{ ' + x + ' }}' }
-/* eslint-enable no-unused-vars */
-
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')  // $& means the whole matched string
-}
-
-function makeInflString(tmpl, infl) {
-  // Detect chosen inflections for a token and convert them to Tornado templates.
-  var tmplstr = tmpl
-  var infl_source = infl.source
-  if (infl_source == 'str') {
-    tmplstr = tmplstr + `.${infl.func_name}()`
-  }
-  else { tmplstr = `${infl.source}.${infl.func_name}(${tmplstr})` }
-  return tmplstr
-}
-
-function addFHArgsSetter(sent, fh_args) {
-  // Add formhandler arguments or URL filters to the template.
-  let setterLine = `{% set fh_args = ${JSON.stringify(fh_args)} %}\n`
-  setterLine += '{% set df = U.gfilter(orgdf, fh_args.copy()) %}\n'
-  return setterLine + sent
-}
-
 
 function getNarrativeEmbedCode() {
   // Generate embed code for this narrative.

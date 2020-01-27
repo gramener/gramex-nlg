@@ -11,11 +11,12 @@ import os
 import os.path as op
 
 from gramex.config import variables
+from gramex.config import app_log  # noqa: F401
 import pandas as pd
-from six.moves.urllib import parse
 from tornado.template import Loader, Template
 
 from nlg import grammar, utils, templatize, grammar_options
+from nlg.narrative import Nugget
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
 NARRATIVE_CACHE = {}
@@ -29,7 +30,12 @@ if not op.isdir(nlg_path):
 
 
 def get_narrative_cache(handler):
-    return {k: [n.to_dict() for n in v] for k, v in NARRATIVE_CACHE.items()}
+    narrative = NARRATIVE_CACHE.get(handler.current_user.id, [])
+    return json.dumps([n.to_dict() for n in narrative])
+
+
+download_narrative = get_narrative_cache
+load_narrative = get_narrative_cache
 
 
 def get_preview_html(template, interactive=False):
@@ -66,7 +72,7 @@ def get_preview_html(template, interactive=False):
 
 def get_variable_settings_tmpl(handler):
     nugget_id, variable_ix = handler.path_args
-    nugget = NARRATIVE_CACHE[handler.session['id']][int(nugget_id)]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(nugget_id)]
     if not variable_ix.isdigit():
         variable_i = map(int, variable_ix.split(","))
     else:
@@ -80,7 +86,7 @@ def get_variable_settings_tmpl(handler):
 
 def set_variable_settings_tmpl(handler):
     nugget_id, variable_ix = handler.path_args
-    nugget = NARRATIVE_CACHE[handler.session['id']][int(nugget_id)]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(nugget_id)]
     if not variable_ix.isdigit():
         variable_i = map(int, variable_ix.split(","))
     else:
@@ -111,7 +117,7 @@ def get_nugget_settings_tmpl(handler):
 
 
 def get_nugget(handler):
-    nugget = NARRATIVE_CACHE[handler.session['id']][int(handler.path_args[0])]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
     nugget = nugget.to_dict()
     nugget['previewHTML'] = get_preview_html(nugget, True)
     return nugget
@@ -173,7 +179,7 @@ def get_original_df(handler):
 def render_template(handler):
     """Render a set of templates against a dataframe and formhandler actions on it."""
     orgdf = get_original_df(handler)
-    nugget = NARRATIVE_CACHE[handler.session['id']][int(handler.path_args[0])]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
     return nugget.render(orgdf)
 
 
@@ -182,9 +188,9 @@ def save_nugget(sid, nugget):
     narrative.append(nugget)
     if len(narrative) > 0:
         NARRATIVE_CACHE[sid] = narrative
-    outpath = op.join(nlg_path, sid + ".json")
-    with open(outpath, 'w', encoding='utf8') as fout:
-        json.dump([n.to_dict() for n in narrative], fout, indent=4)
+    # outpath = op.join(nlg_path, sid + ".json")
+    # with open(outpath, 'w', encoding='utf8') as fout:
+    #     json.dump([n.to_dict() for n in narrative], fout, indent=4)
 
 
 def process_text(handler):
@@ -194,7 +200,7 @@ def process_text(handler):
     df = pd.DataFrame.from_records(payload['data'])
     args = payload.get('args', {}) or {}
     nugget = templatize(nlp(payload['text']), args.copy(), df)
-    save_nugget(handler.session['id'], nugget)
+    save_nugget(handler.current_user.id, nugget)
     nugget = nugget.to_dict()
     nugget['previewHTML'] = get_preview_html(nugget)
     return nugget
@@ -244,22 +250,6 @@ def get_narrative_config_files(handler):
     return glob.glob('{}/*.json'.format(get_user_dir(handler)))
 
 
-def save_config(handler):
-    """Save the current narrative config.
-    (to $GRAMEXDATA/{{ handler.current_user.id }})"""
-    payload = {}
-    for k in ['config', 'name', 'dataset']:
-        payload[k] = parse.unquote(handler.args[k][0])
-    payload['config'] = json.loads(payload['config'])
-    nname = payload['name']
-    if not nname.endswith('.json'):
-        nname += '.json'
-    payload['dataset'] = parse.unquote(handler.args['dataset'][0])
-    fpath = op.join(get_user_dir(handler), nname)
-    with open(fpath, 'w') as fout:  # noqa: No encoding for json
-        json.dump(payload, fout, indent=4)
-
-
 def init_form(handler):
     """Process input from the landing page and write the current session config."""
     meta = {}
@@ -283,22 +273,31 @@ def init_form(handler):
     # handle config
     config_name = handler.get_argument('narrative', '')
     if config_name:
-        config_path = op.join(data_dir, config_name)
+        outpath = op.join(data_dir, config_name)
         # shutil.copy(config_path, op.join(local_data_dir, 'config.json'))
-        meta['nrid'] = op.basename(config_path)
+    else:
+        conf_file = handler.request.files.get('config-file', [{}])[0]
+        if conf_file:
+            outpath = op.join(data_dir, conf_file['filename'])
+            with open(outpath, 'wb') as fout:
+                fout.write(conf_file['body'])
+        else:
+            outpath = False
+    if outpath:
+        meta['nrid'] = op.basename(outpath)
 
     # write meta config
     with open(op.join(data_dir, 'meta.cfg'), 'w') as fout:  # NOQA
         json.dump(meta, fout, indent=4)
 
 
-def edit_narrative(handler):
-    """Set the handler's narrative and dataset ID to the current session."""
-    user_dir = op.join(nlg_path, handler.current_user.id)
-    dataset_name = handler.args.get('dsid', [''])[0]
-    narrative_name = handler.args.get('nrid', [''])[0] + '.json'
-    with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
-        json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)
+# def edit_narrative(handler):
+#     """Set the handler's narrative and dataset ID to the current session."""
+#     user_dir = op.join(nlg_path, handler.current_user.id)
+#     dataset_name = handler.args.get('dsid', [''])[0]
+#     narrative_name = handler.args.get('nrid', [''])[0] + '.json'
+#     with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
+#         json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)
 
 
 def get_init_config(handler):
@@ -312,5 +311,8 @@ def get_init_config(handler):
         if op.isfile(config_file):
             with open(config_file, 'r') as fout:  # NOQA: no encoding for JSON
                 meta['config'] = json.load(fout)
-        return meta
+            global NARRATIVE_CACHE
+            NARRATIVE_CACHE = {}
+            NARRATIVE_CACHE[handler.current_user.id] = \
+                [Nugget.from_json(c) for c in meta['config']]
     return {}
