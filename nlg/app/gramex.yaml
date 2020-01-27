@@ -13,6 +13,44 @@ import:
     YAMLURL: $YAMLURL/languagetool/
 
 url:
+  view-narrative-cache-$*:
+    pattern: /$YAMLURL/narratives
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.get_narrative_cache
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
+  nlg-variable-settings-$*:
+    pattern: /$YAMLURL/variablesettings/(\d+)/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.get_variable_settings_tmpl
+      xsrf_cookies: false
+      headers:
+        Content-Type: text/html
+  nlg-update-variable-$*:
+    pattern: /$YAMLURL/updatevar/(\d+)/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.set_variable_settings_tmpl
+      xsrf_cookies: false
+  nlg-get-nugget-$*:
+    pattern: /$YAMLURL/nuggets/(\d+)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.get_nugget
+      xsrf_cookies: false
+      headers:
+        Content-Type: application/json
+  nlg-nugget-settings-$*:
+    pattern: /$YAMLURL/nuggetsettings/(\d+)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.get_nugget_settings_tmpl
+      xsrf_cookies: false
+      headers:
+        Content-Type: text/html
   nlg-home-$*:
     pattern: /$YAMLURL/
     handler: FileHandler
@@ -59,21 +97,22 @@ url:
       headers:
         Content-Type: application/json
   rendertmpl-$*:
-    pattern: /$YAMLURL/render-template
+    pattern: /$YAMLURL/render-template/(\d+)
     handler: FunctionHandler
     kwargs:
       function: nlg.webapp.render_template
       xsrf_cookies: false
       headers:
-        Content-Type: application/json
-  nlg_gramopts-$*:
-    pattern: /$YAMLURL/get-gramopts
-    handler: FunctionHandler
-    kwargs:
-      function: nlg.webapp.get_gramopts
-      xsrf_cookies: false
-      headers:
-        Content-Type: application/json
+        Content-Type: text/plain
+        Cache-Control: no-store
+# nlg_gramopts-$*:
+#   pattern: /$YAMLURL/get-gramopts
+#   handler: FunctionHandler
+#   kwargs:
+#     function: nlg.webapp.get_gramopts
+#     xsrf_cookies: false
+#     headers:
+#       Content-Type: application/json
   save-config-$*:
     pattern: /$YAMLURL/save-config
     handler: FunctionHandler

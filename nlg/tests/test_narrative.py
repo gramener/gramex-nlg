@@ -6,7 +6,6 @@
 Tests for the nlg.narrative module.
 """
 
-import json
 import os
 import unittest
 
@@ -98,14 +97,13 @@ class TestNarrative(unittest.TestCase):
                 del self.nugget.tokenmap[var_token]
 
     def test_serialize(self):
-        pl = self.nugget.to_json()
-        pl = json.loads(pl)
+        pl = self.nugget.to_dict()
         self.assertEqual(pl['text'], self.text.text)
         self.assertDictEqual(pl['fh_args'], {'_sort': ['-rating']})
-        tokenmap = [json.loads(t) for t in pl['tokenmap']]
+        tokenmap = pl['tokenmap']
         ideal = [
             {
-                'index': [0, 2],
+                'index': (0, 2), 'idx': 0, 'text': 'James Stewart',
                 'sources': [
                     {
                         'location': 'cell', 'tmpl': 'df["name"].iloc[0]', 'type': 'ne',
@@ -115,7 +113,7 @@ class TestNarrative(unittest.TestCase):
                 'varname': '', 'inflections': []
             },
             {
-                'index': 4,
+                'index': 4, 'idx': 21, 'text': 'actor',
                 'sources': [
                     {
                         'location': 'cell', 'tmpl': 'df["category"].iloc[-2]', 'type': 'token',
@@ -132,7 +130,7 @@ class TestNarrative(unittest.TestCase):
         self.assertListEqual(ideal, tokenmap)
 
     def test_deserialize(self):
-        pl = self.nugget.to_json()
+        pl = self.nugget.to_dict()
         nugget = Nugget.from_json(pl)
         actual = nugget.render(self.df).lstrip().decode('utf8')
         self.assertEqual(actual, self.text.text)

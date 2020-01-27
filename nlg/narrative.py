@@ -24,34 +24,6 @@ def _check_unique_token(t, doc):
         warnings.warn(msg)
 
 
-class _VariableEncoder(json.JSONEncoder):
-    def default(self, obj):
-        payload = {}
-        token = obj._token
-        if isinstance(token, Token):
-            payload['index'] = token.i
-        elif isinstance(token, Span):
-            payload['index'] = token.start, token.end
-        payload['sources'] = obj.sources
-        payload['varname'] = obj.varname
-        payload['inflections'] = obj.inflections
-        return payload
-
-
-class _NuggetEncoder(json.JSONEncoder):
-    def default(self, obj):
-        payload = {}
-        payload['text'] = obj.doc.text
-        tokenmap = []
-        for _, variable in obj.tokenmap.items():
-            tokenmap.append(variable.to_json())
-        payload['tokenmap'] = tokenmap
-        payload['fh_args'] = obj.fh_args
-        payload['condition'] = obj.condition
-        payload['name'] = obj.name
-        return payload
-
-
 class Variable(object):
     """
     NLG Variable
@@ -83,9 +55,20 @@ class Variable(object):
             inflections = []
         self.inflections = inflections
 
-    def to_json(self):
-        """Serialize the variable to JSON."""
-        return json.dumps(self, cls=_VariableEncoder)
+    def to_dict(self):
+        """Serialize the variable to dict."""
+        payload = {'text': self._token.text}
+        token = self._token
+        if isinstance(token, Token):
+            payload['index'] = token.i
+            payload['idx'] = token.idx
+        elif isinstance(token, Span):
+            payload['index'] = token.start, token.end
+            payload['idx'] = token[0].idx
+        payload['sources'] = self.sources
+        payload['varname'] = self.varname
+        payload['inflections'] = self.inflections
+        return payload
 
     def set_expr(self, expr):
         """Change the formula or expression for the variable.
@@ -103,6 +86,20 @@ class Variable(object):
         for tmpl in self.sources:
             if tmpl.get('enabled', False):
                 return tmpl
+
+    def enable_source(self, tmpl):
+        if isinstance(tmpl, int):
+            for source in self.sources:
+                source['enabled'] = False
+            self.sources[tmpl]['enabled'] = True
+        elif tmpl in [c['tmpl'] for c in self.sources]:
+            for source in self.sources:
+                if source['tmpl'] == tmpl:
+                    source['enabled'] = True
+                else:
+                    source['enabled'] = False
+        else:
+            raise ValueError('Variable source not found.')
 
     @property
     def template(self):
@@ -142,7 +139,7 @@ class Nugget(object):
     Note: This class is not meant to be instantiated directly. Please use `nlg.templatize`.
     """
     def __init__(self, text, tokenmap=None, inflections=None, fh_args=None,
-                 condition=False, template="", name=""):
+                 condition=None, template="", name=""):
         self.doc = text
         self.tokenmap = {}
         if inflections is None:
@@ -162,9 +159,19 @@ class Nugget(object):
         self.condition = condition
         self.name = name
 
-    def to_json(self):
-        """Serialze the nugget to JSON."""
-        return json.dumps(self, cls=_NuggetEncoder)
+    def to_dict(self):
+        """Serialze the nugget to dict."""
+        payload = {}
+        payload['text'] = self.doc.text
+        tokenmap = []
+        for _, variable in self.tokenmap.items():
+            tokenmap.append(variable.to_dict())
+        payload['tokenmap'] = tokenmap
+        payload['fh_args'] = self.fh_args
+        payload['condition'] = self.condition
+        payload['name'] = self.name
+        payload['template'] = self.template
+        return payload
 
     @classmethod
     def from_json(cls, obj):
@@ -177,13 +184,14 @@ class Nugget(object):
         tokenlist = obj.pop('tokenmap')
         tokenmap = {}
         for tk in tokenlist:
-            tk = json.loads(tk)
             index = tk.pop('index')
             if isinstance(index, int):
                 token = obj['text'][index]
-            elif isinstance(index, list):
+            elif isinstance(index, (list, tuple)):
                 start, end = index
                 token = obj['text'][start:end]
+            tk.pop('idx')
+            tk.pop('text')
             tokenmap[token] = Variable(token, **tk)
         obj['tokenmap'] = tokenmap
 
@@ -219,15 +227,21 @@ class Nugget(object):
         """
         if isinstance(t, Token):
             variable = self.tokenmap.get(t, False)
-            if variable:
-                return variable
         elif isinstance(t, str):
             _check_unique_token(t, self.doc)
+            variable = False
             for token in self.doc:
                 if token.text == t:
                     variable = self.tokenmap.get(token, False)
-                    if variable:
-                        return variable
+        else:
+            if isinstance(t, int):
+                token = self.doc[t]
+            else:
+                start, end = t
+                token = self.doc[start:end]
+            variable = self.tokenmap.get(token, False)
+        if variable:
+            return variable
         raise KeyError('Variable not found.')
 
     @property
@@ -325,55 +339,3 @@ class Nugget(object):
             token = self.doc[token]
         source = [{'tmpl': expr, 'type': 'user', 'enabled': True}]
         self.tokenmap[token] = Variable(token, sources=source, varname=varname)
-
-
-class Narrative(object):
-    def __init__(self, sentences=None, conditions=None):
-        if sentences is None:
-            sentences = []
-        self.sentences = sentences
-        if conditions is None:
-            conditions = []
-        self.conditions = conditions
-
-    @property
-    def sdict(self):
-        return {k: i for i, k in enumerate(self.sentences)}
-
-    def templatize(self, sep="\n\n"):
-        newsents = []
-        for i, sent in enumerate(self.sentences):
-            if str(i) in self.conditions:
-                newsent = """
-                {{ % if df.eval(\'{expr}\').any() % }}
-                    {sent}
-                {{ % end % }}
-                """.format(
-                    expr=self.conditions[str(i)], sent=sent
-                )
-            else:
-                newsent = sent
-            newsents.append(newsent)
-        return sep.join(newsents)
-
-    def append(self, sent):
-        self.sentences.append(sent)
-
-    add = append
-
-    def prepend(self, sent):
-        self.sentences.insert(0, sent)
-
-    def insert(self, sent, ix):
-        self.sentences.insert(ix, sent)
-
-    def _move(self, key, pos):
-        if isinstance(key, str):
-            key = self.sdict[key]
-        self.sentences.insert(key + pos, self.sentences.pop(key))
-
-    def move_up(self, key):
-        self._move(key, 1)
-
-    def move_down(self, key):
-        self._move(key, -1)

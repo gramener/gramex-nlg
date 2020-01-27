@@ -32,6 +32,18 @@ _spacy = {
 }
 
 
+def get_gramopts(handler):
+    """Find all Grammar and token inflection options from the NLG library.
+
+    Primarily used for creating the select box in the template settings dialog."""
+    funcs = {}
+    for attrname in dir(grammar):
+        obj = getattr(grammar, attrname)
+        if getattr(obj, 'gramopt', False):
+            funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
+    return funcs
+
+
 def _locate_app_config():
     return op.join(op.dirname(__file__), 'app', 'gramex.yaml')
 

@@ -230,15 +230,13 @@ def _number_inflection(x, y):
     return False
 
 
-def find_inflections(text, search, fh_args, df):
+def find_inflections(search, fh_args, df):
     """
     Find lexical inflections between words in input text and the search results
     obtained from FormHandler arguments and dataframes.
 
     Parameters
     ----------
-    text : str
-        Input text
     search : nlg.search.DFSearchResults
         The DFSearchResults object corresponding to `text` and `df`
     fh_args : dict
@@ -263,3 +261,21 @@ def find_inflections(text, search, fh_args, df):
             if infl:
                 inflections[token] = infl
     return inflections
+
+
+def get_gramopts():
+    """Find all Grammar and token inflection options from the NLG library.
+    Primarily used for creating the select box in the template settings dialog."""
+    funcs = {}
+    module = globals().copy()
+    for attrname in module:
+        obj = module[attrname]
+        if obj and getattr(obj, 'gramopt', False):
+            funcs[obj.fe_name] = {
+                'fe_name': obj.fe_name, 'source': obj.source, 'func_name': attrname
+            }
+    return funcs
+
+
+if __name__ == "__main__":
+    print(get_gramopts())  # noqa

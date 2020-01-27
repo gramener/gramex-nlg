@@ -92,7 +92,7 @@
               <button id="settings-btn-<%= i %>" title="Settings" type="button" class="btn btn-primary btn-sm">
                 <i class="fa fa-wrench"></i>
               </button>
-              <%= templates[i].previewHTML %>
+              <%= templates[i].previewHTML() %>
             </div>
           <% } %>
         </div>
@@ -144,110 +144,7 @@
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header"><h6>Template Settings</h6></div>
-          <div id="tmpllist" class="modal-body">
-            <div>
-            <div class="card shadow mb-3">
-              <div class="card-body">
-                <h4 class="card-title">Template Preview</h4>
-                <p class="card-text" id="tmpl-setting-preview"></p>
-              </div>
-            </div>
-            <div class="form-group row">
-              <label class="col-sm-4 col-form-label"
-              for="tmpl-name-editor">Template Name</label>
-              <div class="col-sm-4">
-                <input class="form-control"
-                id="tmpl-name-editor" placeholder="Name the template">
-              </div>
-              <div class="col-sm-4">
-                <button id="tmpl-name-btn" type="button" class="btn btn-primary success">
-                    <i class="fa fa-check"></i>
-                </button>
-              </div>
-            </div>
-            <div class="form-group row">
-              <label class="col-sm-4 col-form-label"
-              for="condition-editor">Condition</label>
-              <div class="col-sm-4">
-                <input class="form-control"
-                id="condition-editor" placeholder="Add condition">
-              </div>
-              <div class="col-sm-4">
-                <button id="condition-btn" type="button" class="btn btn-primary success">
-                    <i class="fa fa-check"></i>
-                </button>
-              </div>
-            </div>
-            <div class="form-group">
-              <textarea class="form-control align-center text-monospace"
-              id="edit-template" name="templateditor" rows="10"></textarea>
-            </div>
-            <table class="table table-striped table-sm">
-              <thead>
-                  <tr>
-                      <th scope="col">Token</th>
-                      <th scope="col">Search Results</th>
-                      <th scope="col">Grammar</th>
-                  </tr>
-              </thead>
-              <tbody id="table-body">
-                <script type="text/html" id="tmplsettings">
-                  <% for (let [token, tkobj] of Object.entries(tokenmap)) { %>
-                  <tr>
-                    <th scope="row" class="align-middle"><%= token %></th>
-                    <% if (tkobj.tokenlist.length > 1) { %>
-                      <td>
-                        <% let tkselector = token.replace(/\s/g, "_") %>
-                        <% let ddid = `srdd-${currentEditIndex}-${tkselector}` %>
-                        <div class="text-monospace">
-                          <select class="selectpicker" id="<%= ddid %>">
-                          <option selected>
-                              <%= tkobj.enabledTemplate.tmpl %>
-                          </option>
-                          <% for (let i = 0; i < tkobj.tokenlist.length; i++) { %>
-                            <% let tmpl = tkobj.tokenlist[i] %>
-                            <% if (!(tmpl.enabled)) { %>
-                              <div class="text-monospace">
-                                <option><%= tmpl.tmpl %></option>
-                              </div>
-                            <% } %>
-                          <% } %>
-                          </select>
-                        </div>
-                      </td>
-                    <% } else { %>
-                      <td class="align-middle" style="font-family:monospace"><%= tkobj.tokenlist[0].tmpl %></td>
-                    <% } %>
-                    <td class="align-middle">
-                      <% var tkselector = tkobj.text.replace(/\s/g, '_') %>
-                      <select id="gramopt-select-<%= currentEditIndex %>-<%= tkselector %>" class="select-multiple" multiple="multiple">
-                        <% var appliedInfls = findAppliedInflections(tkobj) %>
-                        <% var selected %>
-                        <% for (let fe_name of Object.keys(grammarOptions)) { %>
-                          <% selected = '' %>
-                          <% if (appliedInfls.has(fe_name)) { %>
-                            <% selected = 'selected' %>
-                          <% } %>
-                        <option <%= selected %>><%= fe_name %></option>`
-                        <% } %>
-                      </select>
-                    </td>
-                  </tr>
-                  <% } %>
-                </script>
-              </tbody>
-            </table>
-            <div id="srdd"></div>
-            <button id="check-template" title="Run template"
-            type="button" class="btn btn-primary btn-sm">
-                Run Template <i class="fa fa-play"></i>
-            </button>
-            <button id="save-template" title="Save Template"
-            type="button" class="btn btn-primary btn-sm" disabled>
-                Save Template <i class="fa fa-save"></i>
-            </button>
-          </div>
-        </div>
+        <div id="tmpllist" class="modal-body"></div>
       </div>
     </div>
   </div>
@@ -280,9 +177,9 @@
   var args = null;
   var templates = [];
   var currentEventHandlers = {};
-  var currentEditIndex = null;
-  var currentSpanId = null;
-  var grammarOptions = []
+  var currentTemplateIndex = null;
+  var currentTokenIndex = null;
+  // var grammarOptions = []
   var narrative_name = "";
   var dataset_name = "";
 
@@ -294,8 +191,6 @@
   $(document)
   .on('click', '#save-config-btn', saveConfig)
   .on('click', '#inspect', addToNarrative)
-  .on('click', '#check-template', checkTemplate)
-  .on("click", "#save-template", saveTemplate)
   .on('focus', "#edit-template", (e) => {$('#save-template').attr('disabled', false)})
   .on('click', "#condition-btn", addCondition)
   .on('click', "#share-narrative-btn", shareNarrative)
@@ -303,7 +198,7 @@
 
   $("#textbox").attr('cols', 119)
   $("#edit-template").attr('cols', 69).attr('rows', 10)
-  $.getJSON(`{{ nlg_base }}/get-gramopts`).done(
-    (resp) => { grammarOptions = resp }
-  )
+  // $.getJSON(`{{ nlg_base }}/get-gramopts`).done(
+  //   (resp) => { grammarOptions = resp }
+  // )
 </script>

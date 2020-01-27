@@ -10,21 +10,111 @@ import json
 import os
 import os.path as op
 
+from gramex.config import variables
 import pandas as pd
 from six.moves.urllib import parse
-from tornado.template import Template
+from tornado.template import Loader, Template
 
-from nlg import grammar
-from nlg import utils
-from nlg.search import _search
-from gramex.config import variables
+from nlg import grammar, utils, templatize, grammar_options
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
+NARRATIVE_CACHE = {}
 
 nlg_path = op.join(variables['GRAMEXDATA'], 'nlg')
+nlp = utils.load_spacy_model()
+tmpl_loader = Loader(op.join(op.dirname(__file__), "app", "templates"), autoescape=None)
 
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
+
+
+def get_narrative_cache(handler):
+    return {k: [n.to_dict() for n in v] for k, v in NARRATIVE_CACHE.items()}
+
+
+def get_preview_html(template, interactive=False):
+    """get_preview_html
+
+    Parameters
+    ----------
+        template : {{_type_}}
+
+
+    Returns
+    -------
+
+    Example
+    -------
+    """
+    text = template['text']
+    if interactive:
+        html = '<span style="background-color:#c8f442" class="cursor-pointer">{}</span>'
+    else:
+        html = '<span style="background-color:#c8f442">{}</span>'
+    l_offset = len(html.format(''))
+    offset = 0
+    tokenmap = sorted(template['tokenmap'], key=lambda x: x['idx'])
+    for token in tokenmap:
+        start = token['idx'] + offset
+        end = start + len(token['text'])
+        prefix = text[:start]
+        suffix = text[end:]
+        text = prefix + html.format(token['text']) + suffix
+        offset += l_offset
+    return text
+
+
+def get_variable_settings_tmpl(handler):
+    nugget_id, variable_ix = handler.path_args
+    nugget = NARRATIVE_CACHE[handler.session['id']][int(nugget_id)]
+    if not variable_ix.isdigit():
+        variable_i = map(int, variable_ix.split(","))
+    else:
+        variable_i = int(variable_ix)
+    variable = nugget.get_var(variable_i).to_dict()
+    tmpl = tmpl_loader.load("variable-settings.tmpl")
+    return tmpl.generate(
+        variable=variable, nugget_id=nugget_id, variable_id=variable_ix,
+        grammar_options=grammar_options)
+
+
+def set_variable_settings_tmpl(handler):
+    nugget_id, variable_ix = handler.path_args
+    nugget = NARRATIVE_CACHE[handler.session['id']][int(nugget_id)]
+    if not variable_ix.isdigit():
+        variable_i = map(int, variable_ix.split(","))
+    else:
+        variable_i = int(variable_ix)
+    variable = nugget.get_var(variable_i)
+    # handler.args will be something like
+    # {'sourcetext': [''], 'sources': ['0'], 'expr': ['foo'], 'inflections': ['Singularize']}
+
+    expr = handler.args['expr'][0]
+    if expr:  # Ignore the default value of the sources dropdown if expression is present
+        variable.set_expr(expr)
+    else:
+        source = int(handler.args['sources'][0])
+        if variable.sources[source]['tmpl'] != variable.enabled_source:
+            variable.enable_source(source)
+
+    inflections = handler.args.get('inflections', False)
+    if inflections:
+        variable.inflections = [grammar_options[i] for i in inflections]
+    else:
+        variable.inflections = []
+    return nugget.template
+
+
+def get_nugget_settings_tmpl(handler):
+    nugget = get_nugget(handler)
+    return tmpl_loader.load("template-settings.tmpl").generate(template=nugget)
+
+
+def get_nugget(handler):
+    nugget = NARRATIVE_CACHE[handler.session['id']][int(handler.path_args[0])]
+    nugget = nugget.to_dict()
+    nugget['previewHTML'] = get_preview_html(nugget, True)
+    return nugget
 
 
 def clean_anonymous_files():
@@ -83,19 +173,18 @@ def get_original_df(handler):
 def render_template(handler):
     """Render a set of templates against a dataframe and formhandler actions on it."""
     orgdf = get_original_df(handler)
-    payload = json.loads(handler.request.body.decode('utf8'))
-    fh_args = payload['args']
-    templates = payload['template']
-    df = pd.DataFrame.from_records(payload['data'])
-    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
-    resp = []
-    for t in templates:
-        rendered = Template(t).generate(
-            orgdf=orgdf, df=df, fh_args=fh_args, G=grammar, U=utils).decode('utf8')
-        rendered = rendered.replace('-', '')
-        # grmerr = utils.check_grammar(rendered)
-        resp.append({'text': rendered})  # , 'grmerr': grmerr})
-    return json.dumps(resp)
+    nugget = NARRATIVE_CACHE[handler.session['id']][int(handler.path_args[0])]
+    return nugget.render(orgdf)
+
+
+def save_nugget(sid, nugget):
+    narrative = NARRATIVE_CACHE.get(sid, [])
+    narrative.append(nugget)
+    if len(narrative) > 0:
+        NARRATIVE_CACHE[sid] = narrative
+    outpath = op.join(nlg_path, sid + ".json")
+    with open(outpath, 'w', encoding='utf8') as fout:
+        json.dump([n.to_dict() for n in narrative], fout, indent=4)
 
 
 def process_text(handler):
@@ -104,16 +193,11 @@ def process_text(handler):
     payload = json.loads(handler.request.body.decode('utf8'))
     df = pd.DataFrame.from_records(payload['data'])
     args = payload.get('args', {}) or {}
-    resp = []
-    for t in payload['text']:
-        # grammar_errors = yield utils.check_grammar(t)
-        replacements, t, infl = _search(t, args.copy(), df)
-        resp.append({
-            'text': t, 'tokenmap': replacements, 'inflections': infl,
-            'fh_args': args
-            # 'grmerr': json.loads(grammar_errors.decode('utf8'))['matches']
-        })
-    return json.dumps(resp)
+    nugget = templatize(nlp(payload['text']), args.copy(), df)
+    save_nugget(handler.session['id'], nugget)
+    nugget = nugget.to_dict()
+    nugget['previewHTML'] = get_preview_html(nugget)
+    return nugget
 
 
 def read_current_config(handler):
@@ -174,18 +258,6 @@ def save_config(handler):
     fpath = op.join(get_user_dir(handler), nname)
     with open(fpath, 'w') as fout:  # noqa: No encoding for json
         json.dump(payload, fout, indent=4)
-
-
-def get_gramopts(handler):
-    """Find all Grammar and token inflection options from the NLG library.
-
-    Primarily used for creating the select box in the template settings dialog."""
-    funcs = {}
-    for attrname in dir(grammar):
-        obj = getattr(grammar, attrname)
-        if getattr(obj, 'gramopt', False):
-            funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
-    return funcs
 
 
 def init_form(handler):
