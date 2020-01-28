@@ -191,8 +191,6 @@
   .on('click', '#inspect', addToNarrative)
   .on('focus', "#edit-template", (e) => {$('#save-template').attr('disabled', false)})
   .on('click', '#save-config-btn', (e) => {window.open(`${nlg_base}/download`)})
-  .on('click', "#condition-btn", addCondition)
-  .on('click', "#share-narrative-btn", shareNarrative)
   .on('click', "#tmpl-name-btn", addName)
 
   $("#textbox").attr('cols', 119)

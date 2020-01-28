@@ -38,6 +38,23 @@ download_narrative = get_narrative_cache
 load_narrative = get_narrative_cache
 
 
+def new_variable_tmpl(handler):
+    nugget_id = int(handler.path_args[0])
+    variable_ix = handler.path_args[1]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][nugget_id]
+    start, end = map(int, variable_ix.split(','))
+    span = nugget.doc.text[start:end]
+    return tmpl_loader.load("new-variable.tmpl").generate(
+        nugget_id=nugget_id, text=span, variable_ix=variable_ix)
+
+
+def add_new_variable(handler):
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
+    start, end = map(int, handler.path_args[1].split(','))
+    nugget.add_var([start, end], expr=handler.args['expr'][0])
+    return nugget.template
+
+
 def get_preview_html(template, interactive=False):
     """get_preview_html
 

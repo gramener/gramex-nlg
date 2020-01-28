@@ -68,7 +68,7 @@ function hasClickedVariable(e) {
 
 function checkSelection(e) {
   let clickedVar = hasClickedVariable(e)
-  if (clickedVar || (clickedVar == 0)) {
+  if (clickedVar || (clickedVar === 0)) {
     if (typeof(clickedVar) != "number") {
       clickedVar = clickedVar.join(',')
     }
@@ -80,9 +80,11 @@ function checkSelection(e) {
   } else {
     let textSel = hasTextSelection()
     if (textSel) {
-      let start, end
-      [start, end] = textSel
-      console.log(textSel, templates[currentTemplateIndex].text.slice(start, end))
+      $.get(`${nlg_base}/newvariable/${currentTemplateIndex}/${textSel.join(',')}`).done(
+        (e) => {
+          $('#variable-settings').html(e)
+        }
+      )
     }
   }
 }
@@ -174,54 +176,6 @@ function setInitialConfig() {
   })
 }
 
-function checkTemplate() {
-  // Render the template found in the template editor box against the df and args.
-  // Show traceback if any.
-  $.post(`${nlg_base}/render-template`,
-    JSON.stringify({
-      'args': args, 'data': df,
-      'template': [$('#edit-template').val()]
-    })
-  ).done(updatePreview).fail(showTraceback)
-}
-
-function showTraceback(payload) {
-  // Show traceback if tornado.Template(tmpl).generate(**kwargs) fails
-  let traceback = $($.parseHTML(payload.responseText)).filter('#traceback')[0]
-  $('#traceback').html(traceback.innerHTML)
-  $('#tb-modal').modal({ 'show': true })
-}
-
-
-function updatePreview(payload) {
-  // Update the preview of a template after it has been edited.
-  var template = templates[currentTemplateIndex]
-  template.rendered_text = payload[0].text
-  template.highlight()
-  $('#tmpl-setting-preview').html(template.previewHTML())
-}
-
-function saveTemplate() {
-  // Update the source for a given template.
-  templates[currentTemplateIndex].template = $('#edit-template').val()
-  templates[currentTemplateIndex].text = $('#tmpl-setting-preview').text()
-  templates[currentTemplateIndex].highlight()
-  $('#save-template').attr('disabled', true)
-  renderPreview(null)
-}
-
-function addCondition() {
-  // Add a condition to a template, upon which the template would render.
-  var condition = $('#condition-editor').val()
-  if (condition) {
-    var template = templates[currentTemplateIndex]
-    template.condition = condition
-    template.makeTemplate()
-    $('#edit-template').val(template.template)
-  }
-
-}
-
 function addName() {
   // Add an optional name to a template.
   let name = $('#tmpl-name-editor').val()
@@ -251,13 +205,6 @@ function getNarrativeEmbedCode() {
   return html
 }
 
-function shareNarrative() {
-  // Launch the "Share" modal.
-  if (saveConfig()) {
-    copyToClipboard(getNarrativeEmbedCode())
-  }
-}
-
 function copyToClipboard(text) {
   // insert `text` in a temporary element and copy it to clipboard
   var tempTextArea = $('<textarea>')
@@ -265,15 +212,4 @@ function copyToClipboard(text) {
   tempTextArea.val(text).select()
   document.execCommand('copy')
   tempTextArea.remove()
-}
-
-function findAppliedInflections(tkobj) {
-  // Find the inflections applied on a given token.
-  var applied_inflections = new Set()
-  if (tkobj.inflections) {
-    for (let i = 0; i < tkobj.inflections.length; i++) {
-      applied_inflections.add(tkobj.inflections[i].fe_name)
-    }
-  }
-  return applied_inflections
 }

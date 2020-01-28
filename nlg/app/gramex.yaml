@@ -42,6 +42,20 @@ url:
       headers:
         Content-Type: application/json
         Content-Disposition: attachment; filename=narrative.json
+  nlg-new-variable-tmpl-$*:
+    pattern: /$YAMLURL/newvariable/(\d+)/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.new_variable_tmpl
+      xsrf_cookies: false
+      headers:
+        Content-Type: text/html
+  nlg-new-variable-add-$*:
+    pattern: /$YAMLURL/newvar/(\d+)/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.add_new_variable
+      xsrf_cookies: false
   nlg-variable-settings-$*:
     pattern: /$YAMLURL/variablesettings/(\d+)/(.*)
     handler: FunctionHandler

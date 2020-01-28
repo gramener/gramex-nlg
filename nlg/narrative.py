@@ -312,7 +312,7 @@ class Nugget(object):
 
         Parameters
         ----------
-        token : int or spacy.tokens.Token
+        token : int or spacy.tokens.Token or spacy.tokens.Span
             If `token` is an integer, it is interpreted as the position of the token
             in the source document.
 
@@ -337,5 +337,7 @@ class Nugget(object):
             raise ValueError('One of `varname` or `expr` must be provided.')
         if isinstance(token, int):
             token = self.doc[token]
+        elif isinstance(token, (list, tuple)):
+            token = self.doc.char_span(*token)
         source = [{'tmpl': expr, 'type': 'user', 'enabled': True}]
         self.tokenmap[token] = Variable(token, sources=source, varname=varname)
