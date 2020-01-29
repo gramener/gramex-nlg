@@ -13,9 +13,9 @@ import os.path as op
 from gramex.config import variables
 from gramex.config import app_log  # noqa: F401
 import pandas as pd
-from tornado.template import Loader, Template
+from tornado.template import Loader
 
-from nlg import grammar, utils, templatize, grammar_options
+from nlg import utils, templatize, grammar_options
 from nlg.narrative import Nugget
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
@@ -27,6 +27,10 @@ tmpl_loader = Loader(op.join(op.dirname(__file__), "app", "templates"), autoesca
 
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
+
+
+def get_config_modal(handler):
+    return tmpl_loader.load("init-config-modal.tmpl").generate(handler=handler)
 
 
 def get_narrative_cache(handler):
@@ -166,22 +170,26 @@ def get_user_dir(handler):
 def render_live_template(handler):
     """Given a narrative ID and df records, render the template."""
     payload = json.loads(handler.request.body)
-    orgdf = get_original_df(handler)
+    df = pd.DataFrame.from_records(payload['data'])
     nrid = payload['nrid']
     if not nrid.endswith('.json'):
         nrid += '.json'
-    df = pd.DataFrame.from_records(payload['data'])
-    nrpath = op.join(nlg_path, handler.current_user.id, nrid)
-    with open(nrpath, 'r') as fout:  # noqa: No encoding for json
-        templates = json.load(fout)
-    narratives = []
-    for t in templates['config']:
-        tmpl = utils.add_html_styling(t['template'], payload['style'])
-        s = Template(tmpl).generate(df=df, fh_args=t.get('fh_args', {}),
-                                    G=grammar, U=utils, orgdf=orgdf)
-        rendered = s.decode('utf8')
-        narratives.append(rendered)
-    return '\n'.join(narratives)
+    with open(op.join(get_user_dir(handler), nrid), 'r', encoding='utf8') as fin:
+        narrative = json.load(fin)
+    narrative = [Nugget.from_json(c) for c in narrative]
+    return ' '.join([n.render(df).decode('utf8') for n in narrative])
+
+
+def render_narrative(handler):
+    orgdf = get_original_df(handler)
+    nuggets = NARRATIVE_CACHE[handler.current_user.id]
+    renders = [n.render(orgdf).decode('utf8').lstrip() for n in nuggets]
+    style = handler.get_argument('style', 'para')
+    if style == 'para':
+        text = ' '.join(renders)
+    elif style == 'list':
+        text = '\n'.join(renders)
+    return text
 
 
 def get_original_df(handler):
@@ -308,15 +316,6 @@ def init_form(handler):
         json.dump(meta, fout, indent=4)
 
 
-# def edit_narrative(handler):
-#     """Set the handler's narrative and dataset ID to the current session."""
-#     user_dir = op.join(nlg_path, handler.current_user.id)
-#     dataset_name = handler.args.get('dsid', [''])[0]
-#     narrative_name = handler.args.get('nrid', [''])[0] + '.json'
-#     with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
-#         json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)
-
-
 def get_init_config(handler):
     """Get the initial default configuration for the current user."""
     user_dir = get_user_dir(handler)
@@ -332,4 +331,15 @@ def get_init_config(handler):
             NARRATIVE_CACHE = {}
             NARRATIVE_CACHE[handler.current_user.id] = \
                 [Nugget.from_json(c) for c in meta['config']]
+            app_log.debug('Initial config loaded from {}'.format(config_file))
     return {}
+
+
+def save_narrative(handler):
+    name = handler.path_args[0]
+    if not name.endswith('.json'):
+        name += '.json'
+    outpath = op.join(get_user_dir(handler), name)
+    with open(outpath, 'w', encoding='utf8') as fout:
+        json.dump([c.to_dict() for c in NARRATIVE_CACHE[handler.current_user.id]],
+                  fout, indent=4)

@@ -295,7 +295,8 @@ class Nugget(object):
             fh_args = {}
         kwargs['fh_args'] = fh_args
         return Template(
-            self.template, whitespace='oneline').generate(orgdf=df, U=utils, G=grammar, **kwargs)
+            self.template, whitespace='oneline').generate(
+                df=df, orgdf=df, U=utils, G=grammar, **kwargs)
 
     def add_fh_args(self, sent):
         if self.fh_args:

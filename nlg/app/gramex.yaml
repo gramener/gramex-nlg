@@ -15,6 +15,16 @@ import:
     YAMLURL: $YAMLURL/languagetool/
 
 url:
+  dummy:
+    pattern: /$YAMLURL/dummy
+    handler: FormHandler
+    kwargs:
+      url: $YAMLPATH/dummy.csv
+  save-narrative-$*:
+    pattern: /$YAMLURL/saveNarrative/(.*)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.save_narrative
   nlg-default-login-$*:
     pattern: /$YAMLURL/login/
     handler: SimpleAuth
@@ -143,16 +153,17 @@ url:
       headers:
         Content-Type: text/plain
         Cache-Control: no-store
-        # edit-narrative-$*:
-        #   pattern: /$YAMLURL/edit-narrative
-        #   handler: FunctionHandler
-        #   kwargs:
-        #     function: nlg.webapp.edit_narrative
-        #     auth: $NLG_AUTH
-        #     redirect:
-        #       url: /$YAMLURL/
+  renderall-$*:
+    pattern: /$YAMLURL/renderall
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.render_narrative
+      headers:
+        Content-Type: text/plain
   render-live-template-$*:
     pattern: /$YAMLURL/render-live-template
     handler: FunctionHandler
     kwargs:
       function: nlg.webapp.render_live_template
+      headers:
+        Content-Type: text/plain

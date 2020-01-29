@@ -112,7 +112,7 @@ function renderPreview(fh) {
     refreshTemplates()
     return true
   }
-  $('#template-preview').template({templates: templates})
+  $('#template-preview').template({n_templates: templates.length})
   for (let i = 0; i < templates.length; i++) {
     // add the remove listener
     var deleteListener = function () { deleteTemplate(i) }
@@ -121,6 +121,14 @@ function renderPreview(fh) {
     // add setting listener
     var settingsListener = function () { triggerTemplateSettings(i) }
     $(`#settings-btn-${i}`).on('click', settingsListener)
+
+    // Add the preview
+    $.get(`${nlg_base}/render-template/${i}`).done(
+      (e) => {$(`#preview-${i}`).text(e)}
+    )
+    $.get(`${nlg_base}/renderall`).done(
+      (e) => {$(`#previewspan`).text(e)}
+    )
   }
 }
 
@@ -192,7 +200,7 @@ function getNarrativeEmbedCode() {
     <script>
       $('.formhandler').on('load',
         (e) => {
-          $.post("${nlg_path}/render-live-template",
+          $.post("${nlg_path}render-live-template",
             JSON.stringify({
               data: e.formdata,
               nrid: "${narrative_name}", style: true
@@ -205,11 +213,12 @@ function getNarrativeEmbedCode() {
   return html
 }
 
-function copyToClipboard(text) {
-  // insert `text` in a temporary element and copy it to clipboard
-  var tempTextArea = $('<textarea>')
-  $('body').append(tempTextArea)
-  tempTextArea.val(text).select()
-  document.execCommand('copy')
-  tempTextArea.remove()
+function generateEmbedCode() {
+  let url = $('#embedTargetURL').val()
+  $('#embedCodeText').text(url)
+}
+
+function saveNarrative(name) {
+  narrative_name = name
+  $.get(`${nlg_base}/saveNarrative/${name}`)
 }
