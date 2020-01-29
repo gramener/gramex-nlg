@@ -1,0 +1,42 @@
+{% from tornado.escape import xhtml_unescape %}
+<div>
+  <div class="card shadow mb-3">
+    <div class="card-body">
+      <p class="card-text" id="tmpl-setting-preview">{{ xhtml_unescape(template['previewHTML']) }}</p>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div id="variable-settings"></div>
+  <div class="divider"></div>
+  <div class="form-group">
+    <textarea readonly class="form-control align-center text-monospace"
+    id="edit-template" name="templateditor" rows="10">{{ template['template'] }}</textarea>
+  </div>
+  <div class="form-group"><p id="renderpreview"></p></div>
+  <button id="toggle-template" title="Show template"
+  type="button" class="btn btn-primary btn-sm">Show Code</button>
+  <button id="preview-render" title="See rendered template"
+  type="button" class="btn btn-primary btn-sm">Preview Render</button>
+</div>
+<script>
+  $('#tmpl-setting-preview').mouseup(checkSelection)
+  $('#edit-template').hide()
+  function toggleTemplateDisplay() {
+    if ($('#edit-template').is(':visible')) {
+      $('#edit-template').hide()
+      $('#toggle-template').attr('title', "Show Template")
+      $('#toggle-template').text('Show Template')
+    } else {
+      $('#edit-template').show()
+      $('#toggle-template').attr('title', "Hide Template")
+      $('#toggle-template').text('Hide Template')
+    }
+  }
+  function previewRender() {
+    $.get(`${nlg_base}/render-template/${currentTemplateIndex}`).done(
+      (e) => $('#renderpreview').text(e)
+    )
+  }
+  $('#toggle-template').on('click', toggleTemplateDisplay)
+  $('#preview-render').on('click', previewRender)
+</script>

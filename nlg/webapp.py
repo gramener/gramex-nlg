@@ -10,21 +10,138 @@ import json
 import os
 import os.path as op
 
-import pandas as pd
-from six.moves.urllib import parse
-from tornado.template import Template
-
-from nlg import grammar
-from nlg import utils
-from nlg.search import _search
 from gramex.config import variables
+from gramex.config import app_log  # noqa: F401
+import pandas as pd
+from tornado.template import Loader
+
+from nlg import utils, templatize, grammar_options
+from nlg.narrative import Nugget
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
+NARRATIVE_CACHE = {}
 
 nlg_path = op.join(variables['GRAMEXDATA'], 'nlg')
+nlp = utils.load_spacy_model()
+tmpl_loader = Loader(op.join(op.dirname(__file__), "app", "templates"), autoescape=None)
 
 if not op.isdir(nlg_path):
     os.mkdir(nlg_path)
+
+
+def get_config_modal(handler):
+    return tmpl_loader.load("init-config-modal.tmpl").generate(handler=handler)
+
+
+def get_narrative_cache(handler):
+    narrative = NARRATIVE_CACHE.get(handler.current_user.id, [])
+    return json.dumps([n.to_dict() for n in narrative])
+
+
+download_narrative = get_narrative_cache
+load_narrative = get_narrative_cache
+
+
+def new_variable_tmpl(handler):
+    nugget_id = int(handler.path_args[0])
+    variable_ix = handler.path_args[1]
+    nugget = NARRATIVE_CACHE[handler.current_user.id][nugget_id]
+    start, end = map(int, variable_ix.split(','))
+    span = nugget.doc.text[start:end]
+    return tmpl_loader.load("new-variable.tmpl").generate(
+        nugget_id=nugget_id, text=span, variable_ix=variable_ix)
+
+
+def add_new_variable(handler):
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
+    start, end = map(int, handler.path_args[1].split(','))
+    nugget.add_var([start, end], expr=handler.args['expr'][0])
+    return nugget.template
+
+
+def get_preview_html(template, interactive=False):
+    """get_preview_html
+
+    Parameters
+    ----------
+        template : {{_type_}}
+
+
+    Returns
+    -------
+
+    Example
+    -------
+    """
+    text = template['text']
+    if interactive:
+        html = '<span style="background-color:#c8f442" class="cursor-pointer">{}</span>'
+    else:
+        html = '<span style="background-color:#c8f442">{}</span>'
+    l_offset = len(html.format(''))
+    offset = 0
+    tokenmap = sorted(template['tokenmap'], key=lambda x: x['idx'])
+    for token in tokenmap:
+        start = token['idx'] + offset
+        end = start + len(token['text'])
+        prefix = text[:start]
+        suffix = text[end:]
+        text = prefix + html.format(token['text']) + suffix
+        offset += l_offset
+    return text
+
+
+def get_variable_settings_tmpl(handler):
+    nugget_id, variable_ix = handler.path_args
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(nugget_id)]
+    if not variable_ix.isdigit():
+        variable_i = map(int, variable_ix.split(","))
+    else:
+        variable_i = int(variable_ix)
+    variable = nugget.get_var(variable_i).to_dict()
+    tmpl = tmpl_loader.load("variable-settings.tmpl")
+    return tmpl.generate(
+        variable=variable, nugget_id=nugget_id, variable_id=variable_ix,
+        grammar_options=grammar_options)
+
+
+def set_variable_settings_tmpl(handler):
+    nugget_id, variable_ix = handler.path_args
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(nugget_id)]
+    if not variable_ix.isdigit():
+        variable_i = map(int, variable_ix.split(","))
+    else:
+        variable_i = int(variable_ix)
+    variable = nugget.get_var(variable_i)
+    # handler.args will be something like
+    # {'sourcetext': [''], 'sources': ['0'], 'expr': ['foo'], 'inflections': ['Singularize']}
+
+    expr = handler.args['expr'][0]
+    if expr:  # Ignore the default value of the sources dropdown if expression is present
+        variable.set_expr(expr)
+    else:
+        source = int(handler.args['sources'][0])
+        if variable.sources[source]['tmpl'] != variable.enabled_source:
+            variable.enable_source(source)
+
+    inflections = handler.args.get('inflections', False)
+    if inflections:
+        variable.inflections = [grammar_options[i] for i in inflections]
+    else:
+        variable.inflections = []
+    return nugget.template
+
+
+def get_nugget_settings_tmpl(handler):
+    nugget = get_nugget(handler)
+    return tmpl_loader.load("template-settings.tmpl").generate(template=nugget)
+
+
+def get_nugget(handler):
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
+    nugget = nugget.to_dict()
+    nugget['previewHTML'] = get_preview_html(nugget, True)
+    return nugget
 
 
 def clean_anonymous_files():
@@ -53,22 +170,26 @@ def get_user_dir(handler):
 def render_live_template(handler):
     """Given a narrative ID and df records, render the template."""
     payload = json.loads(handler.request.body)
-    orgdf = get_original_df(handler)
+    df = pd.DataFrame.from_records(payload['data'])
     nrid = payload['nrid']
     if not nrid.endswith('.json'):
         nrid += '.json'
-    df = pd.DataFrame.from_records(payload['data'])
-    nrpath = op.join(nlg_path, handler.current_user.id, nrid)
-    with open(nrpath, 'r') as fout:  # noqa: No encoding for json
-        templates = json.load(fout)
-    narratives = []
-    for t in templates['config']:
-        tmpl = utils.add_html_styling(t['template'], payload['style'])
-        s = Template(tmpl).generate(df=df, fh_args=t.get('fh_args', {}),
-                                    G=grammar, U=utils, orgdf=orgdf)
-        rendered = s.decode('utf8')
-        narratives.append(rendered)
-    return '\n'.join(narratives)
+    with open(op.join(get_user_dir(handler), nrid), 'r', encoding='utf8') as fin:
+        narrative = json.load(fin)
+    narrative = [Nugget.from_json(c) for c in narrative]
+    return ' '.join([n.render(df).decode('utf8') for n in narrative])
+
+
+def render_narrative(handler):
+    orgdf = get_original_df(handler)
+    nuggets = NARRATIVE_CACHE[handler.current_user.id]
+    renders = [n.render(orgdf).decode('utf8').lstrip() for n in nuggets]
+    style = handler.get_argument('style', 'para')
+    if style == 'para':
+        text = ' '.join(renders)
+    elif style == 'list':
+        text = '\n'.join(renders)
+    return text
 
 
 def get_original_df(handler):
@@ -83,19 +204,18 @@ def get_original_df(handler):
 def render_template(handler):
     """Render a set of templates against a dataframe and formhandler actions on it."""
     orgdf = get_original_df(handler)
-    payload = json.loads(handler.request.body.decode('utf8'))
-    fh_args = payload['args']
-    templates = payload['template']
-    df = pd.DataFrame.from_records(payload['data'])
-    # fh_args = {k: [x.lstrip('-') for x in v] for k, v in fh_args.items()}
-    resp = []
-    for t in templates:
-        rendered = Template(t).generate(
-            orgdf=orgdf, df=df, fh_args=fh_args, G=grammar, U=utils).decode('utf8')
-        rendered = rendered.replace('-', '')
-        # grmerr = utils.check_grammar(rendered)
-        resp.append({'text': rendered})  # , 'grmerr': grmerr})
-    return json.dumps(resp)
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
+    return nugget.render(orgdf)
+
+
+def save_nugget(sid, nugget):
+    narrative = NARRATIVE_CACHE.get(sid, [])
+    narrative.append(nugget)
+    if len(narrative) > 0:
+        NARRATIVE_CACHE[sid] = narrative
+    # outpath = op.join(nlg_path, sid + ".json")
+    # with open(outpath, 'w', encoding='utf8') as fout:
+    #     json.dump([n.to_dict() for n in narrative], fout, indent=4)
 
 
 def process_text(handler):
@@ -104,16 +224,11 @@ def process_text(handler):
     payload = json.loads(handler.request.body.decode('utf8'))
     df = pd.DataFrame.from_records(payload['data'])
     args = payload.get('args', {}) or {}
-    resp = []
-    for t in payload['text']:
-        # grammar_errors = yield utils.check_grammar(t)
-        replacements, t, infl = _search(t, args.copy(), df)
-        resp.append({
-            'text': t, 'tokenmap': replacements, 'inflections': infl,
-            'fh_args': args
-            # 'grmerr': json.loads(grammar_errors.decode('utf8'))['matches']
-        })
-    return json.dumps(resp)
+    nugget = templatize(nlp(payload['text']), args.copy(), df)
+    save_nugget(handler.current_user.id, nugget)
+    nugget = nugget.to_dict()
+    nugget['previewHTML'] = get_preview_html(nugget)
+    return nugget
 
 
 def read_current_config(handler):
@@ -160,34 +275,6 @@ def get_narrative_config_files(handler):
     return glob.glob('{}/*.json'.format(get_user_dir(handler)))
 
 
-def save_config(handler):
-    """Save the current narrative config.
-    (to $GRAMEXDATA/{{ handler.current_user.id }})"""
-    payload = {}
-    for k in ['config', 'name', 'dataset']:
-        payload[k] = parse.unquote(handler.args[k][0])
-    payload['config'] = json.loads(payload['config'])
-    nname = payload['name']
-    if not nname.endswith('.json'):
-        nname += '.json'
-    payload['dataset'] = parse.unquote(handler.args['dataset'][0])
-    fpath = op.join(get_user_dir(handler), nname)
-    with open(fpath, 'w') as fout:  # noqa: No encoding for json
-        json.dump(payload, fout, indent=4)
-
-
-def get_gramopts(handler):
-    """Find all Grammar and token inflection options from the NLG library.
-
-    Primarily used for creating the select box in the template settings dialog."""
-    funcs = {}
-    for attrname in dir(grammar):
-        obj = getattr(grammar, attrname)
-        if getattr(obj, 'gramopt', False):
-            funcs[obj.fe_name] = {'source': obj.source, 'func_name': attrname}
-    return funcs
-
-
 def init_form(handler):
     """Process input from the landing page and write the current session config."""
     meta = {}
@@ -211,22 +298,22 @@ def init_form(handler):
     # handle config
     config_name = handler.get_argument('narrative', '')
     if config_name:
-        config_path = op.join(data_dir, config_name)
+        outpath = op.join(data_dir, config_name)
         # shutil.copy(config_path, op.join(local_data_dir, 'config.json'))
-        meta['nrid'] = op.basename(config_path)
+    else:
+        conf_file = handler.request.files.get('config-file', [{}])[0]
+        if conf_file:
+            outpath = op.join(data_dir, conf_file['filename'])
+            with open(outpath, 'wb') as fout:
+                fout.write(conf_file['body'])
+        else:
+            outpath = False
+    if outpath:
+        meta['nrid'] = op.basename(outpath)
 
     # write meta config
     with open(op.join(data_dir, 'meta.cfg'), 'w') as fout:  # NOQA
         json.dump(meta, fout, indent=4)
-
-
-def edit_narrative(handler):
-    """Set the handler's narrative and dataset ID to the current session."""
-    user_dir = op.join(nlg_path, handler.current_user.id)
-    dataset_name = handler.args.get('dsid', [''])[0]
-    narrative_name = handler.args.get('nrid', [''])[0] + '.json'
-    with open(op.join(user_dir, 'meta.cfg'), 'w') as fout:  # NOQA: no encoding for JSON
-        json.dump({'dsid': dataset_name, 'nrid': narrative_name}, fout, indent=4)
 
 
 def get_init_config(handler):
@@ -240,5 +327,19 @@ def get_init_config(handler):
         if op.isfile(config_file):
             with open(config_file, 'r') as fout:  # NOQA: no encoding for JSON
                 meta['config'] = json.load(fout)
-        return meta
+            global NARRATIVE_CACHE
+            NARRATIVE_CACHE = {}
+            NARRATIVE_CACHE[handler.current_user.id] = \
+                [Nugget.from_json(c) for c in meta['config']]
+            app_log.debug('Initial config loaded from {}'.format(config_file))
     return {}
+
+
+def save_narrative(handler):
+    name = handler.path_args[0]
+    if not name.endswith('.json'):
+        name += '.json'
+    outpath = op.join(get_user_dir(handler), name)
+    with open(outpath, 'w', encoding='utf8') as fout:
+        json.dump([c.to_dict() for c in NARRATIVE_CACHE[handler.current_user.id]],
+                  fout, indent=4)

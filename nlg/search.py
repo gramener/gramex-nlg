@@ -440,7 +440,7 @@ def _search(text, args, df, copy=False):
     dfix = dfs.search(text)
     dfix.update(search_args(dfs.ents, args))
     dfix.clean()
-    inflections = grammar.find_inflections(text.text, dfix, args, df)
+    inflections = grammar.find_inflections(dfix, args, df)
     _infl = {}
     for token, funcs in inflections.items():
         _infl[token] = []

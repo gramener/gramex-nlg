@@ -41,6 +41,8 @@ Usage
 Using the Python library
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
+To get started, see the `example notebook here <https://github.com/gramener/gramex-nlg/tree/dev/examples/intro-narrative-api.ipynb>`_.
+
 .. code:: python
 
     >>> import pandas as pd
@@ -63,14 +65,16 @@ Using the Python library
     0      setosa             3.15
 
     >>> # Write something about the output
-    >>> text = "The virginica species has the least average sepal_width."
+    >>> from nlg.utils import load_spacy_model
+    >>> text = nlp("The virginica species has the least average sepal_width.")
 
     >>> # Generate a template
-    >>> from nlg.search import templatize, render
+    >>> from nlg.search import templatize
     >>> tmpl = templatize(text, fh_args, xdf)
     >>> print(tmpl)
     {% set fh_args = {"_by": ["species"], "_c": ["sepal_width|avg"], "_sort": ["sepal_width|avg"]}  %}
     {% set df = U.gfilter(orgdf, fh_args.copy()) %}
+    {% set fh_args = U.sanitize_fh_args(fh_args, orgdf) %}
     The {{ df["species"].iloc[0] }} species has the least average {{ fh_args["_sort"][0].lower() }}.
 
     >>> # Render the same template with new data.

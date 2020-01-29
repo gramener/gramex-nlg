@@ -78,7 +78,7 @@ class TestGrammar(unittest.TestCase):
         dfix = dfs.search(text)
         dfix.update(search_args(dfs.ents, args))
         dfix.clean()
-        infl = G.find_inflections(text, dfix, fh_args, df)
+        infl = G.find_inflections(dfix, fh_args, df)
         x, y = infl[text[4]]
         self.assertEqual(x, G.singular)
         self.assertEqual(y, G.lower)
