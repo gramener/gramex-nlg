@@ -7,7 +7,7 @@ import json
 import re
 import warnings
 
-from spacy.tokens import Token, Span
+from spacy.tokens import Token, Span, Doc
 from tornado.template import Template
 
 from nlg import utils, grammar
@@ -65,6 +65,9 @@ class Variable(object):
         elif isinstance(token, Span):
             payload['index'] = token.start, token.end
             payload['idx'] = token[0].idx
+        elif isinstance(token, Doc):
+            payload['index'] = 0
+            payload['idx'] = 0
         payload['sources'] = self.sources
         payload['varname'] = self.varname
         payload['inflections'] = self.inflections
@@ -206,7 +209,7 @@ class Nugget(object):
 
         Parameters
         ----------
-        t : str or spacy.tokens.Token
+        t : any
             The string, or token corresponding to the variable.
             Using strings is discouraged, since the nugget may have
             more than one variable which renders to the same string form.
@@ -225,7 +228,11 @@ class Nugget(object):
         >>> nugget.get_var('Charlie Chaplin')
         {{ df["name"].iloc[-1] }}
         """
-        if isinstance(t, Token):
+        if len(self.tokenmap) == 1:
+            token, var = tuple(self.tokenmap.items())[0]
+            if isinstance(token, Doc):
+                variable = var
+        elif isinstance(t, Token):
             variable = self.tokenmap.get(t, False)
         elif isinstance(t, str):
             _check_unique_token(t, self.doc)
@@ -236,7 +243,7 @@ class Nugget(object):
         else:
             if isinstance(t, int):
                 token = self.doc[t]
-            else:
+            elif isinstance(t, (list, tuple)):
                 start, end = t
                 token = self.doc[start:end]
             variable = self.tokenmap.get(token, False)

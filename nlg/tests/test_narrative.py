@@ -10,6 +10,7 @@ import os
 import unittest
 
 import pandas as pd
+from spacy.tokens import Doc
 
 from nlg import templatize
 from nlg.narrative import Nugget
@@ -134,3 +135,17 @@ class TestNarrative(unittest.TestCase):
         nugget = Nugget.from_json(pl)
         actual = nugget.render(self.df).lstrip().decode('utf8')
         self.assertEqual(actual, self.text.text)
+
+    def test_doc_serialize(self):
+        nugget = templatize(nlp('Humphrey Bogart'), {}, self.df)
+        pl = nugget.to_dict()
+        self.assertEqual(len(pl['tokenmap']), 1)
+        var = nugget.get_var(0)
+        self.assertTrue(isinstance(var._token, Doc))
+        self.assertEqual(var._token.text, 'Humphrey Bogart')
+        var_serialized = pl['tokenmap'][0]
+        self.assertEqual(var_serialized['text'], 'Humphrey Bogart')
+        self.assertEqual(var_serialized['idx'], 0)
+        self.assertEqual(len(var_serialized['sources']), 1)
+        source = var_serialized['sources'][0]
+        self.assertEqual(source['tmpl'], 'df["name"].iloc[0]')

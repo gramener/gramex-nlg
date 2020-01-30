@@ -17,6 +17,7 @@ from nlg import narrative
 from nlg import utils
 
 SEARCH_PRIORITIES = [
+    # {'type': 'doc'},
     {'type': 'ne'},  # A match which is a named entity gets the highest priority
     {'location': 'fh_args'},  # than one that is a formhandler arg
     {'location': 'colname'},  # than one that is a column name
@@ -51,9 +52,8 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
     return items
 
 
-# TODO: The following two functions are highly redundant, can be refactored.
-def _search_1d_array(text, array, literal=False, case=False, lemmatize=True,
-                     nround=False):
+def _preprocess_array_search(text, array, literal=False, case=False, lemmatize=True,
+                             nround=False):
     nlp = utils.load_spacy_model()
     if case or nround:
         raise NotImplementedError
@@ -71,51 +71,82 @@ def _search_1d_array(text, array, literal=False, case=False, lemmatize=True,
 
     elif lemmatize:
         tokens = pd.Series([c.lemma_ for c in text], index=text)
-        array = array.map(nlp)
-        array = pd.Series([token.lemma_ for doc in array for token in doc])
+        if array.ndim == 1:
+            array = array.map(nlp)
+            array = pd.Series([token.lemma_ for doc in array for token in doc])
+        elif array.ndim == 2:
+            for col in array.columns[array.dtypes == np.dtype('O')]:
+                s = [c if isinstance(c, str) else str(c) for c in array[col]]
+                s = [nlp(c) for c in s]
+                try:
+                    array[col] = [token.lemma_ for doc in s for token in doc]
+                except ValueError:
+                    warnings.warn('Cannot lemmatize multi-word cells.')
+                    if not case:  # still need to respect the `case` param
+                        array[col] = array[col].str.lower()
 
+    return tokens, array
+
+
+def _remerge_span_tuples(results):
+    # re-merge span objects that end up as tuples; see issue #25
+    unmerged_spans = [k for k in results if isinstance(k, tuple)]
+    for span in unmerged_spans:
+        start, end = span[0].idx, span[-1].idx + len(span[-1])
+        new_span = span[0].doc.char_span(start, end)
+        results[new_span] = results.pop(span)
+    return results
+
+
+def _text_search_array(text, array, case=False):
+    array = array.astype(str)
+    if not case:
+        stext = text.lower()
+        if array.ndim == 1:
+            array = array.map(lambda x: x.lower())
+        elif array.ndim == 2:
+            for col in array:
+                array[col] = array[col].str.lower()
+    else:
+        stext = text
+    mask = array == stext
+    if not mask.any(axis=None):
+        return []
+    indices = mask.values.nonzero()
+    if array.ndim == 1:
+        return indices[0]
+    if array.ndim == 2:
+        return indices
+
+
+def _search_1d_array(text, array, literal=False, case=False, lemmatize=True,
+                     nround=False):
+    tokens, array = _preprocess_array_search(text, array, literal, case, lemmatize, nround)
     mask = array.isin(tokens)
     if not mask.any():
         return {}
     indices = {array[i]: i for i in mask.nonzero()[0]}
     tk = tokens[tokens.isin(array)]
-    return {token: indices[s] for token, s in tk.items()}
+    return _remerge_span_tuples({token: indices[s] for token, s in tk.items()})
 
 
 def _search_2d_array(text, array, literal=False, case=False, lemmatize=True, nround=False):
-    nlp = utils.load_spacy_model()
-    if nround or case:
-        raise NotImplementedError
     array = array.astype(str)
-
-    if literal and lemmatize:
-        warnings.warn('Ignoring lemmatization.')
-
-    if not (literal or lemmatize):
-        warnings.warn(
-            'One of `literal` or `lemmatize` must be True. Falling back to lemmatize=True')
-        literal, lemmatize = False, True
-
-    if literal:
-        tokens = pd.Series([c.text for c in text], index=text)
-    elif lemmatize:
-        tokens = pd.Series([c.lemma_ for c in text], index=text)
-        for col in array.columns[array.dtypes == np.dtype('O')]:
-            s = [c if isinstance(c, str) else str(c) for c in array[col]]
-            s = [nlp(c) for c in s]
-            try:
-                array[col] = [token.lemma_ for doc in s for token in doc]
-            except ValueError:
-                warnings.warn('Cannot lemmatize multi-word cells.')
-                if not case:  # still need to respect the `case` param
-                    array[col] = array[col].str.lower()
-
+    tokens, array = _preprocess_array_search(text, array, literal, case, lemmatize, nround)
     mask = array.isin(tokens.values)
     if not mask.any().any():
         return {}
     indices = {array.iloc[i, j]: (i, j) for i, j in zip(*mask.values.nonzero())}
     tk = tokens[tokens.isin(array.values.ravel())]
-    return {token: indices[s] for token, s in tk.items()}
+    return _remerge_span_tuples({token: indices[s] for token, s in tk.items()})
+
+
+def _df_maxlen(df):
+    # Find the length of the longest string present in the columns, indices or values of a df
+    col_max = max([len(c) for c in df.columns.astype(str)])
+    ix_max = max([len(c) for c in df.index.astype(str)])
+    array_max = max([df[c].astype(str).apply(len).max() for c in df])
+    return max(col_max, ix_max, array_max)
 
 
 # TODO: Can this be done with defaultdict?
@@ -170,6 +201,7 @@ class DFSearch(object):
         if not nlp:
             nlp = utils.load_spacy_model()
         self.matcher = kwargs.get('matcher', utils.make_np_matcher(nlp))
+        self.ents = []
 
     def search(self, text, colname_fmt='df.columns[{}]',
                cell_fmt='df["{}"].iloc[{}]', **kwargs):
@@ -194,19 +226,31 @@ class DFSearch(object):
             the source dataframe, and values are a list of locations in the df
             where they are found.
         """
-        self.search_nes(text)
-        for token, ix in self.search_columns(text, **kwargs).items():
-            ix = utils.sanitize_indices(self.df.shape, ix, 1)
-            self.results[token] = {'location': 'colname', 'tmpl': colname_fmt.format(ix),
-                                   'type': 'token'}
+        if len(text.text) <= _df_maxlen(self.df):
+            for i in _text_search_array(text.text, self.df.columns):
+                self.results[text] = {'location': 'colname', 'tmpl': colname_fmt.format(i),
+                                      'type': 'doc'}
+            for x, y in zip(*_text_search_array(text.text, self.df)):
+                x = utils.sanitize_indices(self.df.shape, x, 0)
+                y = utils.sanitize_indices(self.df.shape, y, 1)
+                self.results[text] = {
+                    'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
+                    'type': 'doc'}
 
-        for token, (x, y) in self.search_table(text, **kwargs).items():
-            x = utils.sanitize_indices(self.df.shape, x, 0)
-            y = utils.sanitize_indices(self.df.shape, y, 1)
-            self.results[token] = {
-                'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
-                'type': 'token'}
-        self.search_quant([c for c in text if c.pos_ == 'NUM'])
+        else:
+            self.search_nes(text)
+            for token, ix in self.search_columns(text, **kwargs).items():
+                ix = utils.sanitize_indices(self.df.shape, ix, 1)
+                self.results[token] = {'location': 'colname', 'tmpl': colname_fmt.format(ix),
+                                       'type': 'token'}
+
+            for token, (x, y) in self.search_table(text, **kwargs).items():
+                x = utils.sanitize_indices(self.df.shape, x, 0)
+                y = utils.sanitize_indices(self.df.shape, y, 1)
+                self.results[token] = {
+                    'location': 'cell', 'tmpl': cell_fmt.format(self.df.columns[y], x),
+                    'type': 'token'}
+            self.search_quant([c for c in text if c.pos_ == 'NUM'])
         # self.search_derived_quant([c.text for c in selfdoc if c.pos_ == 'NUM'])
 
         return self.results
@@ -324,8 +368,13 @@ class DFSearch(object):
         {'1': [1], '2': [2]}
         """
         if array.ndim == 1:
-            return _search_1d_array(text, array, literal, case, lemmatize, nround)
-        return _search_2d_array(text, array, literal, case, lemmatize, nround)
+            func = _search_1d_array
+        else:
+            func = _search_2d_array
+        return func(text, array, literal, case, lemmatize, nround)
+        # if len(res) == 0:  # Fall back on searching the whole string, not just the entities
+        #     res = func([text], array, literal, case, lemmatize, nround)
+        # return res
 
 
 def _search_fh_args(entities, args, key, lemmatized):
