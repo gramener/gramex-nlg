@@ -125,7 +125,11 @@ def _search_1d_array(text, array, literal=False, case=False, lemmatize=True,
     mask = array.isin(tokens)
     if not mask.any():
         return {}
-    indices = {array[i]: i for i in mask.nonzero()[0]}
+    if isinstance(mask, pd.Series):
+        nz = mask.to_numpy().nonzero()[0]
+    else:
+        nz = mask.nonzero()[0]
+    indices = {array[i]: i for i in nz}
     tk = tokens[tokens.isin(array)]
     return _remerge_span_tuples({token: indices[s] for token, s in tk.items()})
 
