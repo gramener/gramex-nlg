@@ -226,6 +226,27 @@ class TestSearch(unittest.TestCase):
         enabled = [c for c in _sorted if c.get('enabled', False)]
         self.assertListEqual(enabled, results[1:])
 
+    def test_single_entity_search(self):
+        text = nlp("Humphrey Bogart")
+        nugget = search.templatize(text, {}, self.df)
+        self.assertEqual(len(nugget.tokenmap), 1)
+        for token, variable in nugget.tokenmap.items():
+            break
+        self.assertEqual(token.text, text.ents[0].text)
+        self.assertEqual(variable.template, '{{ df["name"].iloc[0] }}')
+
+    def test_literal_search(self):
+        df = pd.read_csv(
+            op.join(op.dirname(__file__), 'data', 'imdb_ratings.csv'), encoding='utf8')
+        texts = ['How I Met Your Mother', 'Sherlock', 'Dexter', 'Breaking Bad']
+        for t in texts:
+            doc = nlp(t)
+            nugget = search.templatize(doc, {}, df)
+            self.assertEqual(len(nugget.tokenmap), 1)
+            for token, variable in nugget.tokenmap.items():
+                self.assertEqual(token.text, t)
+                self.assertRegex(nugget.template, r'{{ df\["name"\].iloc\[-*\d+\] }}')
+
 
 if __name__ == "__main__":
     unittest.main()
