@@ -349,3 +349,20 @@ class Nugget(object):
             token = self.doc.char_span(*token)
         source = [{'tmpl': expr, 'type': 'user', 'enabled': True}]
         self.tokenmap[token] = Variable(token, sources=source, varname=varname)
+
+
+class Narrative(list):
+    """A list to hold only Nuggets."""
+
+    def render(self, style='para', **kwargs):
+        if style == 'para':
+            sep = ' '
+        elif style == 'list':
+            sep = '\n'
+        return sep.join([c.render(**kwargs).decode('utf8') for c in self])
+
+    def move(self, x, y):
+        raise NotImplementedError
+
+    def to_dict(self):
+        return [c.to_dict() for c in self]
