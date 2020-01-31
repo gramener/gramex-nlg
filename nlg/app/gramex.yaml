@@ -86,6 +86,7 @@ url:
     kwargs:
       function: nlg.webapp.get_nugget
       xsrf_cookies: false
+      methods: [GET, POST, DELETE]
       headers:
         Content-Type: application/json
   nlg-nugget-settings-$*:
@@ -160,6 +161,7 @@ url:
       function: nlg.webapp.render_narrative
       headers:
         Content-Type: text/plain
+        Cache-Control: no-store
   render-live-template-$*:
     pattern: /$YAMLURL/render-live-template
     handler: FunctionHandler

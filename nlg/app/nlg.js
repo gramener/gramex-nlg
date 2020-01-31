@@ -126,10 +126,10 @@ function renderPreview(fh) {
     $.get(`${nlg_base}/render-template/${i}`).done(
       (e) => {$(`#preview-${i}`).text(e)}
     )
-    $.get(`${nlg_base}/renderall`).done(
-      (e) => {$(`#previewspan`).text(e)}
-    )
   }
+  $.get(`${nlg_base}/renderall`).done(
+    (e) => {$(`#previewspan`).text(e)}
+  )
 }
 
 
@@ -144,6 +144,7 @@ function refreshTemplate(n) {
 
 function refreshTemplates() {
   // Refresh the output of all templates in the current narrative.
+  templates = []
   $.getJSON(`${nlg_base}/narratives`).done((e) => {
     for (let i=0; i<e.length;i++) {
       refreshTemplate(i)
@@ -153,9 +154,14 @@ function refreshTemplates() {
 
 function deleteTemplate(n) {
   // Delete a template
-  templates.splice(n, 1)
-  delete currentEventHandlers[`condt-btn-${n}`]
-  renderPreview(null)
+  $.getJSON(`${nlg_base}/nuggets/${n}?delete`).done((e) => {
+    templates = []
+    for (i=0; i<e.length; i++) {
+      templates[i] = new Template(e[i])
+      $('#tmpl-setting-preview').html(templates[i].previewHTML())
+    }
+    renderPreview(null)
+  })
 }
 
 function triggerTemplateSettings(sentid) {

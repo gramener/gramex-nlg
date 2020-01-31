@@ -16,7 +16,7 @@ import pandas as pd
 from tornado.template import Loader
 
 from nlg import utils, templatize, grammar_options
-from nlg.narrative import Nugget
+from nlg.narrative import Nugget, Narrative
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
 NARRATIVE_CACHE = {}
@@ -34,7 +34,7 @@ def get_config_modal(handler):
 
 
 def get_narrative_cache(handler):
-    narrative = NARRATIVE_CACHE.get(handler.current_user.id, [])
+    narrative = NARRATIVE_CACHE.get(handler.current_user.id, Narrative())
     return json.dumps([n.to_dict() for n in narrative])
 
 
@@ -95,10 +95,11 @@ def get_variable_settings_tmpl(handler):
     nugget_id, variable_ix = handler.path_args
     nugget = NARRATIVE_CACHE[handler.current_user.id][int(nugget_id)]
     if not variable_ix.isdigit():
-        variable_i = map(int, variable_ix.split(","))
+        start, stop = map(int, variable_ix.split(","))
+        variable = nugget.get_var((start, stop)).to_dict()
     else:
         variable_i = int(variable_ix)
-    variable = nugget.get_var(variable_i).to_dict()
+        variable = nugget.get_var(variable_i).to_dict()
     tmpl = tmpl_loader.load("variable-settings.tmpl")
     return tmpl.generate(
         variable=variable, nugget_id=nugget_id, variable_id=variable_ix,
@@ -138,10 +139,15 @@ def get_nugget_settings_tmpl(handler):
 
 
 def get_nugget(handler):
-    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
-    nugget = nugget.to_dict()
-    nugget['previewHTML'] = get_preview_html(nugget, True)
-    return nugget
+    nugget_id = int(handler.path_args[0])
+    if 'delete' in handler.args:
+        del NARRATIVE_CACHE[handler.current_user.id][nugget_id]
+        return json.dumps(NARRATIVE_CACHE[handler.current_user.id].to_dict())
+    else:
+        nugget = NARRATIVE_CACHE[handler.current_user.id][nugget_id]
+        nugget = nugget.to_dict()
+        nugget['previewHTML'] = get_preview_html(nugget, True)
+        return nugget
 
 
 def clean_anonymous_files():
@@ -209,7 +215,7 @@ def render_template(handler):
 
 
 def save_nugget(sid, nugget):
-    narrative = NARRATIVE_CACHE.get(sid, [])
+    narrative = NARRATIVE_CACHE.get(sid, Narrative())
     narrative.append(nugget)
     if len(narrative) > 0:
         NARRATIVE_CACHE[sid] = narrative
@@ -330,7 +336,7 @@ def get_init_config(handler):
             global NARRATIVE_CACHE
             NARRATIVE_CACHE = {}
             NARRATIVE_CACHE[handler.current_user.id] = \
-                [Nugget.from_json(c) for c in meta['config']]
+                Narrative([Nugget.from_json(c) for c in meta['config']])
             app_log.debug('Initial config loaded from {}'.format(config_file))
     return {}
 
