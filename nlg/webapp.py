@@ -349,3 +349,10 @@ def save_narrative(handler):
     with open(outpath, 'w', encoding='utf8') as fout:
         json.dump([c.to_dict() for c in NARRATIVE_CACHE[handler.current_user.id]],
                   fout, indent=4)
+
+
+def move_nuggets(handler):
+    pop, drop = map(int, handler.path_args)
+    narrative = NARRATIVE_CACHE[handler.current_user.id]
+    popped = narrative.pop(pop)
+    narrative.insert(drop, popped)

@@ -6,6 +6,64 @@ findAppliedInflections, checkSelection */
 var narrative_name, dataset_name
 
 
+function makeControlDroppable(elem, ondrop) {
+  elem.on('dragover', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  })
+  elem.on('dragleave', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+  })
+  elem.on('drop', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    ondrop(e)
+  })
+}
+
+function prepDrag(row) {
+  row.on('dragstart', (e) => {
+    e.dataTransfer = e.originalEvent.dataTransfer
+    e.dataTransfer.setData('text', e.target.id)})
+}
+
+
+function findControlRow(elem) {
+  if (!(elem.id)) {
+    return false
+  } else {
+    return elem.id.match(/^controlrow-\d+$/)
+  }
+}
+
+
+function findDropPosition(y) {
+  let rows = _.filter(Object.values($('tr[id^=controlrow]')), findControlRow)
+  let bottoms = _.flatMap(rows, (r) => {return r.getBoundingClientRect().bottom})
+  for (let i=0; i<bottoms.length; i++) {
+    if (y <= bottoms[i]) {
+      return i
+    }
+  }
+}
+
+
+function handleDrop(e) {
+  e.preventDefault();
+  let rowid = e.originalEvent.dataTransfer.getData('text')
+  if (rowid.match(/^controlrow-\d+$/g)) {
+    let droppos = findDropPosition(e.originalEvent.clientY)
+    if (droppos) {
+      let poppos = rowid.replace(/^controlrow-/, "")
+      $.get(`${nlg_base}/movenugget/${poppos}/${droppos}`).done(
+        refreshTemplates(null)
+      )
+    }
+  }
+}
+
+
 class Template {
   // Class to hold a piece of text that gets rendered as a
   // tornado template when the narrative is invoked anywhere.
@@ -104,6 +162,8 @@ function addToNarrative() {
   )
 }
 
+var foo = null
+
 function renderPreview(fh) {
   // Render the preview of all current templates on the front page.
   if (fh) {
@@ -113,6 +173,7 @@ function renderPreview(fh) {
     return true
   }
   $('#template-preview').template({n_templates: templates.length})
+  makeControlDroppable($('#controltable'), handleDrop)
   for (let i = 0; i < templates.length; i++) {
     // add the remove listener
     var deleteListener = function () { deleteTemplate(i) }
@@ -126,6 +187,9 @@ function renderPreview(fh) {
     $.get(`${nlg_base}/render-template/${i}`).done(
       (e) => {$(`#preview-${i}`).text(e)}
     )
+
+    // prep the row for dragging
+    prepDrag($(`#controlrow-${i}`))
   }
   $.get(`${nlg_base}/renderall`).done(
     (e) => {$(`#previewspan`).text(e)}
