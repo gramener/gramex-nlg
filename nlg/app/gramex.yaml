@@ -15,11 +15,13 @@ import:
     YAMLURL: $YAMLURL/languagetool/
 
 url:
-  dummy:
-    pattern: /$YAMLURL/dummy
-    handler: FormHandler
+  move-nuggets-$*:
+    pattern: /$YAMLURL/movenugget/(\d+)/(\d+)
+    handler: FunctionHandler
     kwargs:
-      url: $YAMLPATH/dummy.csv
+      function: nlg.webapp.move_nuggets
+      headers:
+        Cache-Control: no-store
   save-narrative-$*:
     pattern: /$YAMLURL/saveNarrative/(.*)
     handler: FunctionHandler

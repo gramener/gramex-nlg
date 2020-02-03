@@ -76,23 +76,25 @@
     <div class="row">
       <div class="col">
         <script id="template-preview" type="text/html">
-          <div class="container">
+          <table id="controltable" class="table table-borderless table-hover table-sm">
+            <tbody id="controlbody">
             <% for (let i=0; i < n_templates; i++) { %>
-              <div class="row">
-                <div class="col-1">
+              <tr id="controlrow-<%= i %>" draggable="true">
+                <td>
                   <button id="rm-btn-<%= i %>" title="Remove" type="button"
                   class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
-                </div>
-                <div class="col-1">
+                </td>
+                <td>
                   <button id="settings-btn-<%= i %>" title="Settings" type="button"
                   class="btn btn-primary btn-sm"><i class="fa fa-wrench"></i></button>
-                </div>
-                <div class="col">
+                </td>
+                <td>
                   <div id="preview-<%= i %>"></div>
-                </div>
-              </div>
+                </td>
+              </tr>
             <% } %>
-          </div>
+            </tbody>
+          </table>
         </script>
       </div>
       <div class="col">
