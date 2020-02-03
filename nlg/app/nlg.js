@@ -37,7 +37,6 @@ function findControlRow(elem) {
   }
 }
 
-
 function findDropPosition(y) {
   let rows = _.filter(Object.values($('tr[id^=controlrow]')), findControlRow)
   let bottoms = _.flatMap(rows, (r) => {return r.getBoundingClientRect().bottom})
@@ -47,7 +46,6 @@ function findDropPosition(y) {
     }
   }
 }
-
 
 function handleDrop(e) {
   e.preventDefault();
@@ -62,7 +60,6 @@ function handleDrop(e) {
     }
   }
 }
-
 
 class Template {
   // Class to hold a piece of text that gets rendered as a
@@ -162,8 +159,6 @@ function addToNarrative() {
   )
 }
 
-var foo = null
-
 function renderPreview(fh) {
   // Render the preview of all current templates on the front page.
   if (fh) {
@@ -187,7 +182,6 @@ function renderPreview(fh) {
     $.get(`${nlg_base}/render-template/${i}`).done(
       (e) => {$(`#preview-${i}`).text(e)}
     )
-
     // prep the row for dragging
     prepDrag($(`#controlrow-${i}`))
   }
