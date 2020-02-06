@@ -16,6 +16,19 @@ t_templatize = lambda x: '{{ ' + x + ' }}'  # noqa: E731
 nlp = utils.load_spacy_model()
 
 
+def _templatizer_factory(bold, italic, underline):
+    def templatizer(x):
+        x = t_templatize(x)
+        if bold:
+            x = f"<strong>{x}</strong>"
+        if italic:
+            x = f"<em>{x}</em>"
+        if underline:
+            x = f"<u>{x}</u>"
+        return x
+    return templatizer
+
+
 def _check_unique_token(t, doc):
     if len([c for c in doc if c.text == t]) > 1:
         msg = f'There is more than one token in the document that matches the text "{t}".' \
@@ -54,6 +67,7 @@ class Variable(object):
         if inflections is None:
             inflections = []
         self.inflections = inflections
+        self.templatizer = t_templatize
 
     def to_dict(self):
         """Serialize the variable to dict."""
@@ -116,7 +130,7 @@ class Variable(object):
         if varname:
             return tmplstr
 
-        return t_templatize(tmplstr)
+        return self.templatizer(tmplstr)
 
     def _add_inflection(self, tmplstr, infl):
         func = infl['func_name']
@@ -141,6 +155,7 @@ class Nugget(object):
 
     Note: This class is not meant to be instantiated directly. Please use `nlg.templatize`.
     """
+
     def __init__(self, text, tokenmap=None, inflections=None, fh_args=None,
                  condition=None, template="", name=""):
         self.doc = text
@@ -161,6 +176,7 @@ class Nugget(object):
         self._template = template
         self.condition = condition
         self.name = name
+        self.templatizer = t_templatize
 
     def to_dict(self):
         """Serialze the nugget to dict."""
@@ -259,11 +275,27 @@ class Nugget(object):
             sent = sent.replace(tk.text, tmpl)
             if tkobj.varname:
                 pattern = re.escape(tmpl)
-                sent = re.sub(pattern, t_templatize(tkobj.varname), sent)
+                sent = re.sub(pattern, self.templatizer(tkobj.varname), sent)
                 sent = f'{{% set {tkobj.varname} = {tmpl} %}}\n' + sent
         if self.condition:
             sent = f'{{% if {self.condition} %}}\n' + sent + '\n{% end %}'
         return self.add_fh_args(sent)
+
+    def _set_templatizer(self, func):
+        self.templatizer = func
+        for _, variable in self.tokenmap.items():
+            variable.templatizer = self.templatizer
+
+    def _reset_templatizer(self):
+        self._set_templatizer(t_templatize)
+
+    def to_html(self, bold=True, italic=False, underline=False, **kwargs):
+        self._set_templatizer(_templatizer_factory(bold, italic, underline))
+        try:
+            s = self.render(**kwargs)
+            return s
+        finally:
+            self._reset_templatizer()
 
     def __repr__(self):
         return self.template
@@ -354,15 +386,41 @@ class Nugget(object):
 class Narrative(list):
     """A list to hold only Nuggets."""
 
-    def render(self, style='para', **kwargs):
-        if style == 'para':
-            sep = ' '
-        elif style == 'list':
-            sep = '\n'
+    default_style = dict(style='para', liststyle='html', bold=True, italic=False, underline=False)
+
+    def render(self, sep=' ', **kwargs):
         return sep.join([c.render(**kwargs).decode('utf8') for c in self])
+
+    def to_html(self, style='para', liststyle='html', bold=True, italic=False, underline=False,
+                **kwargs):
+        self.html_style = {
+            'bold': bold, 'italic': italic, 'underline': underline,
+            'style': style, 'liststyle': liststyle
+        }
+        rendered = [c.to_html(bold, italic, underline, **kwargs).decode('utf8') for c in self]
+        if style == 'para':
+            s = ' '.join(rendered)
+        elif style == 'list':
+            if liststyle == "html":
+                l_render = "".join(["<li>{}</li>".format(r) for r in rendered])
+                s = f"<ul>{l_render}</ul>"
+            elif liststyle == 'markdown':
+                s = "\n".join(["* " + r for r in rendered])
+            else:
+                raise ValueError('Unknown liststyle.')
+        return s
 
     def move(self, x, y):
         raise NotImplementedError
 
     def to_dict(self):
-        return [c.to_dict() for c in self]
+        return {'narrative': [c.to_dict() for c in self],
+                'style': getattr(self, 'html_style', self.default_style)}
+
+    @classmethod
+    def from_json(cls, obj):
+        narrative = cls()
+        for nugget in obj['narrative']:
+            narrative.append(Nugget.from_json(nugget))
+        narrative.html_style = obj['style']
+        return narrative

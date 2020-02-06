@@ -98,8 +98,34 @@
         </script>
       </div>
       <div class="col">
-        <div class="border border-primary pl-2 pr-2 bg-light">
-          <p class="text-justify" id="previewspan"></p>
+        <div class="container">
+          <div class="row">
+            <div class="col d-flex justify-content-left bd-highlight">
+              <button id="boldpreview" type="button" class="btn btn-primary"
+                data-toggle="button" aria-pressed="false" autocomplete="off">
+                <i class="fa fa-bold"></i></button>
+              <button id="italicpreview" type="button" class="btn btn-primary"
+                data-toggle="button" aria-pressed="false" autocomplete="off">
+                <i class="fa fa-italic"></i></button>
+              <button id="ulinepreview" type="button" class="btn btn-primary"
+                data-toggle="button" aria-pressed="false" autocomplete="off">
+                <i class="fa fa-underline"></i></button>
+              <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                <label class="btn btn-primary" id="paralabel">
+                  <input type="radio" name="renderstyle" id="parastyle"
+                    autocomplete="off"><i class="fa fa-paragraph"></i>
+                </label>
+                <label class="btn btn-primary" id="listlabel">
+                  <input type="radio" name="renderstyle" id="liststyle"
+                    autocomplete="off"><i class="fa fa-list"></i>
+                </label>
+              </div>
+            </div>
+            <div class="w-100"></div>
+            <div class="col border border-primary pl-2 pr-2 bg-light">
+              <div class="text-justify" id="previewspan"></div>
+            </div>
+          </div>
         </div>
       </div>
       <!-- <div class="col-sm-3">
@@ -211,11 +237,11 @@
   var df = null;
   var args = null;
   var templates = [];
-  var currentEventHandlers = {};
   var currentTemplateIndex = null;
   var currentTokenIndex = null;
   var narrative_name = "";
   var dataset_name = "";
+  // var styleparams = {bold: true, italic: false, underline: false, style: 'para'}
 
   $(document).ready(setInitialConfig)
 
@@ -237,6 +263,11 @@
     $('#embedCodeText').val(getNarrativeEmbedCode())
     $('#embed-modal').modal({show: true})
   })
+  .on('click', '#boldpreview', toggleRenderStyle)
+  .on('click', '#italicpreview', toggleRenderStyle)
+  .on('click', '#ulinepreview', toggleRenderStyle)
+  .on('change', '#parastyle', toggleRenderStyle)
+  .on('change', '#liststyle', toggleRenderStyle)
 
   $("#textbox").attr('cols', 119)
   $("#edit-template").attr('cols', 69).attr('rows', 10)

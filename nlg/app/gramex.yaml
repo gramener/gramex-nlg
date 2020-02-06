@@ -162,7 +162,7 @@ url:
     kwargs:
       function: nlg.webapp.render_narrative
       headers:
-        Content-Type: text/plain
+        Content-Type: application/json
         Cache-Control: no-store
   render-live-template-$*:
     pattern: /$YAMLURL/render-live-template

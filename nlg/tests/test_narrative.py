@@ -7,13 +7,14 @@ Tests for the nlg.narrative module.
 """
 
 import os
+import re
 import unittest
 
 import pandas as pd
 from spacy.tokens import Doc
 
 from nlg import templatize
-from nlg.narrative import Nugget
+from nlg.narrative import Nugget, Narrative
 from nlg.utils import load_spacy_model
 
 op = os.path
@@ -149,3 +150,57 @@ class TestNarrative(unittest.TestCase):
         self.assertEqual(len(var_serialized['sources']), 1)
         source = var_serialized['sources'][0]
         self.assertEqual(source['tmpl'], 'df["name"].iloc[0]')
+
+    def test_narrative_html(self):
+        text = nlp('Katharine Hepburn is the actress with the least rating.')
+        fh_args = {'_sort': ['-rating']}
+        nugget = templatize(text, fh_args, self.df)
+        narrative = Narrative([self.nugget, nugget])
+
+        # test default render
+        actual = narrative.to_html(df=self.df)
+        actual = re.sub(r'\s+', ' ', actual)
+        ideal = ' <strong>James Stewart</strong> is the <strong>actor</strong> ' \
+            + 'with the highest rating. <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least rating.'
+        self.assertEqual(ideal, actual)
+
+        # test other options
+        actual = narrative.to_html(bold=False, df=self.df)
+        actual = re.sub(r'\s+', ' ', actual)
+        no_bold = ideal.replace('<strong>', '')
+        no_bold = no_bold.replace('</strong>', '')
+        self.assertEqual(actual, no_bold)
+
+        actual = narrative.to_html(italic=True, df=self.df)
+        actual = re.sub(r'\s+', ' ', actual)
+        italic = ideal.replace('<strong>', '<em><strong>')
+        italic = italic.replace('</strong>', '</strong></em>')
+        self.assertEqual(actual, italic)
+
+        actual = narrative.to_html(underline=True, df=self.df)
+        actual = re.sub(r'\s+', ' ', actual)
+        italic = ideal.replace('<strong>', '<u><strong>')
+        italic = italic.replace('</strong>', '</strong></u>')
+        self.assertEqual(actual, italic)
+
+    def test_parastyle(self):
+        text = nlp('Katharine Hepburn is the actress with the least rating.')
+        fh_args = {'_sort': ['-rating']}
+        nugget = templatize(text, fh_args, self.df)
+        narrative = Narrative([self.nugget, nugget])
+
+        actual = narrative.to_html(style='list', df=self.df)
+        actual = re.sub(r'\s+', ' ', actual)
+        ideal = '<ul><li> <strong>James Stewart</strong> is the <strong>actor</strong> ' \
+            + 'with the highest rating.</li><li> <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least rating.</li></ul>'
+        self.assertEqual(actual, ideal)
+
+        actual = narrative.to_html(bold=False, style='list', liststyle='markdown', df=self.df)
+        actual = [re.sub(r'\s+', ' ', c) for c in actual.splitlines()]
+        ideal = [
+            '* James Stewart is the actor with the highest rating.',
+            '* Katharine Hepburn is the actress with the least rating.'
+        ]
+        self.assertListEqual(actual, ideal)

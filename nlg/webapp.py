@@ -188,14 +188,13 @@ def render_live_template(handler):
 
 def render_narrative(handler):
     orgdf = get_original_df(handler)
-    nuggets = NARRATIVE_CACHE[handler.current_user.id]
-    renders = [n.render(orgdf).decode('utf8').lstrip() for n in nuggets]
-    style = handler.get_argument('style', 'para')
-    if style == 'para':
-        text = ' '.join(renders)
-    elif style == 'list':
-        text = '\n'.join(renders)
-    return text
+    narrative = NARRATIVE_CACHE[handler.current_user.id]
+    style_kwargs = {
+        'style': handler.args.pop('style', ['para'])[0],
+        'liststyle': handler.args.pop('liststyle', ['html'])[0],
+    }
+    style_kwargs.update({k: json.loads(v[0]) for k, v in handler.args.items()})
+    return {'render': narrative.to_html(**style_kwargs, df=orgdf), 'style': narrative.html_style}
 
 
 def get_original_df(handler):
@@ -336,8 +335,9 @@ def get_init_config(handler):
             global NARRATIVE_CACHE
             NARRATIVE_CACHE = {}
             NARRATIVE_CACHE[handler.current_user.id] = \
-                Narrative([Nugget.from_json(c) for c in meta['config']])
+                Narrative.from_json(meta['config'])
             app_log.debug('Initial config loaded from {}'.format(config_file))
+            return {'style': NARRATIVE_CACHE[handler.current_user.id].html_style}
     return {}
 
 
@@ -347,7 +347,7 @@ def save_narrative(handler):
         name += '.json'
     outpath = op.join(get_user_dir(handler), name)
     with open(outpath, 'w', encoding='utf8') as fout:
-        json.dump([c.to_dict() for c in NARRATIVE_CACHE[handler.current_user.id]],
+        json.dump(NARRATIVE_CACHE[handler.current_user.id].to_dict(),
                   fout, indent=4)
 
 
