@@ -4,7 +4,68 @@ addCondition, addName, shareNarrative, copyToClipboard,
 findAppliedInflections, checkSelection */
 /* eslint-disable no-global-assign */
 var narrative_name, dataset_name
+var styleparams = {bold: true, italic: false, underline: false, style: 'para'}
 
+function activateStyleControl() {
+  if (styleparams.bold) {
+    $('#boldpreview').addClass('active')
+  }
+  if (styleparams.italic) {
+    $('#italicpreview').addClass('active')
+  }
+  if (styleparams.underline) {
+    $('#ulinepreview').addClass('active')
+  }
+
+  if (styleparams.style == 'para') {
+    $('#parastyle').prop('checked', true)
+  } else {
+    $('#liststyle').prop('checked', true)
+  }
+  renderByStyle()
+}
+
+function toggleRenderStyle(e) {
+  if (e.currentTarget.id == "parastyle") {
+    if ($('#parastyle').prop('checked')) {
+      styleparams.style = "para"
+    }
+  } else if (e.currentTarget.id == "liststyle") {
+    if ($('#liststyle').prop('checked')) {
+      styleparams.style = "list"
+    }
+  } else if (e.currentTarget.id == "boldpreview") {
+    if ($('#boldpreview').hasClass('active')) {
+      styleparams.bold = true
+    } else {
+      styleparams.bold = false
+    }
+  } else if (e.currentTarget.id == "italicpreview") {
+    if ($('#italicpreview').hasClass('active')) {
+      styleparams.italic = true
+    } else {
+      styleparams.italic = false
+    }
+  } else if (e.currentTarget.id == "ulinepreview") {
+    if ($('#ulinepreview').hasClass('active')) {
+      styleparams.underline = true
+    } else {
+      styleparams.underline = false
+    }
+  }
+  renderByStyle()
+}
+
+function renderByStyle() {
+  let url = g1.url.parse(`${nlg_base}/renderall`)
+  url.update(styleparams)
+  $.getJSON(url.toString()).done(
+    (e) => {
+      $(`#previewspan`).html(e.render)
+      styleparams = e.style
+    }
+  )
+}
 
 function makeControlDroppable(elem, ondrop) {
   elem.on('dragover', (e) => {
@@ -180,14 +241,12 @@ function renderPreview(fh) {
 
     // Add the preview
     $.get(`${nlg_base}/render-template/${i}`).done(
-      (e) => {$(`#preview-${i}`).text(e)}
+      (e) => {$(`#preview-${i}`).html(e)}
     )
     // prep the row for dragging
     prepDrag($(`#controlrow-${i}`))
   }
-  $.get(`${nlg_base}/renderall`).done(
-    (e) => {$(`#previewspan`).text(e)}
-  )
+  renderByStyle()
 }
 
 
@@ -243,8 +302,10 @@ function editTemplate(n) {
 function setInitialConfig() {
   // At page ready, load the latest config for the authenticated user
   // and show it.
-  $.get(`${nlg_base}/initconf`).done((e) => {
+  $.getJSON(`${nlg_base}/initconf`).done((e) => {
     refreshTemplates()
+    Object.assign(styleparams, e.style)
+    activateStyleControl()
   })
 }
 
