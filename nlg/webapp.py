@@ -16,7 +16,7 @@ import pandas as pd
 from tornado.template import Loader
 
 from nlg import utils, templatize, grammar_options
-from nlg.narrative import Nugget, Narrative
+from nlg.narrative import Narrative
 
 DATAFILE_EXTS = {'.csv', '.xls', '.xlsx', '.tsv'}
 NARRATIVE_CACHE = {}
@@ -35,7 +35,7 @@ def get_config_modal(handler):
 
 def get_narrative_cache(handler):
     narrative = NARRATIVE_CACHE.get(handler.current_user.id, Narrative())
-    return json.dumps([n.to_dict() for n in narrative])
+    return json.dumps(narrative.to_dict())
 
 
 download_narrative = get_narrative_cache
@@ -182,28 +182,37 @@ def render_live_template(handler):
         nrid += '.json'
     with open(op.join(get_user_dir(handler), nrid), 'r', encoding='utf8') as fin:
         narrative = json.load(fin)
-    narrative = [Nugget.from_json(c) for c in narrative]
-    return ' '.join([n.render(df).decode('utf8') for n in narrative])
+    narrative = Narrative.from_json(narrative)
+    return narrative.to_html(**narrative.html_style, df=df)
+
+
+def get_style_kwargs(handler_args):
+    style_kwargs = {
+        'style': handler_args.pop('style', ['para'])[0],
+        'liststyle': handler_args.pop('liststyle', ['html'])[0],
+    }
+    style_kwargs.update({k: json.loads(v[0]) for k, v in handler_args.items()})
+    return style_kwargs
 
 
 def render_narrative(handler):
     orgdf = get_original_df(handler)
-    narrative = NARRATIVE_CACHE[handler.current_user.id]
-    style_kwargs = {
-        'style': handler.args.pop('style', ['para'])[0],
-        'liststyle': handler.args.pop('liststyle', ['html'])[0],
-    }
-    style_kwargs.update({k: json.loads(v[0]) for k, v in handler.args.items()})
-    return {'render': narrative.to_html(**style_kwargs, df=orgdf), 'style': narrative.html_style}
+    narrative = NARRATIVE_CACHE.get(handler.current_user.id, False)
+    if narrative:
+        style_kwargs = get_style_kwargs(handler.args)
+        return {'render': narrative.to_html(**style_kwargs, df=orgdf),
+                'style': narrative.html_style}
 
 
 def get_original_df(handler):
     """Get the original dataframe which was uploaded to the webapp."""
     data_dir = get_user_dir(handler)
-    with open(op.join(data_dir, 'meta.cfg'), 'r') as fout:  # noqa: No encoding for json
-        meta = json.load(fout)
-    dataset_path = op.join(data_dir, meta['dsid'])
-    return pd.read_csv(dataset_path, encoding='utf-8')
+    meta_path = op.join(data_dir, 'meta.cfg')
+    if op.isfile(meta_path):
+        with open(meta_path, 'r') as fout:  # noqa: No encoding for json
+            meta = json.load(fout)
+        dataset_path = op.join(data_dir, meta['dsid'])
+        return pd.read_csv(dataset_path, encoding='utf-8')
 
 
 def render_template(handler):

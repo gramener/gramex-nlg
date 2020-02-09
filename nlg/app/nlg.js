@@ -6,6 +6,16 @@ findAppliedInflections, checkSelection */
 var narrative_name, dataset_name
 var styleparams = {bold: true, italic: false, underline: false, style: 'para'}
 
+function openDemoPage() {
+  if (!(narrative_name)) {
+    $('#saveModal').modal({show: true})
+  } else {
+    let fh_url = encodeURIComponent($('.formhandler').attr('data-src'))
+    let url = `${nlg_base}/demoembed?fh_url=${fh_url}&nname=${narrative_name}`
+    window.open(url)
+  }
+}
+
 function activateStyleControl() {
   if (styleparams.bold) {
     $('#boldpreview').addClass('active')
@@ -59,12 +69,10 @@ function toggleRenderStyle(e) {
 function renderByStyle() {
   let url = g1.url.parse(`${nlg_base}/renderall`)
   url.update(styleparams)
-  $.getJSON(url.toString()).done(
-    (e) => {
-      $(`#previewspan`).html(e.render)
-      styleparams = e.style
-    }
-  )
+  $.getJSON(url.toString()).done((e) => {
+    $(`#previewspan`).html(e.render)
+    styleparams = e.style
+  })
 }
 
 function makeControlDroppable(elem, ondrop) {
@@ -263,7 +271,7 @@ function refreshTemplates() {
   // Refresh the output of all templates in the current narrative.
   templates = []
   $.getJSON(`${nlg_base}/narratives`).done((e) => {
-    for (let i=0; i<e.length;i++) {
+    for (let i=0; i<e.narrative.length;i++) {
       refreshTemplate(i)
     }
   })
@@ -317,24 +325,37 @@ function addName() {
   }
 }
 
+
+function renderLiveNarrative(divid, nname, selector='.formhandler') {
+  let elem = $(selector)
+  if (elem.length > 0) {
+    elem.on('load', (e) => {
+      $.post(
+        `${nlg_base}/render-live-template`,
+        JSON.stringify({
+          data: e.formdata,
+          nrid: nname}),
+        (f) => {$(divid).html(f)}
+      )
+    })
+  } else {
+    let url = g1.url.parse(`${nlg_base}/renderall`)
+    url.update(styleparams)
+    $.getJSON(url.toString()).done((e) => {
+      $(divid).html(e.render)
+    })
+  }
+}
+
 function getNarrativeEmbedCode() {
   // Generate embed code for this narrative.
-  let nlg_path = g1.url.parse(window.location.href).pathname
   let html = `
     <div id="narrative-result"></div>
+    <script src="${nlg_base}/nlg.js"></script>
     <script>
-      $('.formhandler').on('load',
-        (e) => {
-          $.post("${nlg_path}render-live-template",
-            JSON.stringify({
-              data: e.formdata,
-              nrid: "${narrative_name}", style: true
-            }), (f) => $("#narrative-result").html(f)
-          )
-        }
-      )
-    </script>
-    `
+      var nlg_base = "${nlg_base}"
+      renderLiveNarrative("#narrative-result", "${narrative_name}")
+    </script>`
   return html
 }
 

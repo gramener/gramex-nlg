@@ -29,7 +29,7 @@
           </button>
         </div>
         <div class="modal-body">
-          <form id="nlg-init-form" action="{{ nlg_base }}/initform?next={{ nlg_base }}"
+          <form id="nlg-init-form" action="{{ nlg_base }}/initform?next=."
           method="POST" enctype="multipart/form-data">
             <div class="row">
               <div class="col">
@@ -187,6 +187,9 @@
         <div id="embed-body" class="modal-body">
           <textarea readonly id="embedCodeText" class="text-monospace" rows="15" cols="80"></textarea>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" id="embedDemo">See Demo</button>
+        </div>
       </div>
     </div>
   </div>
@@ -263,6 +266,7 @@
     $('#embedCodeText').val(getNarrativeEmbedCode())
     $('#embed-modal').modal({show: true})
   })
+  .on('click', '#embedDemo', openDemoPage)
   .on('click', '#boldpreview', toggleRenderStyle)
   .on('click', '#italicpreview', toggleRenderStyle)
   .on('click', '#ulinepreview', toggleRenderStyle)
