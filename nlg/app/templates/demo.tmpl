@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>GramexNLG Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="ui/bootstraptheme.css">
+</head>
+
+<body>
+  <div class="container-fluid">
+    <div id="narrative-result"></div>
+    <div class="divider"></div>
+    <div class="formhandler" data-src="{{ handler.get_argument('fh_url') }}"></div>
+  </div>
+</body>
+
+<script src="ui/jquery/dist/jquery.min.js"></script>
+<script src="ui/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="ui/lodash/lodash.min.js"></script>
+<script src="ui/g1/dist/g1.min.js"></script>
+<script src="./nlg.js"></script>
+<script>
+  {% from gramex.config import variables %}
+  {% set nlg_base = variables['NLG_BASE'].rstrip('/') %}
+  var nlg_base = "{{ nlg_base }}"
+  $('.formhandler').formhandler()
+  renderLiveNarrative("#narrative-result", "{{ handler.get_argument('nname') }}")
+</script>
+
+
+</html>

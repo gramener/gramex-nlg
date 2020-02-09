@@ -5,6 +5,7 @@
 #   within the NLG app.
 variables:
   NLG_AUTH: /$YAMLURL/login/
+  NLG_BASE: /$YAMLURL/
 
 import:
   ui:
@@ -15,6 +16,14 @@ import:
     YAMLURL: $YAMLURL/languagetool/
 
 url:
+  demo-embed-$*:
+    pattern: /$YAMLURL/demoembed
+    handler: FileHandler
+    kwargs:
+      path: $YAMLPATH/templates/demo.tmpl
+      template: true
+      headers:
+        Cache-Control: no-store
   move-nuggets-$*:
     pattern: /$YAMLURL/movenugget/(\d+)/(\d+)
     handler: FunctionHandler
