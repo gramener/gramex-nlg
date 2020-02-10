@@ -271,22 +271,19 @@ function refreshTemplates() {
   // Refresh the output of all templates in the current narrative.
   templates = []
   $.getJSON(`${nlg_base}/narratives`).done((e) => {
-    for (let i=0; i<e.narrative.length;i++) {
-      refreshTemplate(i)
+    if (e.narrative.length > 0) {
+      for (let i=0; i<e.narrative.length;i++) {
+        refreshTemplate(i)
+      }
+    } else {
+      renderPreview(null)
     }
   })
 }
 
 function deleteTemplate(n) {
   // Delete a template
-  $.getJSON(`${nlg_base}/nuggets/${n}?delete`).done((e) => {
-    templates = []
-    for (i=0; i<e.length; i++) {
-      templates[i] = new Template(e[i])
-      $('#tmpl-setting-preview').html(templates[i].previewHTML())
-    }
-    renderPreview(null)
-  })
+  $.getJSON(`${nlg_base}/nuggets/${n}?delete`).done(refreshTemplates)
 }
 
 function triggerTemplateSettings(sentid) {
