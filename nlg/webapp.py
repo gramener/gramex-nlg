@@ -142,7 +142,7 @@ def get_nugget(handler):
     nugget_id = int(handler.path_args[0])
     if 'delete' in handler.args:
         del NARRATIVE_CACHE[handler.current_user.id][nugget_id]
-        return json.dumps(NARRATIVE_CACHE[handler.current_user.id].to_dict())
+        return NARRATIVE_CACHE[handler.current_user.id].to_dict()
     else:
         nugget = NARRATIVE_CACHE[handler.current_user.id][nugget_id]
         nugget = nugget.to_dict()
@@ -200,8 +200,11 @@ def render_narrative(handler):
     narrative = NARRATIVE_CACHE.get(handler.current_user.id, False)
     if narrative:
         style_kwargs = get_style_kwargs(handler.args)
-        return {'render': narrative.to_html(**style_kwargs, df=orgdf),
-                'style': narrative.html_style}
+        pl = {'render': narrative.to_html(**style_kwargs, df=orgdf),
+              'style': narrative.html_style}
+    else:
+        pl = {'render': '', 'style': Narrative.default_style}
+    return pl
 
 
 def get_original_df(handler):
