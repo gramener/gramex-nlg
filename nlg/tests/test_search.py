@@ -107,6 +107,8 @@ class TestSearch(unittest.TestCase):
     def setUpClass(cls):
         fpath = op.join(op.dirname(__file__), "data", "actors.csv")
         cls.df = pd.read_csv(fpath, encoding='utf-8')
+        fpath = op.join(op.dirname(__file__), "data", "imdb_ratings.csv")
+        cls.imdb = pd.read_csv(fpath, encoding='utf-8')
 
     def test_dfsearches(self):
         x = search.DFSearchResults()
@@ -118,7 +120,6 @@ class TestSearch(unittest.TestCase):
         x['hello'] = 'underworld'
         self.assertDictEqual(x, {'hello': ['world', 'underworld']})
 
-    # @unittest.skip("Temporary")
     def test_search_args(self):
         args = utils.sanitize_fh_args({"_sort": ["-votes"]}, self.df)
         doc = nlp("James Stewart is the top voted actor.")
@@ -145,9 +146,7 @@ class TestSearch(unittest.TestCase):
                                  "type": "token"}})
 
     def test_templatize(self):
-        fpath = op.join(op.dirname(__file__), "data", "actors.csv")
-        df = pd.read_csv(fpath, encoding='utf-8')
-        df.sort_values("votes", ascending=False, inplace=True)
+        df = self.df.sort_values("votes", ascending=False)
         df.reset_index(inplace=True, drop=True)
 
         doc = nlp("""
@@ -190,7 +189,6 @@ class TestSearch(unittest.TestCase):
         )
 
     def test_search_sort(self):
-
         results = [
             {'tmpl': 'df.loc[0, "name"]', 'type': 'ne', 'location': 'cell'},
             {'tmpl': 'df.columns[0]', 'type': 'token', 'location': 'colname'},
@@ -236,16 +234,22 @@ class TestSearch(unittest.TestCase):
         self.assertEqual(variable.template, '{{ df["name"].iloc[0] }}')
 
     def test_literal_search(self):
-        df = pd.read_csv(
-            op.join(op.dirname(__file__), 'data', 'imdb_ratings.csv'), encoding='utf8')
         texts = ['How I Met Your Mother', 'Sherlock', 'Dexter', 'Breaking Bad']
         for t in texts:
             doc = nlp(t)
-            nugget = search.templatize(doc, {}, df)
+            nugget = search.templatize(doc, {}, self.imdb)
             self.assertEqual(len(nugget.tokenmap), 1)
             for token, variable in nugget.tokenmap.items():
                 self.assertEqual(token.text, t)
                 self.assertRegex(nugget.template, r'{{ df\["name"\].iloc\[-*\d+\] }}')
+
+    def test_search_short_strings(self):
+        # Check strings that are shorter than the max length of the df,
+        # but still not a literal match
+        nugget = search.templatize(nlp('Dexter is a good show'), {}, self.imdb)
+        self.assertEqual(len(nugget.tokenmap), 1)
+        token, variable = nugget.tokenmap.popitem()
+        self.assertRegex(variable.enabled_source['tmpl'], r'df\["name"\].iloc\[-*\d+\]')
 
 
 if __name__ == "__main__":
