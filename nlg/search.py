@@ -46,9 +46,12 @@ def _sort_search_results(items, priorities=SEARCH_PRIORITIES):
         Prioritized search results - for each {token: search_matches} pair, sort
         search_matches such that a higher priority search result is enabled.
     """
-    match_ix = [[p.items() <= item.items() for p in priorities] for item in items]
-    min_match = [m.index(True) for m in match_ix]
-    items[min_match.index(min(min_match))]['enabled'] = True
+    if len(items) > 1:
+        match_ix = [[p.items() <= item.items() for p in priorities] for item in items]
+        min_match = [m.index(True) for m in match_ix]
+        items[min_match.index(min(min_match))]['enabled'] = True
+    else:
+        items[0]['enabled'] = True
     return items
 
 
@@ -230,6 +233,7 @@ class DFSearch(object):
             the source dataframe, and values are a list of locations in the df
             where they are found.
         """
+        self.search_nes(text)
         if len(text.text) <= _df_maxlen(self.df):
             for i in _text_search_array(text.text, self.df.columns):
                 self.results[text] = {'location': 'colname', 'tmpl': colname_fmt.format(i),
@@ -242,7 +246,6 @@ class DFSearch(object):
                     'type': 'doc'}
 
         else:
-            self.search_nes(text)
             for token, ix in self.search_columns(text, **kwargs).items():
                 ix = utils.sanitize_indices(self.df.shape, ix, 1)
                 self.results[token] = {'location': 'colname', 'tmpl': colname_fmt.format(ix),
