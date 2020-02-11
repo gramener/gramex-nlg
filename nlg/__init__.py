@@ -1,6 +1,6 @@
 import sys
 
-__version__ = '0.1.2rc1'
+__version__ = '0.1.2'
 
 try:
     __NLG_SETUP__
