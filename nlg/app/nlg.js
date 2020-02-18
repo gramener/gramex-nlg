@@ -308,6 +308,7 @@ function setInitialConfig() {
   // At page ready, load the latest config for the authenticated user
   // and show it.
   $.getJSON(`${nlg_base}/initconf`).done((e) => {
+    narrative_name = e.nrid
     refreshTemplates()
     Object.assign(styleparams, e.style)
     activateStyleControl()
