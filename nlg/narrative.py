@@ -379,6 +379,8 @@ class Nugget(object):
             token = self.doc[token]
         elif isinstance(token, (list, tuple)):
             token = self.doc.char_span(*token)
+        if any([token in c for c in self.tokenmap if isinstance(c, (Span, Doc))]):
+            raise ValueError('Token is already contained in another variable.')
         source = [{'tmpl': expr, 'type': 'user', 'enabled': True}]
         self.tokenmap[token] = Variable(token, sources=source, varname=varname)
 

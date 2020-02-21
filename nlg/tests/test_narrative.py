@@ -33,7 +33,7 @@ class TestNarrative(unittest.TestCase):
 
     def test_nugget_variables(self):
         varnames = set([c.text for c in self.nugget.variables])
-        self.assertSetEqual(varnames, {'James Stewart', 'actor'})
+        self.assertSetEqual(varnames, {'James Stewart', 'actor', 'rating'})
 
     def test_nugget_get_var(self):
         with self.assertRaises(KeyError):
@@ -66,12 +66,14 @@ class TestNarrative(unittest.TestCase):
 
     def test_add_var(self):
         var = self.nugget.get_var('actor')
-        org_exp = var.enabled_source['tmpl']
         var_token, var_exp = self.text[-2], 'fh_args["_sort"][0]'
-
+        payload = self.nugget.to_dict()
+        for k in self.nugget.tokenmap:
+            if k.text == 'rating':
+                break
+        del self.nugget.tokenmap[k]
         try:
             var.set_expr('df["category"].iloc[0]')
-
             self.nugget.add_var(var_token, expr=var_exp)
 
             # sort by votes
@@ -94,9 +96,7 @@ class TestNarrative(unittest.TestCase):
             self.assertEqual(rendered.lstrip().decode('utf8'),
                              'Ingrid Bergman is the actress with the highest rating.')
         finally:
-            var.set_expr(org_exp)
-            if var_token in self.nugget.tokenmap:
-                del self.nugget.tokenmap[var_token]
+            self.nugget = Nugget.from_json(payload)
 
     def test_serialize(self):
         pl = self.nugget.to_dict()
@@ -104,6 +104,16 @@ class TestNarrative(unittest.TestCase):
         self.assertDictEqual(pl['fh_args'], {'_sort': ['-rating']})
         tokenmap = pl['tokenmap']
         ideal = [
+            {
+                'text': 'rating', 'index': (8, 9), 'idx': 44,
+                'sources': [
+                    {
+                        'location': 'colname', 'tmpl': 'df.columns[2]', 'type': 'ne',
+                        'enabled': True
+                    }
+                ],
+                'varname': '', 'inflections': []
+            },
             {
                 'index': (0, 2), 'idx': 0, 'text': 'James Stewart',
                 'sources': [
@@ -118,7 +128,7 @@ class TestNarrative(unittest.TestCase):
                 'index': 4, 'idx': 21, 'text': 'actor',
                 'sources': [
                     {
-                        'location': 'cell', 'tmpl': 'df["category"].iloc[-2]', 'type': 'token',
+                        'location': 'cell', 'tmpl': 'df["category"].iloc[0]', 'type': 'token',
                         'enabled': True
                     }
                 ],
@@ -129,6 +139,9 @@ class TestNarrative(unittest.TestCase):
                 ]
             }
         ]
+        tokenmap = sorted(tokenmap, key=lambda x: x['text'])
+        ideal = sorted(ideal, key=lambda x: x['text'])
+        from ipdb import set_trace; set_trace()  # NOQA
         self.assertListEqual(ideal, tokenmap)
 
     def test_deserialize(self):
@@ -161,8 +174,8 @@ class TestNarrative(unittest.TestCase):
         actual = narrative.to_html(df=self.df)
         actual = re.sub(r'\s+', ' ', actual)
         ideal = ' <strong>James Stewart</strong> is the <strong>actor</strong> ' \
-            + 'with the highest rating. <strong>Katharine Hepburn</strong> is ' \
-            + 'the <strong>actress</strong> with the least rating.'
+            + 'with the highest <strong>rating</strong>. <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least <strong>rating</strong>.'
         self.assertEqual(ideal, actual)
 
         # test other options
@@ -193,8 +206,9 @@ class TestNarrative(unittest.TestCase):
         actual = narrative.to_html(style='list', df=self.df)
         actual = re.sub(r'\s+', ' ', actual)
         ideal = '<ul><li> <strong>James Stewart</strong> is the <strong>actor</strong> ' \
-            + 'with the highest rating.</li><li> <strong>Katharine Hepburn</strong> is ' \
-            + 'the <strong>actress</strong> with the least rating.</li></ul>'
+            + 'with the highest <strong>rating</strong>.' \
+            + '</li><li> <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least <strong>rating</strong>.</li></ul>'
         self.assertEqual(actual, ideal)
 
         actual = narrative.to_html(bold=False, style='list', liststyle='markdown', df=self.df)

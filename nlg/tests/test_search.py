@@ -11,6 +11,7 @@ import re
 import unittest
 
 import pandas as pd
+from spacy.tokens import Span
 from tornado.template import Template
 
 from nlg import search, utils
@@ -248,8 +249,21 @@ class TestSearch(unittest.TestCase):
         # but still not a literal match
         nugget = search.templatize(nlp('Dexter is a good show'), {}, self.imdb)
         self.assertEqual(len(nugget.tokenmap), 1)
-        token, variable = nugget.tokenmap.popitem()
+        _, variable = nugget.tokenmap.popitem()
         self.assertRegex(variable.enabled_source['tmpl'], r'df\["name"\].iloc\[-*\d+\]')
+
+    def test_token_span_overlap(self):
+        df = pd.DataFrame([('Technology', 1, 3), ('Furniture', 2, 2), ('Office Supplies', 3, 1)])
+        df.columns = ['Category', 'Number', 'Sales']
+        text = nlp('Technology has the highest sales, followed by furniture and office supplies.')
+        dfs = search.DFSearch(df)
+        results = dfs.search(text)
+        results.clean()
+        self.assertEqual(len(results), 3)
+        self.assertIn('Technology', [c.text for c in results])
+        for k in results:
+            if k.text == 'Technology':
+                self.assertTrue(isinstance(k, Span))
 
 
 if __name__ == "__main__":
