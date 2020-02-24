@@ -25,7 +25,7 @@ class TestWebApp(TestCase):
     def test_preview_html(self):
         html = '<span style="background-color:#c8f442" class="cursor-pointer">{}</span>'
         ideal = html.format("James Stewart") + " is the "
-        ideal += html.format('actor') + " with the highest rating."
+        ideal += html.format('actor') + " with the highest " + html.format('rating') + '.'
         template = self.nugget.to_dict()
         self.assertEqual(app.get_preview_html(template, True), ideal)
 
@@ -41,7 +41,7 @@ class TestWebApp(TestCase):
     def test_preview_html_noninteractive(self):
         html = '<span style="background-color:#c8f442">{}</span>'
         ideal = html.format("James Stewart") + " is the "
-        ideal += html.format('actor') + " with the highest rating."
+        ideal += html.format('actor') + " with the highest " + html.format('rating') + "."
         template = self.nugget.to_dict()
         self.assertEqual(app.get_preview_html(template), ideal)
 

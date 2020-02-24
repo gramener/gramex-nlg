@@ -308,6 +308,7 @@ function setInitialConfig() {
   // At page ready, load the latest config for the authenticated user
   // and show it.
   $.getJSON(`${nlg_base}/initconf`).done((e) => {
+    narrative_name = e.nrid
     refreshTemplates()
     Object.assign(styleparams, e.style)
     activateStyleControl()
@@ -322,27 +323,28 @@ function addName() {
   }
 }
 
-
-function renderLiveNarrative(divid, nname, selector='.formhandler') {
-  let elem = $(selector)
-  if (elem.length > 0) {
-    elem.on('load', (e) => {
-      $.post(
-        `${nlg_base}/render-live-template`,
-        JSON.stringify({
-          data: e.formdata,
-          nrid: nname}),
-        (f) => {$(divid).html(f)}
-      )
-    })
-  } else {
-    let url = g1.url.parse(`${nlg_base}/renderall`)
-    url.update(styleparams)
-    $.getJSON(url.toString()).done((e) => {
-      $(divid).html(e.render)
-    })
-  }
+function embedNarrative(url, nname, selector) {
+  renderLiveNarrative(url, nname, selector)
+  $(window).on('#?', function (e, fh_args) {
+    let xurl = g1.url.parse(url).join(fh_args).toString()
+    renderLiveNarrative(xurl, nname, selector)
+  }).urlchange()
 }
+
+
+function renderLiveNarrative(url, nname, selector) {
+  $.getJSON(url).done((e) => {
+    $.post(
+      `${nlg_base}/render-live-template`,
+      JSON.stringify({
+        data: e,
+        nrid: nname
+      }),
+      (f) => {$(selector).html(f)}
+    )
+  })
+}
+
 
 function getNarrativeEmbedCode() {
   // Generate embed code for this narrative.
@@ -351,7 +353,8 @@ function getNarrativeEmbedCode() {
     <script src="${nlg_base}/nlg.js"></script>
     <script>
       var nlg_base = "${nlg_base}"
-      renderLiveNarrative("#narrative-result", "${narrative_name}")
+      // NOTE: Replace fh_url below with the formhandler URL.
+      embedNarrative(fh_url, "${narrative_name}", "#narrative-result")
     </script>`
   return html
 }

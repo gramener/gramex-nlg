@@ -27,19 +27,18 @@ class TestNarrative(unittest.TestCase):
     def setUpClass(cls):
         cls.df = pd.read_csv(op.join(op.dirname(__file__), "data", "actors.csv"),
                              encoding='utf8')
-        fh_args = {'_sort': ['-rating']}
         cls.text = nlp('James Stewart is the actor with the highest rating.')
-        cls.nugget = templatize(cls.text, fh_args, cls.df)
+        cls.nugget = templatize(cls.text, {'_sort': ['-rating']}, cls.df)
 
     def test_nugget_variables(self):
         varnames = set([c.text for c in self.nugget.variables])
-        self.assertSetEqual(varnames, {'James Stewart', 'actor'})
+        self.assertSetEqual(varnames, {'James Stewart', 'actor', 'rating'})
 
     def test_nugget_get_var(self):
         with self.assertRaises(KeyError):
             self.nugget.get_var('James Stewart')
         var = self.nugget.get_var('actor')
-        self.assertEqual(str(var), '{{ G.singular(df["category"].iloc[-2]).lower() }}')
+        self.assertEqual(str(var), '{{ G.singular(df["category"].iloc[0]).lower() }}')
 
     def test_nugget_render(self):
         df = self.df
@@ -53,50 +52,42 @@ class TestNarrative(unittest.TestCase):
 
     def test_set_expr(self):
         var = self.nugget.get_var('actor')
-        org_exp = var.enabled_source['tmpl']
-        try:
-            var.set_expr('df["category"].iloc[0]')
-            self.assertEqual(str(var), '{{ G.singular(df["category"].iloc[0]).lower() }}')
-            xdf = self.df[self.df['category'] == 'Actresses']
-            rendered = self.nugget.render(xdf)
-            self.assertEqual(rendered.lstrip().decode('utf8'),
-                             'Ingrid Bergman is the actress with the highest rating.')
-        finally:
-            var.set_expr(org_exp)
+        var.set_expr('df["category"].iloc[0]')
+        self.assertEqual(str(var), '{{ G.singular(df["category"].iloc[0]).lower() }}')
+        xdf = self.df[self.df['category'] == 'Actresses']
+        rendered = self.nugget.render(xdf)
+        self.assertEqual(rendered.lstrip().decode('utf8'),
+                         'Ingrid Bergman is the actress with the highest rating.')
 
     def test_add_var(self):
         var = self.nugget.get_var('actor')
-        org_exp = var.enabled_source['tmpl']
         var_token, var_exp = self.text[-2], 'fh_args["_sort"][0]'
+        for k in self.nugget.tokenmap:
+            if k.text == 'rating':
+                break
+        del self.nugget.tokenmap[k]
+        var.set_expr('df["category"].iloc[0]')
+        self.nugget.add_var(var_token, expr=var_exp)
 
-        try:
-            var.set_expr('df["category"].iloc[0]')
+        # sort by votes
+        self.nugget.fh_args = {'_sort': ['-votes']}
+        rendered = self.nugget.render(self.df)
+        self.assertEqual(rendered.lstrip().decode('utf8'),
+                         'Spencer Tracy is the actor with the highest votes.')
+        xdf = self.df[self.df['category'] == 'Actresses']
+        rendered = self.nugget.render(xdf)
+        self.assertEqual(rendered.lstrip().decode('utf8'),
+                         'Audrey Hepburn is the actress with the highest votes.')
 
-            self.nugget.add_var(var_token, expr=var_exp)
-
-            # sort by votes
-            self.nugget.fh_args = {'_sort': ['-votes']}
-            rendered = self.nugget.render(self.df)
-            self.assertEqual(rendered.lstrip().decode('utf8'),
-                             'Spencer Tracy is the actor with the highest votes.')
-            xdf = self.df[self.df['category'] == 'Actresses']
-            rendered = self.nugget.render(xdf)
-            self.assertEqual(rendered.lstrip().decode('utf8'),
-                             'Audrey Hepburn is the actress with the highest votes.')
-
-            # Set the ratings back
-            self.nugget.fh_args = {'_sort': ['-rating']}
-            rendered = self.nugget.render(self.df)
-            self.assertEqual(rendered.lstrip().decode('utf8'),
-                             'James Stewart is the actor with the highest rating.')
-            xdf = self.df[self.df['category'] == 'Actresses']
-            rendered = self.nugget.render(xdf)
-            self.assertEqual(rendered.lstrip().decode('utf8'),
-                             'Ingrid Bergman is the actress with the highest rating.')
-        finally:
-            var.set_expr(org_exp)
-            if var_token in self.nugget.tokenmap:
-                del self.nugget.tokenmap[var_token]
+        # Set the ratings back
+        self.nugget.fh_args = {'_sort': ['-rating']}
+        rendered = self.nugget.render(self.df)
+        self.assertEqual(rendered.lstrip().decode('utf8'),
+                         'James Stewart is the actor with the highest rating.')
+        xdf = self.df[self.df['category'] == 'Actresses']
+        rendered = self.nugget.render(xdf)
+        self.assertEqual(rendered.lstrip().decode('utf8'),
+                         'Ingrid Bergman is the actress with the highest rating.')
 
     def test_serialize(self):
         pl = self.nugget.to_dict()
@@ -104,6 +95,16 @@ class TestNarrative(unittest.TestCase):
         self.assertDictEqual(pl['fh_args'], {'_sort': ['-rating']})
         tokenmap = pl['tokenmap']
         ideal = [
+            {
+                'text': 'rating', 'index': 8, 'idx': 44,
+                'sources': [
+                    {
+                        'tmpl': 'fh_args["_sort"][0]', 'type': 'user',
+                        'enabled': True
+                    }
+                ],
+                'varname': '', 'inflections': []
+            },
             {
                 'index': (0, 2), 'idx': 0, 'text': 'James Stewart',
                 'sources': [
@@ -118,7 +119,7 @@ class TestNarrative(unittest.TestCase):
                 'index': 4, 'idx': 21, 'text': 'actor',
                 'sources': [
                     {
-                        'location': 'cell', 'tmpl': 'df["category"].iloc[-2]', 'type': 'token',
+                        'location': 'cell', 'tmpl': 'df["category"].iloc[0]', 'type': 'token',
                         'enabled': True
                     }
                 ],
@@ -129,6 +130,8 @@ class TestNarrative(unittest.TestCase):
                 ]
             }
         ]
+        tokenmap = sorted(tokenmap, key=lambda x: x['text'])
+        ideal = sorted(ideal, key=lambda x: x['text'])
         self.assertListEqual(ideal, tokenmap)
 
     def test_deserialize(self):
@@ -161,8 +164,8 @@ class TestNarrative(unittest.TestCase):
         actual = narrative.to_html(df=self.df)
         actual = re.sub(r'\s+', ' ', actual)
         ideal = ' <strong>James Stewart</strong> is the <strong>actor</strong> ' \
-            + 'with the highest rating. <strong>Katharine Hepburn</strong> is ' \
-            + 'the <strong>actress</strong> with the least rating.'
+            + 'with the highest <strong>rating</strong>. <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least <strong>rating</strong>.'
         self.assertEqual(ideal, actual)
 
         # test other options
@@ -193,8 +196,9 @@ class TestNarrative(unittest.TestCase):
         actual = narrative.to_html(style='list', df=self.df)
         actual = re.sub(r'\s+', ' ', actual)
         ideal = '<ul><li> <strong>James Stewart</strong> is the <strong>actor</strong> ' \
-            + 'with the highest rating.</li><li> <strong>Katharine Hepburn</strong> is ' \
-            + 'the <strong>actress</strong> with the least rating.</li></ul>'
+            + 'with the highest <strong>rating</strong>.' \
+            + '</li><li> <strong>Katharine Hepburn</strong> is ' \
+            + 'the <strong>actress</strong> with the least <strong>rating</strong>.</li></ul>'
         self.assertEqual(actual, ideal)
 
         actual = narrative.to_html(bold=False, style='list', liststyle='markdown', df=self.df)

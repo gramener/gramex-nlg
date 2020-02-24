@@ -340,7 +340,9 @@ def get_init_config(handler):
     if op.isfile(metapath):
         with open(metapath, 'r') as fout:  # NOQA: no encoding for JSON
             meta = json.load(fout)
-        config_file = op.join(user_dir, meta.get('nrid', ''))
+        narrative_file = meta.get('nrid', '')
+        narrative_name = op.splitext(narrative_file)[0]
+        config_file = op.join(user_dir, narrative_file)
         if op.isfile(config_file):
             with open(config_file, 'r') as fout:  # NOQA: no encoding for JSON
                 meta['config'] = json.load(fout)
@@ -349,7 +351,9 @@ def get_init_config(handler):
             NARRATIVE_CACHE[handler.current_user.id] = \
                 Narrative.from_json(meta['config'])
             app_log.debug('Initial config loaded from {}'.format(config_file))
-            return {'style': NARRATIVE_CACHE[handler.current_user.id].html_style}
+            return {
+                'style': NARRATIVE_CACHE[handler.current_user.id].html_style,
+                'nrid': narrative_name}
     return {}
 
 

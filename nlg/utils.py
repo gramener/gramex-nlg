@@ -119,7 +119,8 @@ def is_overlap(x, y):
     elif 'NUM' in [c.pos_ for c in x]:
         return False
     if len(y) > 1:
-        return any([x.text in yy.text for yy in y])
+        if isinstance(x, Token):
+            return any([x.text in yy.text for yy in y])
     y = y.pop()
     if isinstance(x, (Token, Span)) and isinstance(y, Doc):
         return x.doc == y

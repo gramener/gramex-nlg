@@ -24,9 +24,10 @@
 <script>
   {% from gramex.config import variables %}
   {% set nlg_base = variables['NLG_BASE'].rstrip('/') %}
-  var nlg_base = "{{ nlg_base }}"
   $('.formhandler').formhandler()
-  renderLiveNarrative("#narrative-result", "{{ handler.get_argument('nname') }}")
+  var nlg_base = "{{ nlg_base }}"
+  var url = $('.formhandler').attr('data-src')
+  embedNarrative(url, "{{ handler.get_argument('nname') }}", '#narrative-result')
 </script>
 
 
