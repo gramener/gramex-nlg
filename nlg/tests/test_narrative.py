@@ -20,19 +20,6 @@ from nlg.utils import load_spacy_model
 op = os.path
 nlp = load_spacy_model()
 
-"""
-test_add_var (nlg.tests.test_narrative.TestNarrative) ... ok
-test_deserialize (nlg.tests.test_narrative.TestNarrative) ... ok
-test_doc_serialize (nlg.tests.test_narrative.TestNarrative) ... ok
-test_narrative_html (nlg.tests.test_narrative.TestNarrative) ... ok
-test_nugget_get_var (nlg.tests.test_narrative.TestNarrative) ... FAIL
-test_nugget_render (nlg.tests.test_narrative.TestNarrative) ... ok
-test_nugget_variables (nlg.tests.test_narrative.TestNarrative) ... ok
-test_parastyle (nlg.tests.test_narrative.TestNarrative) ... ok
-test_serialize (nlg.tests.test_narrative.TestNarrative) ... FAIL
-test_set_expr (nlg.tests.test_narrative.TestNarrative) ... ok
-"""
-
 
 class TestNarrative(unittest.TestCase):
 
