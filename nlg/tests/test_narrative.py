@@ -208,3 +208,15 @@ class TestNarrative(unittest.TestCase):
             '* Katharine Hepburn is the actress with the least rating.'
         ]
         self.assertListEqual(actual, ideal)
+
+    def test_condition(self):
+        try:
+            self.nugget.condition = 'df["category"].nunique() == 2'
+            actual = self.nugget.render(self.df)
+            self.assertEqual(actual.lstrip().rstrip(),
+                             b'James Stewart is the actor with the highest rating.')
+            xdf = self.df[self.df['category'] == 'Actors']
+            actual = self.nugget.render(xdf)
+            self.assertRegexpMatches(actual.decode('utf8'), r'^\s*$')
+        finally:
+            self.nugget.condition = None

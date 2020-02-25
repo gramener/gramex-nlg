@@ -135,7 +135,15 @@ def set_variable_settings_tmpl(handler):
 
 def get_nugget_settings_tmpl(handler):
     nugget = get_nugget(handler)
-    return tmpl_loader.load("template-settings.tmpl").generate(template=nugget)
+    nugget_id = int(handler.path_args[0])
+    nlg_base = variables['NLG_BASE'].rstrip('/')
+    return tmpl_loader.load("template-settings.tmpl").generate(
+        template=nugget, nugget_id=nugget_id, nlg_base=nlg_base)
+
+
+def add_condition(handler):
+    nugget = NARRATIVE_CACHE[handler.current_user.id][int(handler.path_args[0])]
+    nugget.condition = handler.args['condition'][0]
 
 
 def get_nugget(handler):
