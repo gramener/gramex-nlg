@@ -118,6 +118,12 @@ url:
       transform:
         "index.html":
           function: template
+  nlg-condition-$*:
+    pattern: /$YAMLURL/condition/(\d+)
+    handler: FunctionHandler
+    kwargs:
+      function: nlg.webapp.add_condition
+      xsrf_cookies: false
   nlg-data-selector-$*:
     pattern: /$YAMLURL/initform
     handler: FunctionHandler

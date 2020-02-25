@@ -5,6 +5,15 @@
       <p class="card-text" id="tmpl-setting-preview">{{ xhtml_unescape(template['previewHTML']) }}</p>
     </div>
   </div>
+  <form id="condtform" class="form-inline" action="{{ nlg_base }}/condition/{{ nugget_id }}" method="POST" enctype="multipart/form-data">
+    <div class="form-group mb-2">
+      <label for="condition">Add Condition</label>
+      <input name="condition" type="text" class="form-control" id="condition" placeholder="{{ template['condition'] }}">
+    </div>
+    <button form="condtform" type="submit" class="btn btn-primary mb-2">Okay</button>
+  </form>
+
+
   <div class="divider"></div>
   <div id="variable-settings"></div>
   <div class="divider"></div>
@@ -39,4 +48,11 @@
   }
   $('#toggle-template').on('click', toggleTemplateDisplay)
   $('#preview-render').on('click', previewRender)
+  $('#condtform').submit((e) => {
+    e.preventDefault();
+    $.post(
+      $('#condtform').attr('action'),
+      $('#condtform').serialize()
+    )
+  })
 </script>
