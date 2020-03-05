@@ -48,8 +48,9 @@ def new_variable_tmpl(handler):
     nugget = NARRATIVE_CACHE[handler.current_user.id][nugget_id]
     start, end = map(int, variable_ix.split(','))
     span = nugget.doc.text[start:end]
+    nlg_base = variables['NLG_BASE'].rstrip('/')
     return tmpl_loader.load("new-variable.tmpl").generate(
-        nugget_id=nugget_id, text=span, variable_ix=variable_ix)
+        nugget_id=nugget_id, text=span, variable_ix=variable_ix, nlg_base=nlg_base)
 
 
 def add_new_variable(handler):
