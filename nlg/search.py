@@ -540,8 +540,8 @@ def templatize(text, args, df):
 
     Parameters
     ----------
-    text : spacy.tokens.Doc
-        Input document
+    text : str
+        Input text
     args : dict
         Formhandler arguments
     df : pd.DataFrame
