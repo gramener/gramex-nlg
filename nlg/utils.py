@@ -36,11 +36,11 @@ def _locate_app_config():
     return op.join(op.dirname(__file__), 'app', 'gramex.yaml')
 
 
-def load_spacy_model():
+def load_spacy_model(model='en_core_web_sm'):
     """Load the spacy model when required."""
     if not _spacy['model']:
         from spacy import load
-        nlp = load('en_core_web_sm')
+        nlp = load(model)
         _spacy['model'] = nlp
     else:
         nlp = _spacy['model']
@@ -109,21 +109,44 @@ class set_nlg_gramopt(object):  # noqa: class to be used as a decorator
         return func
 
 
+def _get_charlim(x):
+    if isinstance(x, Token):
+        left = x.idx
+    elif isinstance(x, Span):
+        left = x[0].idx
+    elif isinstance(x, Doc):
+        left = 0
+    right = left + len(x.text)
+    return left, right
+
+
 def is_overlap(x, y):
-    """Whether the token x is contained within any span in the sequence y."""
+    """Whether the is contained within any span in the sequence y."""
+    # if len(y) == 0:
+    #     return False
+    # if isinstance(x, Token):
+    #     if x.pos_ == "NUM" and x.is_digit:
+    #         return False
+    # elif len(x) > 1 and 'NUM' in [c.pos_ for c in x]:
+    #     return False
+    # if len(y) > 1:
+    #     if isinstance(x, Token):
+    #         return any([x.text in yy.text for yy in y])
+    # y = y.pop()
+    # if isinstance(x, (Token, Span)) and isinstance(y, Doc):
+    #     return x.doc == y
+    # return False
     if len(y) == 0:
         return False
-    if isinstance(x, Token):
-        if x.pos_ == "NUM":
-            return False
-    elif 'NUM' in [c.pos_ for c in x]:
-        return False
-    if len(y) > 1:
-        if isinstance(x, Token):
-            return any([x.text in yy.text for yy in y])
-    y = y.pop()
-    if isinstance(x, (Token, Span)) and isinstance(y, Doc):
-        return x.doc == y
+    if len(y) == 1:
+        doc = y.pop()
+        if isinstance(doc, Doc):
+            return x.doc == doc
+    xleft, xright = _get_charlim(x)
+    for span in y:
+        yleft, yright = _get_charlim(span)
+        if xleft >= yleft and xright <= yright:
+            return True
     return False
 
 
@@ -138,7 +161,7 @@ def unoverlap(tokens):
     return [textmap[t] for t in newtokens]
 
 
-def ner(doc, matcher, match_ids=False, remove_overlap=True):
+def ner(doc, matcher=None, match_ids=False, remove_overlap=True):
     """Find all NEs and other nouns in a spacy doc.
 
     Parameters
@@ -157,6 +180,8 @@ def ner(doc, matcher, match_ids=False, remove_overlap=True):
     list
         List of spacy.token.span.Span objects.
     """
+    if not matcher:
+        matcher = make_np_matcher(load_spacy_model())
     entities = set()
     for span in doc.ents:
         newtokens = [c for c in span if not c.is_space]
@@ -223,6 +248,8 @@ def sanitize_fh_args(args, df):
     if '_sort' in args:
         sort, _ = _filter_sort_columns(args['_sort'], columns)
         res['_sort'] = [c[0] for c in sort]
+    if '_limit' in args:
+        res['_limit'] = args['_limit']
     return res
 
 

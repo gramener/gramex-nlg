@@ -11,7 +11,7 @@ import re
 import unittest
 
 import pandas as pd
-from spacy.tokens import Span
+from spacy.tokens import Token
 from tornado.template import Template
 
 from nlg import search, utils
@@ -263,7 +263,17 @@ class TestSearch(unittest.TestCase):
         self.assertIn('Technology', [c.text for c in results])
         for k in results:
             if k.text == 'Technology':
-                self.assertTrue(isinstance(k, Span))
+                self.assertTrue(isinstance(k, Token))
+
+    def test_search_quant(self):
+        text = nlp('''
+            Spencer Tracy, Cary Grant and James Stewart are the top three candidates
+            for the highest votes, with Spencer Tracy getting one hundred and ninety two votes.''')
+        nugget = search.templatize(text, {'_sort': ['-votes'], '_limit': [3]}, self.df)
+        self.assertEqual(str(nugget.get_var('three')), "{{ fh_args['_limit'][0] }}")
+        self.assertEqual(
+            str(nugget.get_var('one hundred and ninety two')),
+            '{{ df["votes"].iloc[0] }}')
 
 
 if __name__ == "__main__":

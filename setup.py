@@ -32,8 +32,9 @@ PROJECT_URLS = {
 install_requires = [
     'gramex',
     'humanize',
+    'numerizer',
     'inflect',
-    'spacy==2.1.8',
+    'spacy',
 ]
 
 # Setup

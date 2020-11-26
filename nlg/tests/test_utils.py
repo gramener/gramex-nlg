@@ -79,6 +79,17 @@ class TestUtils(unittest.TestCase):
         doc = nlp(text)
         self.assertEqual(utils.infer_quant(doc[-2]), 3.14)  # noqa: E912
 
+    def test_is_overlap(self):
+        doc = nlp('One hundred and forty two.')
+        spans = utils.ner(doc, matcher=matcher, remove_overlap=False)
+        for span in spans:
+            # Every span except the longest should overlap with the set of all spans.
+            if span.text != 'One hundred and forty two':
+                self.assertTrue(utils.is_overlap(span, spans))
+        ents = utils.ner(doc, matcher=matcher)
+        self.assertEqual(len(ents), 1)
+        self.assertEqual(ents[0].text, doc.text[:-1])
+
 
 if __name__ == "__main__":
     unittest.main()

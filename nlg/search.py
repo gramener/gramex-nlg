@@ -9,6 +9,7 @@ from itertools import chain
 import warnings
 
 import numpy as np
+from numerizer import numerize
 import pandas as pd
 from tornado.template import Template
 
@@ -70,10 +71,10 @@ def _preprocess_array_search(text, array, literal=False, case=False, lemmatize=T
         literal, lemmatize = False, True
 
     if literal:  # ignore every other flag else
-        tokens = pd.Series([c.text for c in text], index=text)
+        tokens = pd.Series([numerize(c.text) for c in text], index=text)
 
     elif lemmatize:
-        tokens = pd.Series([c.lemma_ for c in text], index=text)
+        tokens = pd.Series([numerize(c.lemma_) for c in text], index=text)
         if array.ndim == 1:
             array = array.map(nlp)
             array = pd.Series([token.lemma_ for doc in array for token in doc])
@@ -182,7 +183,7 @@ class DFSearchResults(dict):
         # unoverlap the keys
         to_remove = []
         for k in self:
-            to_search = self.keys() - {k}
+            to_search = self.keys() - {k} - set(to_remove)
             if utils.is_overlap(k, to_search):
                 to_remove.append(k)
         for i in to_remove:
@@ -306,7 +307,7 @@ class DFSearch(object):
             significant digits before searching.
         """
         dfclean = utils.sanitize_df(self.df, nround)
-        qarray = np.array([c.text for c in quants])
+        qarray = np.array([c.text if c.is_digit else numerize(c.text) for c in quants])
         quants = np.array(quants)
         n_quant = qarray.astype('float').round(nround)
         for x, y in zip(*dfclean.isin(n_quant).values.nonzero()):
@@ -389,13 +390,15 @@ def _search_fh_args(entities, args, key, lemmatized):
     if not colnames:
         return {}
     nlp = utils.load_spacy_model()
-    argtokens = list(chain(*[nlp(c) for c in colnames]))
+    argtokens = list(chain(*[nlp(str(c)) for c in colnames]))
     res = {}
     for i, token in enumerate(argtokens):
         for ent in entities:
             if lemmatized and (token.lemma_ == ent.lemma_):
                 match = True
             elif token.text == ent.text:
+                match = True
+            elif numerize(ent.text) == token.text:
                 match = True
             else:
                 match = False
@@ -419,8 +422,12 @@ def _search_select(entities, args, lemmatized=True):
     return _search_fh_args(entities, args, key='_c', lemmatized=lemmatized)
 
 
+def _search_limit(entities, args, lemmatized=True):
+    return _search_fh_args(entities, args, key='_limit', lemmatized=lemmatized)
+
+
 def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
-                argkeys=('_sort', '_by', '_c')):
+                argkeys=('_sort', '_by', '_c', '_limit')):
     """
     Search formhandler arguments provided as URL query parameters.
 
@@ -457,6 +464,7 @@ def search_args(entities, args, lemmatized=True, fmt='fh_args["{}"][{}]',
     search_res.update(_search_groupby(entities, args, lemmatized=lemmatized))
     search_res.update(_search_sort(entities, args, lemmatized=lemmatized))
     search_res.update(_search_select(entities, args, lemmatized=lemmatized))
+    search_res.update(_search_limit(entities, args, lemmatized=lemmatized))
     return search_res
 
 
@@ -565,6 +573,7 @@ def templatize(text, args, df):
     The iris dataset has 3 {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
 {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}.
     """
+    args = args.copy()
     dfix, clean_text, infl = _search(text, args, df)
     return narrative.Nugget(clean_text, dfix, infl, args)
 

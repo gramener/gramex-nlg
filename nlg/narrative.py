@@ -256,6 +256,10 @@ class Nugget(object):
             for token in self.doc:
                 if token.text == t:
                     variable = self.tokenmap.get(token, False)
+            if not variable:
+                for k, v in self.tokenmap.items():
+                    if k.text == t:
+                        variable = v
         else:
             if isinstance(t, int):
                 token = self.doc[t]
