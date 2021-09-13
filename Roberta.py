@@ -15,6 +15,7 @@ def make_commit(days: int):
       os.system('git add data.txt')
       # os.sendline("testing")
       os.system(mess[num])
+      os.system('git push')
       return days * make_commit(days-1)
 
 make_commit(4)
