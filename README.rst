@@ -16,7 +16,7 @@ The library:
 3. Renders these templates as a unified narrative.
 
 Installation
-------------
+-----------
 
 The NLG library can be installed from PyPI as follows:
 
