@@ -33,6 +33,7 @@ install_requires = [
     'gramex',
     'humanize',
     'inflect',
+    'numerizer',
     'spacy==2.1.8',
 ]
 

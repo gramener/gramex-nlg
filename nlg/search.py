@@ -15,6 +15,9 @@ from tornado.template import Template
 from nlg import grammar
 from nlg import narrative
 from nlg import utils
+from numerizer import numerize
+
+nlp = utils.load_spacy_model()
 
 SEARCH_PRIORITIES = [
     # {'type': 'doc'},
@@ -537,8 +540,8 @@ def templatize(text, args, df):
 
     Parameters
     ----------
-    text : spacy.tokens.Doc
-        Input document
+    text : str
+        Input text
     args : dict
         Formhandler arguments
     df : pd.DataFrame
@@ -565,6 +568,7 @@ def templatize(text, args, df):
     The iris dataset has 3 {{ df.columns[0] }} - {{ df["species"].iloc[0] }}, \
 {{ df["species"].iloc[1] }} and {{ df["species"].iloc[-1] }}.
     """
+    text = nlp(numerize(str(text)))
     dfix, clean_text, infl = _search(text, args, df)
     return narrative.Nugget(clean_text, dfix, infl, args)
 
