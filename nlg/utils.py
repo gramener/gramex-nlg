@@ -221,7 +221,7 @@ def sanitize_fh_args(args, df):
         selected, _ = _filter_select_columns(args['_c'], columns, meta)
         res['_c'] = [c[0] for c in selected]
     if '_sort' in args:
-        sort, _ = _filter_sort_columns(args['_sort'], columns)
+        sort = _filter_sort_columns(args, columns, meta)
         res['_sort'] = [c[0] for c in sort]
     return res
 
